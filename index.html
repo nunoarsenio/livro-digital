@@ -144,6 +144,16 @@ mark{background:var(--hl);color:#1C2733;border-radius:2px;padding:0 .1em}
 .sep{width:1px;background:var(--line);margin:.25rem .15rem}
 .editor{min-height:50vh;outline:none;padding:.2rem 0;caret-color:var(--blue)}
 .editor:empty::before{content:attr(data-ph);color:var(--muted);font-style:italic}
+.editor img{cursor:pointer}
+.editor img.sel{outline:3px solid var(--blue);outline-offset:2px}
+.imgbar{position:absolute;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:.2rem;max-width:calc(100% - 1rem);padding:.3rem;background:var(--page);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);font:500 .82rem var(--ui)}
+.imgbar button{border:0;background:transparent;color:var(--ink);padding:.35rem .5rem;border-radius:5px;cursor:pointer;font:inherit}
+.imgbar button:hover{background:var(--hover)}
+.imgbar button.on{background:var(--hl-soft);font-weight:700}
+.imgbar input[type=range]{width:6.5rem;accent-color:var(--blue)}
+.imgbar .pct{min-width:2.6rem;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;margin-right:.2rem}
+.imgbar .rm{color:var(--margin)}
+.imgh{position:absolute;z-index:6;width:16px;height:16px;background:var(--blue);border:2px solid var(--page);border-radius:3px;cursor:nwse-resize;touch-action:none}
 .status{font-size:.82rem;color:var(--muted);margin-top:1.5rem}
 
 .empty{max-width:30rem;padding:5rem 2rem 2rem 5rem}
@@ -241,6 +251,7 @@ function walk(node){
       const keep = (tag === 'A' && n === 'href' && /^(https?:|mailto:|#)/i.test(v))
         || (tag === 'IMG' && n === 'src' && /^data:image\//i.test(v))
         || (tag === 'IMG' && n === 'alt')
+        || (tag === 'IMG' && n === 'style' && /^\s*width:\s*\d{1,3}(\.\d+)?%;?\s*$/i.test(v))
         || (tag === 'DIV' && n === 'class' && v === 'nota')
         || ((tag === 'TD' || tag === 'TH') && (n === 'colspan' || n === 'rowspan'));
       if (!keep) ch.removeAttribute(n);
@@ -494,7 +505,7 @@ const TOOLBAR = TB.map(b => b ? `<button type="button" data-cmd="${b[0]}" title=
 
 function renderMain(){
   const m = $('#main');
-  edRef = null;
+  edRef = null; selImg = null;
   if (loading) { m.innerHTML = '<div class="empty"><p>A carregar a matéria…</p></div>'; return; }
   if (!cur && loadError) { m.innerHTML = '<div class="empty"><h1>Não foi possível carregar a matéria.</h1><p>Verifica a ligação à internet e volta a abrir o separador.</p></div>'; return; }
   if (!cur) {
@@ -542,7 +553,8 @@ function bindEditor(x){
   const ed = $('#ed');
   edRef = { el: ed, node: x.n, dirty: false };
   try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
-  ed.addEventListener('input', () => { edRef.dirty = true; saveSoon(); });
+  ed.addEventListener('input', () => { edRef.dirty = true; saveSoon(); if (selImg && !ed.contains(selImg)) deselectImg(); else placeImgUi(); });
+  ed.addEventListener('click', e => { if (e.target.tagName === 'IMG') selectImg(e.target); else deselectImg(); });
   ed.addEventListener('paste', e => {
     e.preventDefault();
     const cd = e.clipboardData, html = cd.getData('text/html');
@@ -595,6 +607,74 @@ async function cmd(c){
   edRef.dirty = true; saveSoon();
 }
 
+/* ---------- Redimensionar imagens ---------- */
+let selImg = null;
+function imgPct(img){
+  const m = (img.style.width || '').match(/([\d.]+)%/);
+  if (m) return Math.round(+m[1]);
+  const ed = $('#ed');
+  return Math.max(10, Math.min(100, Math.round(img.getBoundingClientRect().width / ed.clientWidth * 100)));
+}
+function setImgPct(img, p){
+  img.style.width = Math.max(10, Math.min(100, Math.round(p))) + '%';
+  img.removeAttribute('width'); img.removeAttribute('height');
+  if (edRef) { edRef.dirty = true; saveSoon(); }
+  placeImgUi();
+}
+function selectImg(img){
+  if (selImg && selImg !== img) selImg.classList.remove('sel');
+  selImg = img; img.classList.add('sel');
+  const sheet = $('.sheet');
+  if (!$('#imgbar')) {
+    const b = document.createElement('div');
+    b.id = 'imgbar'; b.className = 'imgbar'; b.setAttribute('role', 'toolbar'); b.setAttribute('aria-label', 'Tamanho da imagem');
+    b.innerHTML = [25, 50, 75, 100].map(p => `<button type="button" data-p="${p}">${p}%</button>`).join('')
+      + '<input type="range" min="10" max="100" step="1" aria-label="Largura da imagem"><span class="pct"></span><button type="button" class="rm" data-rm>Remover</button>';
+    sheet.appendChild(b);
+    b.addEventListener('mousedown', e => { if (e.target.tagName === 'BUTTON') e.preventDefault(); });
+    b.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t || !selImg) return;
+      if ('rm' in t.dataset) { const img = selImg; deselectImg(); img.remove(); edRef.dirty = true; saveSoon(); return; }
+      setImgPct(selImg, +t.dataset.p);
+    });
+    b.querySelector('input').addEventListener('input', e => { if (selImg) setImgPct(selImg, +e.target.value); });
+    const h = document.createElement('div');
+    h.id = 'imgh'; h.className = 'imgh'; h.title = 'Arrasta para redimensionar';
+    sheet.appendChild(h);
+    h.addEventListener('pointerdown', startImgDrag);
+  }
+  placeImgUi();
+}
+function deselectImg(){
+  if (selImg) selImg.classList.remove('sel');
+  selImg = null;
+  ['#imgbar', '#imgh'].forEach(id => { const el = $(id); if (el) el.remove(); });
+}
+function placeImgUi(){
+  const b = $('#imgbar'), h = $('#imgh'), sheet = $('.sheet');
+  if (!b || !h || !selImg || !sheet) return;
+  const sr = sheet.getBoundingClientRect(), ir = selImg.getBoundingClientRect();
+  b.style.left = Math.max(0, ir.left - sr.left) + 'px';
+  b.style.top = Math.max(0, ir.top - sr.top - b.offsetHeight - 8) + 'px';
+  h.style.left = (ir.right - sr.left - 9) + 'px';
+  h.style.top = (ir.bottom - sr.top - 9) + 'px';
+  const p = imgPct(selImg);
+  b.querySelector('input').value = p;
+  b.querySelector('.pct').textContent = p + '%';
+  b.querySelectorAll('[data-p]').forEach(x => x.classList.toggle('on', +x.dataset.p === p));
+}
+function startImgDrag(e){
+  if (!selImg) return;
+  e.preventDefault();
+  const h = e.currentTarget, ed = $('#ed');
+  const x0 = e.clientX, w0 = selImg.getBoundingClientRect().width, W = ed.clientWidth;
+  h.setPointerCapture(e.pointerId);
+  const mv = ev => { selImg.style.width = Math.max(10, Math.min(100, Math.round((w0 + ev.clientX - x0) / W * 100))) + '%'; placeImgUi(); };
+  const up = () => { h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); edRef.dirty = true; saveSoon(); };
+  h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+}
+window.addEventListener('resize', placeImgUi);
+
 function readImg(file){
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -619,6 +699,8 @@ async function insertImage(f){
     if (pendingRange) restore(ed, pendingRange); else ensureSel(ed);
     document.execCommand('insertHTML', false, `<img src="${data}" alt="">`);
     edRef.dirty = true; saveSoon();
+    const added = [...ed.querySelectorAll('img')].find(i => i.src === data);
+    if (added) (added.complete ? selectImg(added) : added.addEventListener('load', () => selectImg(added), { once: true }));
   } catch (e) { toast('Não foi possível ler a imagem. Experimenta um ficheiro JPG ou PNG.'); }
 }
 $('#file').addEventListener('change', () => {
