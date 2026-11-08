@@ -47,7 +47,7 @@ body{height:100%;margin:0;background:var(--side);color:var(--ink);font-family:va
 :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 button,input,select,textarea{font-family:inherit}
 
-.app{display:grid;grid-template-columns:19rem 1fr;grid-template-rows:1fr;height:100%}
+.app{display:grid;grid-template-columns:20.5rem 1fr;grid-template-rows:1fr;height:100%}
 .top{display:none}
 
 /* Índice */
@@ -65,34 +65,36 @@ button,input,select,textarea{font-family:inherit}
 .tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:600 .84rem var(--ui);padding:.4rem .3rem;border-radius:6px;cursor:pointer}
 .tabs button[aria-pressed="true"]{background:var(--page);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
 #tree{flex:1;overflow:auto;padding:.2rem .6rem 1rem}
-.tree,.subs,.results{list-style:none;margin:0;padding:0}
-.t{margin-bottom:.15rem}
+.tree,.results{list-style:none;margin:0;padding:0}
+.tree>li{margin-bottom:.25rem}
 .row{display:flex;align-items:center;gap:.1rem;border-radius:6px}
-.row a{flex:1;display:flex;gap:.5rem;align-items:baseline;padding:.45rem .5rem;color:var(--ink);text-decoration:none;font-size:.95rem;line-height:1.35;border-radius:6px;min-width:0}
+.row a{flex:1;display:flex;gap:.5rem;align-items:baseline;padding:.42rem .5rem;color:var(--ink);text-decoration:none;font-size:.93rem;line-height:1.35;border-radius:6px;min-width:0}
 .row a:hover{background:var(--hover)}
-.t>.row a{font-weight:600}
+.lv-m>.row a{font-weight:700;font-size:.97rem}
+.lv-t>.row a{font-weight:600}
+.lv-s>.row a{font-weight:400;font-size:.9rem}
 .row.cur a{background:var(--hl-soft);font-weight:700}
-.n{color:var(--margin);font-variant-numeric:tabular-nums;font-weight:600;min-width:1.5rem;flex:none}
-.subs .n{min-width:2.1rem}
+.n{color:var(--margin);font-variant-numeric:tabular-nums;font-weight:600;min-width:1.7rem;flex:none}
+.lv-t .n{min-width:2.1rem}
+.lv-s .n{min-width:2.7rem}
 .tt{overflow-wrap:anywhere;flex:1}
 .chk{color:var(--ok);flex:none;align-self:center}
 .badge{flex:none;align-self:center;font:700 .68rem/1 var(--ui);padding:.22rem .38rem;border-radius:4px;background:var(--hl);color:#1C2733}
 .badge.sched{background:var(--line);color:var(--ink);font-weight:600}
-.exp,.exp-sp{width:1.6rem;height:1.6rem;flex:none}
+.exp,.exp-sp{width:1.5rem;height:1.6rem;flex:none}
 .exp{border:0;background:none;color:var(--muted);border-radius:4px;display:grid;place-items:center;cursor:pointer;padding:0}
 .exp:hover{background:var(--hover);color:var(--ink)}
 .exp svg{transition:transform .15s ease}
-.t.open>.row .exp svg{transform:rotate(90deg)}
-.subs{display:none;padding-left:1.7rem}
-.t.open>.subs{display:block}
-.subs .row a{font-size:.92rem;font-weight:400}
+.open>.row .exp svg{transform:rotate(90deg)}
+.kids{display:none;list-style:none;margin:0;padding-left:1rem}
+.open>.kids{display:block}
 .tools{display:flex;gap:1px;flex:none}
 .tools button{width:1.6rem;height:1.6rem;border:0;background:none;color:var(--muted);border-radius:4px;display:grid;place-items:center;cursor:pointer;padding:0}
 .tools button:hover{background:var(--hover);color:var(--ink)}
 .tools .del:hover{color:var(--margin)}
 .add{border:0;background:none;color:var(--blue);font:500 .88rem var(--ui);padding:.4rem .5rem;cursor:pointer;border-radius:6px}
 .add:hover{background:var(--hover)}
-.add-topic{margin:.4rem 0 0 1.7rem}
+.add-mod{margin:.5rem 0 0 1.5rem}
 .gl-link{display:flex;gap:.5rem;margin:.8rem 0 0;padding:.5rem .5rem .5rem 2.2rem;border-top:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:.95rem;border-radius:0 0 6px 6px}
 .gl-link:hover{background:var(--hover)}
 .gl-link.cur{background:var(--hl-soft);font-weight:700}
@@ -410,26 +412,35 @@ function normQuiz(arr){
     return { ...q, q: String(q.q), opts, ok, exp: String(q.exp || '') };
   }).filter(q => q.opts.length >= 2);
 }
-function normNode(n, isTopic){
+const KIDS = { m: 'topics', t: 'subs' }, CHILD = { m: 't', t: 's' };
+function normNode(n, kind){
   const o = { ...n, id: safeId(n.id), title: String(n.title || ''), html: clean(String(n.html || '')), quiz: normQuiz(n.quiz) };
   if (o.from && !/^\d{4}-\d{2}-\d{2}$/.test(o.from)) delete o.from;
   if (typeof o.updated !== 'number') delete o.updated;
-  if (isTopic) o.subs = (Array.isArray(n.subs) ? n.subs : []).map(s => normNode(s, false)); else delete o.subs;
+  delete o.topics; delete o.subs;
+  if (KIDS[kind]) o[KIDS[kind]] = (Array.isArray(n[KIDS[kind]]) ? n[KIDS[kind]] : []).map(c => normNode(c, CHILD[kind]));
   return o;
 }
 function normalize(o){
-  if (!o || !Array.isArray(o.topics)) throw new Error('formato');
-  return {
+  if (!o || typeof o !== 'object') throw new Error('formato');
+  let mods;
+  if (Array.isArray(o.modules)) mods = o.modules;
+  /* Versões anteriores (sem módulos): os tópicos passam para dentro de um primeiro módulo */
+  else if (Array.isArray(o.topics)) mods = o.topics.length ? [{ id: 'modulo-1', title: 'Módulo 1', html: '', topics: o.topics }] : [];
+  else throw new Error('formato');
+  const out = {
     ...o,
     title: String(o.title || 'Livro sem título'),
-    topics: o.topics.map(t => normNode(t, true)),
+    modules: mods.map(m => normNode(m, 'm')),
     glossary: (Array.isArray(o.glossary) ? o.glossary : []).filter(g => g && g.term).map(g => ({ ...g, id: safeId(g.id), term: String(g.term).trim(), def: String(g.def || '') }))
   };
+  delete out.topics;
+  return out;
 }
 
 /* ---------- Estado, rascunho e publicação ---------- */
 const DRAFT = 'livro-rascunho-v1', TOKEN = 'livro-github-chave', MINE = 'livro-pessoal-v1';
-let book = { title: 'Livro Digital', topics: [], glossary: [] };
+let book = { title: 'Livro Digital', modules: [], glossary: [] };
 let cur = null, mode = 'read', q = '', sideView = 'index', edRef = null, saveTimer = null, pendingRange = null, wantTitleFocus = false;
 let dirty = false, pending = false, loading = true, loadError = false, inTeams = false, canEdit = true, publishing = false, printJob = null;
 const open = new Set();
@@ -535,21 +546,37 @@ saveMine();
 /* ---------- Páginas visíveis e navegação ---------- */
 const isVisible = n => canEdit || !n.from || n.from <= todayStr();
 const isScheduled = n => n.from && n.from > todayStr();
+const KIND_NAME = { m: 'módulo', t: 'tópico', s: 'subtópico' };
+const dispNum = x => x.kind === 'm' ? 'M' + x.num : x.num;
 function nodes(){
   const out = [];
-  book.topics.forEach((t, i) => {
-    if (!isVisible(t)) return;
-    out.push({ n: t, t, kind: 't', num: String(i + 1) });
-    t.subs.forEach((s, j) => { if (isVisible(s)) out.push({ n: s, t, kind: 's', num: `${i + 1}.${j + 1}` }); });
+  book.modules.forEach((m, i) => {
+    if (!isVisible(m)) return;
+    out.push({ n: m, kind: 'm', num: String(i + 1), anc: [] });
+    m.topics.forEach((t, j) => {
+      if (!isVisible(t)) return;
+      out.push({ n: t, kind: 't', num: `${i + 1}.${j + 1}`, anc: [m] });
+      t.subs.forEach((s, k) => { if (isVisible(s)) out.push({ n: s, kind: 's', num: `${i + 1}.${j + 1}.${k + 1}`, anc: [m, t] }); });
+    });
   });
   return out;
 }
 const get = id => nodes().find(x => x.n.id === id);
-function parentArr(id){
-  if (book.topics.some(t => t.id === id)) return book.topics;
-  for (const t of book.topics) if (t.subs.some(s => s.id === id)) return t.subs;
+/* Onde está um elemento: lista que o contém, posição, nível e pai */
+function locate(id){
+  for (let i = 0; i < book.modules.length; i++) {
+    const m = book.modules[i];
+    if (m.id === id) return { arr: book.modules, idx: i, kind: 'm', parent: null };
+    for (let j = 0; j < m.topics.length; j++) {
+      const t = m.topics[j];
+      if (t.id === id) return { arr: m.topics, idx: j, kind: 't', parent: m };
+      const k = t.subs.findIndex(s => s.id === id);
+      if (k >= 0) return { arr: t.subs, idx: k, kind: 's', parent: t };
+    }
+  }
   return null;
 }
+const kidsOf = n => n.topics || n.subs || [];
 function newState(n){
   if (canEdit) return null;
   const from = n.from ? Date.parse(n.from + 'T00:00:00') : 0;
@@ -561,10 +588,10 @@ function route(){
   const id = decodeURIComponent(location.hash.slice(1));
   printJob = null;
   if (id === 'glossario') { cur = 'glossario'; return; }
-  if (id.startsWith('imprimir-')) { const t = book.topics.find(x => x.id === id.slice(9) && isVisible(x)); if (t) { cur = t.id; printJob = t.id; return; } }
+  if (id.startsWith('imprimir-')) { const x = get(id.slice(9)); if (x && x.kind !== 's') { cur = x.n.id; printJob = x.n.id; return; } }
   const all = nodes();
   cur = all.some(x => x.n.id === id) ? id : (all[0] ? all[0].n.id : null);
-  if (cur) open.add(get(cur).t.id);
+  if (cur) { const x = get(cur); x.anc.forEach(a => open.add(a.id)); if (x.kind === 'm') open.add(x.n.id); }
 }
 function go(id){
   flushNow(); closeDrawer();
@@ -624,36 +651,29 @@ function renderTree(){
   if (sideView === 'marks' && !edit) {
     const ms = nodes().filter(x => mine.marks[x.n.id]);
     tree.innerHTML = ms.length
-      ? '<ol class="results">' + ms.map(x => `<li class="res"><a href="#${x.n.id}"><span class="rt"><span class="n">${x.num}</span><span>${label(x.n)}</span></span></a></li>`).join('') + '</ol>'
+      ? '<ol class="results">' + ms.map(x => `<li class="res"><a href="#${x.n.id}"><span class="rt"><span class="n">${dispNum(x)}</span><span>${label(x.n)}</span></span></a></li>`).join('') + '</ol>'
       : '<p class="noresult">Ainda não marcaste nenhuma página. Abre uma página e carrega em «Marcar».</p>';
     return;
   }
-  const vis = book.topics.map((t, i) => ({ t, i })).filter(x => isVisible(x.t));
-  let h = '';
-  if (!vis.length) h = edit ? '' : '<p class="noresult">Ainda não há tópicos.</p>';
-  else {
-    h = '<ol class="tree">';
-    vis.forEach(({ t, i }) => {
-      const subs = t.subs.map((s, j) => ({ s, j })).filter(x => isVisible(x.s));
-      const isOpen = edit || open.has(t.id);
-      const ac = cur === t.id ? ' aria-current="page"' : '';
-      h += `<li class="t${isOpen ? ' open' : ''}"><div class="row${cur === t.id ? ' cur' : ''}">`;
-      h += (subs.length && !edit) ? `<button class="exp" data-exp="${t.id}" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Esconder' : 'Mostrar'} subtópicos">${CHEV}</button>` : '<span class="exp-sp"></span>';
-      h += `<a href="#${t.id}"${ac}><span class="n">${i + 1}</span><span class="tt">${label(t)}</span>${marksFor(t)}</a>${edit ? tools(t.id) : ''}</div>`;
-      if (subs.length || edit) {
-        h += '<ol class="subs">';
-        subs.forEach(({ s, j }) => {
-          const sc = cur === s.id ? ' aria-current="page"' : '';
-          h += `<li><div class="row${cur === s.id ? ' cur' : ''}"><a href="#${s.id}"${sc}><span class="n">${i + 1}.${j + 1}</span><span class="tt">${label(s)}</span>${marksFor(s)}</a>${edit ? tools(s.id) : ''}</div></li>`;
-        });
-        if (edit) h += `<li><button class="add" data-addsub="${t.id}">+ Subtópico</button></li>`;
-        h += '</ol>';
-      }
-      h += '</li>';
-    });
-    h += '</ol>';
-  }
-  if (edit) h += '<button class="add add-topic" data-addtopic>+ Novo tópico</button>';
+  const ADD = { m: '+ Tópico', t: '+ Subtópico' };
+  const item = (n, kind, num) => {
+    const kids = KIDS[kind] ? n[KIDS[kind]].map((c, i) => ({ c, num: `${num}.${i + 1}` })).filter(y => isVisible(y.c)) : [];
+    const canOpen = KIDS[kind] && (kids.length || edit);
+    const isOpen = canOpen && open.has(n.id);
+    const shown = kind === 'm' ? 'M' + num : num;
+    let h = `<li class="lv-${kind}${isOpen ? ' open' : ''}"><div class="row${cur === n.id ? ' cur' : ''}">`;
+    h += canOpen ? `<button class="exp" data-exp="${n.id}" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Esconder' : 'Mostrar'} conteúdo">${CHEV}</button>` : '<span class="exp-sp"></span>';
+    h += `<a href="#${n.id}"${cur === n.id ? ' aria-current="page"' : ''}><span class="n">${shown}</span><span class="tt">${label(n)}</span>${marksFor(n)}</a>${edit ? tools(n.id) : ''}</div>`;
+    if (canOpen) {
+      h += '<ol class="kids">' + kids.map(y => item(y.c, CHILD[kind], y.num)).join('');
+      if (edit) h += `<li><button class="add" data-add="${CHILD[kind]}" data-parent="${n.id}">${ADD[kind]}</button></li>`;
+      h += '</ol>';
+    }
+    return h + '</li>';
+  };
+  const mods = book.modules.map((m, i) => ({ m, num: String(i + 1) })).filter(y => isVisible(y.m));
+  let h = mods.length ? '<ol class="tree">' + mods.map(y => item(y.m, 'm', y.num)).join('') + '</ol>' : (edit ? '' : '<p class="noresult">Ainda não há matéria.</p>');
+  if (edit) h += '<button class="add add-mod" data-add="m">+ Novo módulo</button>';
   if (edit || book.glossary.length) h += `<a class="gl-link${cur === 'glossario' ? ' cur' : ''}" href="#glossario">Glossário${book.glossary.length ? ` (${book.glossary.length})` : ''}</a>`;
   tree.innerHTML = h;
 }
@@ -667,7 +687,7 @@ function renderResults(){
   nodes().forEach(x => {
     const title = x.n.title || '', text = plain(x.n.html);
     const ix = norm(text).indexOf(nq);
-    if (norm(title).includes(nq) || ix >= 0) res.push({ id: x.n.id, num: x.num, title, text, ix });
+    if (norm(title).includes(nq) || ix >= 0) res.push({ id: x.n.id, num: dispNum(x), title, text, ix });
   });
   book.glossary.forEach(g => { const t = g.term + ': ' + g.def; const ix = norm(t).indexOf(nq); if (ix >= 0) res.push({ id: 'glossario', num: '', title: 'Glossário: ' + g.term, text: g.def, ix: norm(g.def).indexOf(nq) }); });
   const tree = $('#tree');
@@ -714,18 +734,19 @@ function renderMain(){
   if (!cur && loadError) { m.innerHTML = '<div class="empty"><h1>Não foi possível carregar a matéria.</h1><p>Verifica a ligação à internet e volta a abrir o separador.</p></div>'; return; }
   if (!cur) {
     m.innerHTML = canEdit
-      ? `<div class="empty"><h1>Este livro ainda não tem matéria.</h1><p>Cria o primeiro tópico para começar a escrever.</p><button class="btn" id="firstBtn">Criar o primeiro tópico</button></div>`
+      ? `<div class="empty"><h1>Este livro ainda não tem matéria.</h1><p>Cria o primeiro módulo para começar a escrever.</p><button class="btn" id="firstBtn">Criar o primeiro módulo</button></div>`
       : '<div class="empty"><h1>Este livro ainda não tem matéria.</h1><p>Volta mais tarde.</p></div>';
-    if ($('#firstBtn')) $('#firstBtn').onclick = () => { mode = 'edit'; addTopic(); };
+    if ($('#firstBtn')) $('#firstBtn').onclick = () => { mode = 'edit'; addNode('m'); };
     return;
   }
   if (printJob) return renderPrint(m);
   const x = get(cur), all = nodes(), i = all.findIndex(y => y.n.id === cur);
-  const crumb = x.kind === 's' ? `<a href="#${x.t.id}">${x.num.split('.')[0]}. ${label(x.t)}</a>` : esc(book.title);
+  const crumb = x.anc.length ? x.anc.map(a => { const ax = get(a.id); return `<a href="#${a.id}">${ax ? dispNum(ax) : ''} ${label(a)}</a>`; }).join(' › ') : esc(book.title);
+  const shown = dispNum(x);
 
   if (mode === 'edit') {
     m.innerHTML = `<div class="sheet"><nav class="crumb">${crumb}</nav>
-      <div class="ttl"><span class="num">${x.num}</span><input id="ti" class="ttl-in" value="${esc(x.n.title)}" placeholder="Título ${x.kind === 't' ? 'do tópico' : 'do subtópico'}" aria-label="Título"></div>
+      <div class="ttl"><span class="num">${shown}</span><input id="ti" class="ttl-in" value="${esc(x.n.title)}" placeholder="Título do ${KIND_NAME[x.kind]}" aria-label="Título"></div>
       <div class="meta"><label for="from">Visível para os alunos a partir de</label><input type="date" id="from" value="${esc(x.n.from || '')}"><span>${x.n.from ? '' : '(sempre visível)'}</span></div>
       <div class="toolbar" role="toolbar" aria-label="Formatação">${TOOLBAR}</div>
       <div id="ed" class="content editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Conteúdo" data-ph="Escreve aqui a matéria…">${x.n.html}</div>
@@ -738,20 +759,20 @@ function renderMain(){
   }
 
   let body = x.n.html;
-  if (!plain(body) && !/<(img|div class="video"|table|pre)/i.test(body)) body = (x.kind === 't' && x.n.subs.some(isVisible)) ? '' : '<p class="vazio">Ainda sem conteúdo.</p>';
-  const visSubs = x.kind === 't' ? x.n.subs.map((s, j) => ({ s, j })).filter(y => isVisible(y.s)) : [];
-  const inthis = visSubs.length
-    ? `<section class="inthis"><h2>Neste tópico</h2><ol>${visSubs.map(({ s, j }) => `<li><a href="#${s.id}"><span class="n">${x.num}.${j + 1}</span><span>${label(s)}</span></a></li>`).join('')}</ol></section>` : '';
+  const visKids = KIDS[x.kind] ? kidsOf(x.n).map((c, j) => ({ c, j })).filter(y => isVisible(y.c)) : [];
+  if (!plain(body) && !/<(img|div class="video"|table|pre)/i.test(body)) body = visKids.length ? '' : '<p class="vazio">Ainda sem conteúdo.</p>';
+  const inthis = visKids.length
+    ? `<section class="inthis"><h2>Neste ${KIND_NAME[x.kind]}</h2><ol>${visKids.map(({ c, j }) => `<li><a href="#${c.id}"><span class="n">${x.num}.${j + 1}</span><span>${label(c)}</span></a></li>`).join('')}</ol></section>` : '';
   const prev = all[i - 1], next = all[i + 1];
-  const pager = `<nav class="pager" aria-label="Páginas">${prev ? `<a class="prev" href="#${prev.n.id}"><small>Anterior</small><span>${prev.num} ${label(prev.n)}</span></a>` : ''}${next ? `<a class="next" href="#${next.n.id}"><small>Seguinte</small><span>${next.num} ${label(next.n)}</span></a>` : ''}</nav>`;
+  const pager = `<nav class="pager" aria-label="Páginas">${prev ? `<a class="prev" href="#${prev.n.id}"><small>Anterior</small><span>${dispNum(prev)} ${label(prev.n)}</span></a>` : ''}${next ? `<a class="next" href="#${next.n.id}"><small>Seguinte</small><span>${dispNum(next)} ${label(next.n)}</span></a>` : ''}</nav>`;
   const marked = !!mine.marks[x.n.id], read = !!mine.read[x.n.id];
   const sched = canEdit && isScheduled(x.n) ? `<p class="sched-note">Os alunos só veem esta página a partir de ${fmtDate(x.n.from)}.</p>` : '';
   m.innerHTML = `<article class="sheet"><nav class="crumb">${crumb}</nav>
-    <h1 class="ttl"><span class="num">${x.num}</span>${label(x.n)}</h1>
+    <h1 class="ttl"><span class="num">${shown}</span>${label(x.n)}</h1>
     <div class="page-actions">
       <button class="link-btn${marked ? ' on' : ''}" id="markBtn" aria-pressed="${marked}">${STAR(marked)}${marked ? 'Marcada' : 'Marcar'}</button>
       <button class="link-btn" id="shareBtn">Copiar link</button>
-      <button class="link-btn" id="printBtn">Imprimir ${x.kind === 't' ? 'tópico' : 'o tópico'}</button>
+      <button class="link-btn" id="printBtn">Imprimir ${x.kind === 's' ? 'o tópico' : KIND_NAME[x.kind]}</button>
     </div>${sched}
     <div class="content" id="readContent">${body}</div>
     <section class="quiz" id="quiz" hidden></section>
@@ -765,7 +786,7 @@ function renderMain(){
   $('#readBtn').onclick = () => { if (mine.read[x.n.id]) delete mine.read[x.n.id]; else mine.read[x.n.id] = 1; saveMine(); renderProgress(); renderTree(); renderMain(); };
   $('#noteTa').addEventListener('input', e => { const v = e.target.value; if (v.trim()) mine.notes[x.n.id] = v; else delete mine.notes[x.n.id]; saveMine(); });
   $('#shareBtn').onclick = () => shareLink(x);
-  $('#printBtn').onclick = () => printTopic(x.t.id);
+  $('#printBtn').onclick = () => printTopic(x.kind === 's' ? x.anc[1].id : x.n.id);
   setTimeout(renderTree, 0);
 }
 
@@ -847,16 +868,19 @@ async function editTerm(id){
 
 /* ---------- Imprimir e partilhar ---------- */
 function printTopic(tid){
-  if (inTeams) { window.open(BASE + 'index.html#imprimir-' + tid, '_blank', 'noopener'); toast('O tópico abre no navegador, pronto a imprimir.'); return; }
+  if (inTeams) { window.open(BASE + 'index.html#imprimir-' + tid, '_blank', 'noopener'); toast('Abre no navegador, pronto a imprimir.'); return; }
   location.hash = 'imprimir-' + tid;
 }
 function renderPrint(m){
-  const ti = book.topics.findIndex(t => t.id === printJob), t = book.topics[ti];
-  const subs = t.subs.map((s, j) => ({ s, j })).filter(x => isVisible(x.s));
+  const x = get(printJob);
+  const part = (y, depth) => {
+    const tag = depth === 0 ? 'h1' : 'h2';
+    let h = `<section class="${depth ? 'print-sub' : ''}"><${tag} class="ttl"><span class="num">${dispNum(y)}</span>${label(y.n)}</${tag}><div class="content">${y.n.html}</div></section>`;
+    if (KIDS[y.kind]) kidsOf(y.n).forEach(c => { const cx = get(c.id); if (cx) h += part(cx, depth + 1); });
+    return h;
+  };
   m.innerHTML = `<article class="sheet"><div class="print-bar"><button class="btn" id="doPrint">Imprimir ou guardar em PDF</button><button class="btn ghost" id="backPrint">Voltar</button></div>
-    <p class="print-book">${esc(book.title)}</p>
-    <h1 class="ttl"><span class="num">${ti + 1}</span>${label(t)}</h1><div class="content">${t.html}</div>
-    ${subs.map(({ s, j }) => `<section class="print-sub"><h2 class="ttl"><span class="num">${ti + 1}.${j + 1}</span>${label(s)}</h2><div class="content">${s.html}</div></section>`).join('')}</article>`;
+    <p class="print-book">${esc(book.title)}${x.anc.length ? ' › ' + x.anc.map(a => label(a)).join(' › ') : ''}</p>${part(x, 0)}</article>`;
   m.querySelectorAll('.content').forEach(c => enhance(c, { print: true }));
   $('#doPrint').onclick = () => window.print();
   $('#backPrint').onclick = () => { location.hash = printJob; };
@@ -865,7 +889,7 @@ function renderPrint(m){
 async function shareLink(x){
   const url = BASE + 'index.html#' + x.n.id;
   if (inTeams) {
-    try { await microsoftTeams.pages.shareDeepLink({ subPageId: x.n.id, subPageLabel: `${x.num} ${x.n.title}`, subPageWebUrl: url }); return; } catch (e) {}
+    try { await microsoftTeams.pages.shareDeepLink({ subPageId: x.n.id, subPageLabel: `${dispNum(x)} ${x.n.title}`, subPageWebUrl: url }); return; } catch (e) {}
   }
   if (await copyText(url)) toast('Link copiado.');
   else ask({ title: 'Link para esta página', fields: [{ id: 'u', label: 'Copia o link', value: url }], ok: 'Fechar', cancel: 'Cancelar' });
@@ -948,6 +972,20 @@ const markDirty = () => { if (edRef) { edRef.dirty = true; saveSoon(); } };
 function prepEditor(ed){
   ed.querySelectorAll('.video[data-yt]').forEach(v => { v.contentEditable = 'false'; v.style.backgroundImage = `url(https://img.youtube.com/vi/${v.dataset.yt}/hqdefault.jpg)`; });
 }
+/* Insere um bloco (código, tabela, vídeo, nota) depois do parágrafo atual, sem o partir */
+function insertBlock(ed, html){
+  const s = getSelection();
+  let blk = s.rangeCount ? s.anchorNode : null;
+  blk = blk && (blk.nodeType === 1 ? blk : blk.parentElement);
+  while (blk && blk !== ed && blk.parentElement !== ed) blk = blk.parentElement;
+  const tpl = document.createElement('template'); tpl.innerHTML = html;
+  const last = tpl.content.lastElementChild;
+  if (!blk || blk === ed || !ed.contains(blk)) ed.append(tpl.content);
+  else if (!blk.textContent.trim() && !blk.querySelector('img,table,pre,.video')) blk.replaceWith(tpl.content);
+  else blk.after(tpl.content);
+  if (last) { const r = document.createRange(); r.selectNodeContents(last); r.collapse(true); s.removeAllRanges(); s.addRange(r); }
+  prepEditor(ed);
+}
 function inPre(){ const s = getSelection(); if (!s.rangeCount) return null; const n = s.anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement); return el && el.closest('pre'); }
 
 function bindEditor(x){
@@ -1012,13 +1050,13 @@ async function cmd(c){
     case 'bold': case 'italic': case 'underline': ex(c); break;
     case 'ul': ex('insertUnorderedList'); break;
     case 'ol': ex('insertOrderedList'); break;
-    case 'nota': ex('insertHTML', '<div class="nota"><p>Escreve aqui a nota.</p></div><p><br></p>'); break;
+    case 'nota': insertBlock(ed, '<div class="nota"><p>Escreve aqui a nota.</p></div><p><br></p>'); break;
     case 'clear': ex('removeFormat'); ex('unlink'); break;
     case 'code': {
       const txt = r.toString();
       const a = await ask({ title: 'Bloco de código', ok: 'Inserir', fields: [{ id: 'lang', label: 'Linguagem', type: 'select', value: 'bash', options: LANGS }] });
       restore(ed, r); if (!a) return;
-      ex('insertHTML', `<pre data-lang="${a.lang}"><code>${esc(txt || 'escreve aqui o código')}</code></pre><p><br></p>`);
+      insertBlock(ed, `<pre data-lang="${a.lang}"><code>${esc(txt || 'escreve aqui o código')}</code></pre><p><br></p>`);
       break;
     }
     case 'table': {
@@ -1032,7 +1070,7 @@ async function cmd(c){
       let h = '<table>';
       if (a.h) h += '<thead>' + row('th') + '</thead>';
       h += '<tbody>' + row('td').repeat(a.h ? Math.max(1, R - 1) : R) + '</tbody></table><p><br></p>';
-      ex('insertHTML', h);
+      insertBlock(ed, h);
       break;
     }
     case 'video': {
@@ -1040,8 +1078,7 @@ async function cmd(c){
       restore(ed, r); if (!a) return;
       const m = a.u.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([\w-]{11})/);
       if (!m) { toast('Esse link não parece ser de um vídeo do YouTube.'); return; }
-      ex('insertHTML', `<div class="video" data-yt="${m[1]}"></div><p><br></p>`);
-      prepEditor(ed);
+      insertBlock(ed, `<div class="video" data-yt="${m[1]}"></div><p><br></p>`);
       break;
     }
     case 'link': {
@@ -1223,41 +1260,49 @@ $('#file').addEventListener('change', () => {
   insertImage(f);
 });
 
-/* ---------- Ações sobre tópicos ---------- */
-function addTopic(){
+/* ---------- Ações sobre módulos, tópicos e subtópicos ---------- */
+function addNode(kind, parentId){
   flushNow();
-  const t = { id: uid(), title: 'Novo tópico', html: '', quiz: [], subs: [], updated: Date.now() };
-  book.topics.push(t); save(); mode = 'edit'; wantTitleFocus = true; go(t.id);
+  const n = { id: uid(), title: { m: 'Novo módulo', t: 'Novo tópico', s: 'Novo subtópico' }[kind], html: '', quiz: [], updated: Date.now() };
+  if (KIDS[kind]) n[KIDS[kind]] = [];
+  if (kind === 'm') book.modules.push(n);
+  else {
+    const p = locate(parentId); if (!p) return;
+    const parent = p.arr[p.idx];
+    parent[KIDS[p.kind]].push(n);
+    open.add(parent.id); if (p.parent) open.add(p.parent.id);
+  }
+  save(); mode = 'edit'; wantTitleFocus = true; go(n.id);
 }
-function addSub(tid){
-  flushNow();
-  const t = book.topics.find(t => t.id === tid); if (!t) return;
-  const s = { id: uid(), title: 'Novo subtópico', html: '', quiz: [], updated: Date.now() };
-  t.subs.push(s); open.add(tid); save(); wantTitleFocus = true; go(s.id);
-}
+/* As setas também passam um elemento para o módulo ou tópico vizinho */
 function move(id, dir){
   flushNow();
-  const a = parentArr(id); if (!a) return;
-  const i = a.findIndex(o => o.id === id), j = i + dir;
-  if (j < 0 || j >= a.length) return;
-  [a[i], a[j]] = [a[j], a[i]];
+  const L = locate(id); if (!L) return;
+  const j = L.idx + dir;
+  if (j >= 0 && j < L.arr.length) { [L.arr[L.idx], L.arr[j]] = [L.arr[j], L.arr[L.idx]]; }
+  else if (L.parent) {
+    const P = locate(L.parent.id), sib = P.arr[P.idx + dir];
+    if (!sib) return;
+    const [el] = L.arr.splice(L.idx, 1), key = KIDS[P.kind];
+    if (dir < 0) sib[key].push(el); else sib[key].unshift(el);
+    open.add(sib.id);
+    toast(`Passou para «${sib.title || 'Sem título'}».`);
+  } else return;
   save(); renderTree(); renderMain();
   const b = document.querySelector(`[data-${dir < 0 ? 'up' : 'down'}="${id}"]`); if (b) b.focus();
 }
+function countDesc(n){ return kidsOf(n).reduce((a, c) => a + 1 + countDesc(c), 0); }
 async function del(id){
-  const x = get(id); if (!x) return;
-  const isT = x.kind === 't', ns = isT ? x.n.subs.length : 0;
-  const text = isT
-    ? (ns ? `O tópico e ${ns === 1 ? 'o seu subtópico' : `os seus ${ns} subtópicos`} vão ser eliminados. Podes recuperá-los com «Descartar rascunho» enquanto não publicares.` : 'O tópico vai ser eliminado. Podes recuperá-lo com «Descartar rascunho» enquanto não publicares.')
-    : 'O subtópico vai ser eliminado. Podes recuperá-lo com «Descartar rascunho» enquanto não publicares.';
-  const ok = await ask({ title: `Eliminar «${x.n.title || 'Sem título'}»?`, text, ok: 'Eliminar', danger: true });
-  if (!ok) return;
+  const L = locate(id); if (!L) return;
+  const n = L.arr[L.idx], nd = countDesc(n), what = KIND_NAME[L.kind];
+  const text = `${nd ? `O ${what} e tudo o que está dentro dele (${nd} ${nd === 1 ? 'página' : 'páginas'}) vão ser eliminados.` : `O ${what} vai ser eliminado.`} Podes recuperar com «Descartar rascunho» enquanto não publicares.`;
+  if (!(await ask({ title: `Eliminar «${n.title || 'Sem título'}»?`, text, ok: 'Eliminar', danger: true }))) return;
   flushNow();
-  const idx = nodes().findIndex(y => y.n.id === id);
-  const hitCur = cur === id || (isT && x.n.subs.some(s => s.id === cur));
-  const a = parentArr(id); a.splice(a.findIndex(o => o.id === id), 1);
+  const all = nodes(), idx = all.findIndex(y => y.n.id === id);
+  const inside = new Set([id]); (function walkIds(x){ kidsOf(x).forEach(c => { inside.add(c.id); walkIds(c); }); })(n);
+  L.arr.splice(L.idx, 1);
   edRef = null; save();
-  if (hitCur) { const rest = nodes(); const nx = rest[Math.min(idx, rest.length - 1)]; go(nx ? nx.n.id : ''); }
+  if (inside.has(cur)) { const rest = nodes(); const nx = rest[Math.min(idx, rest.length - 1)]; go(nx ? nx.n.id : ''); }
   else render();
   toast('Eliminado.');
 }
@@ -1269,8 +1314,7 @@ $('#tree').addEventListener('click', e => {
   if (d.up) return move(d.up, -1);
   if (d.down) return move(d.down, 1);
   if (d.del) return del(d.del);
-  if (d.addsub) return addSub(d.addsub);
-  if ('addtopic' in d) return addTopic();
+  if (d.add) return addNode(d.add, d.parent);
 });
 
 /* ---------- Exportar / importar ---------- */
