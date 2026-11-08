@@ -1,0 +1,77 @@
+{
+ "title": "Livro Digital _ Sistemas Operativos",
+ "topics": [
+  {
+   "id": "introducao",
+   "title": "Funções e características de um SO",
+   "html": "<p>Neste tópico vemos o que é um sistema operativo, para que serve e que funções desempenha.</p><p><br></p>",
+   "subs": []
+  },
+  {
+   "id": "p03pccot",
+   "title": "Processos concorrentes",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "psav7g58",
+   "title": "O Núcleo de SO. Gestão de memória",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "pn4p4adl",
+   "title": "Entrada e Saída de dados",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p6ue0q4i",
+   "title": "O Sistema de Ficheiros",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p030sk95",
+   "title": "Gestão de Recursos",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p2lb5iqu",
+   "title": "Proteção",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "pqaje7mc",
+   "title": "Fiabilidade",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p1duvhq0",
+   "title": "Noção de “Job Control”",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p6ekagy0",
+   "title": "Tipos de funções dos Sistemas Operativos",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p7jb693r",
+   "title": "O conceito Multitarefa",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "pzc1v1fz",
+   "title": "Partilha de informação e comunicação entre computadores",
+   "html": "",
+   "subs": []
+  }
+ ]
+}
