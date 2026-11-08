@@ -3,10 +3,10 @@
  "modules": [
   {
    "id": "modulo-1",
-   "title": "Módulo 1",
+   "title": "Módulo 1 - Introdução aos Sistemas Operativos",
    "html": "&nbsp;No final do módulo deverás conseguir explicar as funções de um sistema operativo; distinguir programa, processo e thread; interpretar concorrência e paralelismo; resolver exercícios elementares de escalonamento e sincronização; relacionar memória, entrada e saída e ficheiros; aplicar princípios de proteção e fiabilidade; e propor um diagnóstico fundamentado para um problema de utilização ou partilha.&nbsp;&nbsp;",
    "quiz": [],
-   "updated": 1794151235445,
+   "updated": 1794154651970,
    "from": "2026-11-09",
    "topics": [
     {
