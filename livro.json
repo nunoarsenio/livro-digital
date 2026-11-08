@@ -1,22 +1,35 @@
 {
- "title": "Sistemas Operativos",
+ "title": "Livro Digital _ Sistemas Operativos",
  "topics": [
   {
    "id": "introducao",
-   "title": "Introdução aos sistemas operativos",
-   "html": "<p>Neste tópico vemos o que é um sistema operativo, para que serve e que funções desempenha.</p>",
-   "subs": [
-    {
-     "id": "o-que-e",
-     "title": "O que é um sistema operativo",
-     "html": "<p>Um sistema operativo é o software que gere o hardware de um computador e fornece serviços aos programas. Funciona como intermediário entre o utilizador, as aplicações e o equipamento.</p><h2>Exemplos</h2><ul><li><strong>Computadores:</strong> Windows, macOS e distribuições Linux, como o Ubuntu.</li><li><strong>Dispositivos móveis:</strong> Android e iOS.</li><li><strong>Servidores:</strong> Windows Server e Linux.</li></ul>"
-    },
-    {
-     "id": "funcoes",
-     "title": "Funções do sistema operativo",
-     "html": "<ul><li><strong>Gestão de processos:</strong> decide que programas usam o processador e durante quanto tempo.</li><li><strong>Gestão de memória:</strong> atribui e liberta a memória RAM usada pelos programas.</li><li><strong>Gestão de ficheiros:</strong> organiza os dados em ficheiros e pastas nos dispositivos de armazenamento.</li><li><strong>Gestão de dispositivos:</strong> comunica com o hardware através de controladores (drivers).</li><li><strong>Interface com o utilizador:</strong> gráfica (GUI) ou de linha de comandos (CLI).</li><li><strong>Segurança:</strong> controla as contas de utilizador e as permissões de acesso.</li></ul><div class=\"nota\"><p>Este conteúdo é um exemplo inicial. Podes alterá-lo ou eliminá-lo no modo de edição.</p></div>"
-    }
-   ]
+   "title": "Funções e características de um SO",
+   "html": "<p>Neste tópico vemos o que é um sistema operativo, para que serve e que funções desempenha.</p><p><br></p>",
+   "subs": []
+  },
+  {
+   "id": "p03pccot",
+   "title": "Processos concorrentes",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "psav7g58",
+   "title": "O Núcleo de SO. Gestão de memória",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "pn4p4adl",
+   "title": "Entrada e Saída de dados",
+   "html": "",
+   "subs": []
+  },
+  {
+   "id": "p6ue0q4i",
+   "title": "O Sistema de Ficheiros",
+   "html": "",
+   "subs": []
   }
  ]
 }
