@@ -4,7 +4,7 @@
   {
    "id": "modulo-1",
    "title": "Módulo 1",
-   "html": "",
+   "html": "&nbsp;No final do módulo deverás conseguir explicar as funções de um sistema operativo; distinguir programa, processo e thread; interpretar concorrência e paralelismo; resolver exercícios elementares de escalonamento e sincronização; relacionar memória, entrada e saída e ficheiros; aplicar princípios de proteção e fiabilidade; e propor um diagnóstico fundamentado para um problema de utilização ou partilha.&nbsp;&nbsp;",
    "quiz": [],
    "topics": [
     {
@@ -93,7 +93,9 @@
      "quiz": [],
      "subs": []
     }
-   ]
+   ],
+   "updated": 1794151235445,
+   "from": "2026-11-09"
   },
   {
    "id": "pirwa5f9",
