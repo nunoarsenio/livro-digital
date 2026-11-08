@@ -56,6 +56,11 @@ button,input,select,textarea{font-family:inherit}
 #bookHead{flex:1;min-width:0}
 .book{font:600 1.2rem/1.3 var(--read);margin:0}
 .book-in{width:100%;font:600 1.1rem/1.3 var(--read);color:var(--ink);background:var(--page);border:1px solid var(--line);border-radius:6px;padding:.35rem .5rem}
+.teacher-bar{padding:0 .6rem .5rem}
+.teacher-bar:empty{display:none}
+.preview-bar{position:fixed;z-index:40;top:calc(env(safe-area-inset-top,0px) + .7rem);right:1rem;display:flex;align-items:center;gap:.6rem;max-width:calc(100% - 2rem);padding:.45rem .5rem .45rem .9rem;background:var(--ink);color:var(--page);border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.2);font:500 .86rem/1.3 var(--ui)}
+.preview-bar button{border:0;background:var(--hl);color:#1C2733;font:700 .82rem var(--ui);padding:.4rem .75rem;border-radius:999px;cursor:pointer;white-space:nowrap}
+@media print{.preview-bar{display:none!important}}
 .progress{padding:0 1.1rem .8rem;font-size:.82rem;color:var(--muted)}
 .progress .bar{height:6px;border-radius:3px;background:var(--line);margin-top:.35rem;overflow:hidden}
 .progress .bar i{display:block;height:100%;background:var(--ok);border-radius:3px;transition:width .3s ease}
@@ -325,6 +330,7 @@ body.printing .app{grid-template-columns:1fr;grid-template-rows:1fr}
       <div id="bookHead"></div>
       <button id="modeBtn" class="btn ghost sm" hidden></button>
     </div>
+    <div id="teacherBar" class="teacher-bar"></div>
     <div id="progress" class="progress" hidden></div>
     <div class="search"><input id="q" type="search" placeholder="Pesquisar na matéria" aria-label="Pesquisar na matéria" autocomplete="off"></div>
     <div id="tabs" class="tabs" role="group" aria-label="Vista do índice"></div>
@@ -345,6 +351,7 @@ body.printing .app{grid-template-columns:1fr;grid-template-rows:1fr}
   </div>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="previewBar" class="preview-bar" role="status" hidden></div>
 <input id="file" type="file" accept="image/*" hidden>
 <script src="MicrosoftTeams.min.js"></script>
 <script src="highlight.min.js"></script>
@@ -445,6 +452,8 @@ const DRAFT = 'livro-rascunho-v1', TOKEN = 'livro-github-chave', MINE = 'livro-p
 let book = { title: 'Livro Digital', modules: [], glossary: [] };
 let cur = null, mode = 'read', q = '', sideView = 'index', edRef = null, saveTimer = null, pendingRange = null, wantTitleFocus = false;
 let dirty = false, pending = false, loading = true, loadError = false, inTeams = false, canEdit = true, publishing = false, printJob = null;
+/* teacher: quem pode editar; asStudent: o professor está a pré-visualizar como aluno */
+let teacher = false, asStudent = false;
 const open = new Set();
 
 const GH = (() => {
@@ -611,7 +620,25 @@ window.addEventListener('hashchange', () => { flushNow(); route(); render(); $('
 /* ---------- Desenho ---------- */
 function render(){
   document.body.classList.toggle('printing', !!printJob);
+  renderTeacherBar();
   renderHead(); renderProgress(); renderTabs(); renderTree(); renderFoot(); renderMain();
+}
+const EYE = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>';
+function renderTeacherBar(){
+  const t = $('#teacherBar'), pb = $('#previewBar');
+  t.innerHTML = (teacher && !asStudent && mode === 'read' && !loading) ? `<button class="link-btn" id="asStudentBtn">${EYE}Ver como aluno</button>` : '';
+  if ($('#asStudentBtn')) $('#asStudentBtn').onclick = () => setStudent(true);
+  pb.hidden = !asStudent;
+  if (asStudent) {
+    pb.innerHTML = `<span>A ver como aluno${dirty ? ' (inclui alterações por publicar)' : ''}</span><button id="exitStudent">Voltar a professor</button>`;
+    $('#exitStudent').onclick = () => setStudent(false);
+  }
+}
+function setStudent(v){
+  flushNow(); if (typeof hideBar === 'function') hideBar();
+  asStudent = v; canEdit = teacher && !v; mode = 'read'; q = ''; $('#q').value = '';
+  route(); render(); $('#main').scrollTop = 0;
+  toast(v ? 'Estás a ver o livro como um aluno: sem edição e sem as páginas agendadas.' : 'Voltaste ao modo de professor.');
 }
 function syncTitles(){ document.title = book.title || 'Livro Digital'; $('#topTitle').textContent = book.title; }
 function renderHead(){
@@ -1453,6 +1480,7 @@ async function initTeams(){
 (async () => {
   render();
   await initTeams();
+  teacher = canEdit;
   await loadBook();
   route(); render();
 })();
