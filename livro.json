@@ -10,9 +10,10 @@
     {
      "id": "introducao",
      "title": "Funções e características de um SO",
-     "html": "<p>Neste tópico vemos o que é um sistema operativo, para que serve e que funções desempenha.</p><p><br></p>",
+     "html": "<p></p><ol><li>O que é um sistema operativo</li></ol><p></p><p>Um sistema operativo, ou SO, é o conjunto de software de base que gere os recursos de um sistema informático e fornece serviços às aplicações. Estabelece uma ligação organizada entre o hardware e os programas, evitando que cada aplicação tenha de conhecer todos os pormenores de cada disco, teclado ou placa de rede. Também impõe regras: uma aplicação não deve poder escrever livremente na memória de outra, nem um utilizador consultar ficheiros para os quais não tem autorização.</p><p>É útil compreender duas funções complementares. Como gestor de recursos, o SO decide como repartir processador, memória, armazenamento e dispositivos. Como fornecedor de abstrações, apresenta entidades mais simples de utilizar: ficheiros em vez de posições físicas num disco, processos em vez de sequências dispersas de instruções e ligações de rede em vez dos sinais elétricos que transportam os dados.</p><p>O sistema operativo não se limita ao ambiente de trabalho visível. A interface gráfica é uma forma de interação, tal como a linha de comandos. Um servidor pode funcionar sem monitor e continuar a gerir ficheiros, utilizadores e serviços. Do mesmo modo, duas interfaces gráficas diferentes podem utilizar o mesmo núcleo. O estudo introdutório destes mecanismos pode ser aprofundado em [R01].</p><p><br></p>",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "updated": 1794147109691
     },
     {
      "id": "p03pccot",
