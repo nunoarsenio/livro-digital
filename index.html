@@ -1034,8 +1034,15 @@ function bindEditor(x){
     e.preventDefault();
     const cd = e.clipboardData, html = cd.getData('text/html'), t = cd.getData('text/plain');
     if (inPre()) { document.execCommand('insertText', false, t); return; }
+    /* Imagens coladas (capturas de ecrã, imagens copiadas do navegador ou de outras apps) */
+    const imgs = [...(cd.files || [])].filter(f => f.type.startsWith('image/'));
+    if (imgs.length && !plain(html).trim() && !t.trim()) { pendingRange = null; pasteImages(imgs); return; }
     let out;
-    if (html) out = clean(html);
+    if (html) {
+      out = clean(html);
+      const lost = (html.match(/<img\b/gi) || []).length - (out.match(/<img\b/gi) || []).length;
+      if (lost > 0) toast(lost === 1 ? 'A imagem que vinha com o texto não foi colada. Copia-a sozinha e cola-a de novo.' : 'As imagens que vinham com o texto não foram coladas. Copia cada imagem sozinha e cola-a de novo.');
+    }
     else out = /\n/.test(t) ? t.split(/\n{2,}/).map(p => '<p>' + esc(p).replace(/\n/g, '<br>') + '</p>').join('') : esc(t);
     document.execCommand('insertHTML', false, out);
   });
@@ -1267,6 +1274,7 @@ function readImg(file){
     r.onerror = rej; r.readAsDataURL(file);
   });
 }
+async function pasteImages(files){ for (const f of files) await insertImage(f); }
 async function insertImage(f){
   try {
     const data = await readImg(f);
