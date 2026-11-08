@@ -577,6 +577,13 @@ function locate(id){
   return null;
 }
 const kidsOf = n => n.topics || n.subs || [];
+/* Marca-se como lida a página mais funda: o subtópico, ou o tópico quando não tem subtópicos */
+const readable = n => !n.topics && !kidsOf(n).some(isVisible);
+const leaves = n => kidsOf(n).filter(isVisible).flatMap(c => readable(c) ? [c] : leaves(c));
+function isDone(n){
+  if (readable(n)) return !!mine.read[n.id];
+  const l = leaves(n); return l.length > 0 && l.every(c => mine.read[c.id]);
+}
 function newState(n){
   if (canEdit) return null;
   const from = n.from ? Date.parse(n.from + 'T00:00:00') : 0;
@@ -617,7 +624,7 @@ function renderHead(){
   syncTitles();
 }
 function renderProgress(){
-  const p = $('#progress'), all = nodes();
+  const p = $('#progress'), all = nodes().filter(x => readable(x.n));
   if (mode === 'edit' || loading || !all.length) { p.hidden = true; return; }
   const done = all.filter(x => mine.read[x.n.id]).length, pct = Math.round(done / all.length * 100);
   p.hidden = false;
@@ -638,7 +645,7 @@ function marksFor(n){
   if (mode !== 'edit') {
     const ns = newState(n);
     if (ns) h += `<span class="badge">${ns}</span>`;
-    if (mine.read[n.id]) h += `<span class="chk">${CHECK}</span>`;
+    if (isDone(n)) h += `<span class="chk">${CHECK}</span>`;
   }
   if (canEdit && isScheduled(n)) h += `<span class="badge sched" title="Os alunos só veem a partir desta data">${fmtDate(n.from).slice(0, 5)}</span>`;
   return h;
@@ -766,6 +773,9 @@ function renderMain(){
   const prev = all[i - 1], next = all[i + 1];
   const pager = `<nav class="pager" aria-label="Páginas">${prev ? `<a class="prev" href="#${prev.n.id}"><small>Anterior</small><span>${dispNum(prev)} ${label(prev.n)}</span></a>` : ''}${next ? `<a class="next" href="#${next.n.id}"><small>Seguinte</small><span>${dispNum(next)} ${label(next.n)}</span></a>` : ''}</nav>`;
   const marked = !!mine.marks[x.n.id], read = !!mine.read[x.n.id];
+  let doneRow;
+  if (readable(x.n)) doneRow = `<div class="done-row${read ? ' is-read' : ''}"><span>${read ? 'Marcaste esta página como lida.' : 'Quando terminares de estudar esta página, marca-a como lida.'}</span><button class="btn sm${read ? ' ghost' : ''}" id="readBtn">${read ? 'Desmarcar' : 'Marcar como lida'}</button></div>`;
+  else { const l = leaves(x.n), d = l.filter(c => mine.read[c.id]).length; doneRow = l.length ? `<div class="done-row${d === l.length ? ' is-read' : ''}"><span>${d === l.length ? `Leste todas as páginas deste ${KIND_NAME[x.kind]}.` : `Leste ${d} de ${l.length} ${l.length === 1 ? 'página' : 'páginas'} deste ${KIND_NAME[x.kind]}. Marca cada ${x.kind === 'm' ? 'tópico ou subtópico' : 'subtópico'} como lido no fim da respetiva página.`}</span></div>` : ''; }
   const sched = canEdit && isScheduled(x.n) ? `<p class="sched-note">Os alunos só veem esta página a partir de ${fmtDate(x.n.from)}.</p>` : '';
   m.innerHTML = `<article class="sheet"><nav class="crumb">${crumb}</nav>
     <h1 class="ttl"><span class="num">${shown}</span>${label(x.n)}</h1>
@@ -776,14 +786,14 @@ function renderMain(){
     </div>${sched}
     <div class="content" id="readContent">${body}</div>
     <section class="quiz" id="quiz" hidden></section>
-    <div class="done-row${read ? ' is-read' : ''}"><span>${read ? 'Marcaste esta página como lida.' : 'Quando terminares de estudar esta página, marca-a como lida.'}</span><button class="btn sm${read ? ' ghost' : ''}" id="readBtn">${read ? 'Desmarcar' : 'Marcar como lida'}</button></div>
+    ${doneRow}
     <details class="notes"${mine.notes[x.n.id] ? ' open' : ''}><summary>As minhas notas</summary><textarea id="noteTa" aria-label="As minhas notas" placeholder="Escreve aqui os teus apontamentos sobre esta página.">${esc(mine.notes[x.n.id] || '')}</textarea><small>Ficam guardadas apenas neste dispositivo.</small></details>
     ${inthis}${pager}</article>`;
   enhance($('#readContent'), { glossary: true });
   renderQuiz(x.n);
   mine.seen[x.n.id] = Date.now(); saveMine();
   $('#markBtn').onclick = () => { if (mine.marks[x.n.id]) delete mine.marks[x.n.id]; else mine.marks[x.n.id] = 1; saveMine(); renderTabs(); renderTree(); renderMain(); };
-  $('#readBtn').onclick = () => { if (mine.read[x.n.id]) delete mine.read[x.n.id]; else mine.read[x.n.id] = 1; saveMine(); renderProgress(); renderTree(); renderMain(); };
+  if ($('#readBtn')) $('#readBtn').onclick = () => { if (mine.read[x.n.id]) delete mine.read[x.n.id]; else mine.read[x.n.id] = 1; saveMine(); renderProgress(); renderTree(); renderMain(); };
   $('#noteTa').addEventListener('input', e => { const v = e.target.value; if (v.trim()) mine.notes[x.n.id] = v; else delete mine.notes[x.n.id]; saveMine(); });
   $('#shareBtn').onclick = () => shareLink(x);
   $('#printBtn').onclick = () => printTopic(x.kind === 's' ? x.anc[1].id : x.n.id);
