@@ -268,6 +268,7 @@ mark{background:var(--hl);color:#1C2733;border-radius:2px;padding:0 .1em}
 .fld.chk{display:flex;gap:.5rem;align-items:center}
 .fld.chk>span{margin:0;font-weight:500}
 .acts{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.4rem}
+.merr{margin:0 0 .8rem;padding:.6rem .8rem;border-radius:6px;background:var(--bad-soft);color:var(--ink);font-size:.9rem;line-height:1.45}
 .toast{position:fixed;left:50%;bottom:calc(1.2rem + env(safe-area-inset-bottom,0px));transform:translate(-50%,1rem);background:var(--ink);color:var(--page);padding:.6rem 1rem;border-radius:8px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;max-width:calc(100% - 2rem)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .scrim{position:fixed;inset:0;background:rgba(15,20,28,.4);z-index:20}
@@ -339,6 +340,7 @@ body.printing .app{grid-template-columns:1fr;grid-template-rows:1fr}
     <h2 id="mt"></h2>
     <p id="mp"></p>
     <div id="mf"></div>
+    <p id="merr" class="merr" role="alert" hidden></p>
     <div class="acts"><button id="mcancel" class="btn ghost"></button><button id="mok" class="btn"></button></div>
   </div>
 </div>
@@ -867,11 +869,14 @@ async function editTerm(id){
   const g = id ? book.glossary.find(x => x.id === id) : null;
   const r = await ask({ title: g ? 'Editar termo' : 'Adicionar termo', ok: g ? 'Guardar' : 'Adicionar', fields: [
     { id: 'term', label: 'Termo', value: g ? g.term : '' },
-    { id: 'def', label: 'Definição', type: 'textarea', value: g ? g.def : '' }] });
+    { id: 'def', label: 'Definição', type: 'textarea', value: g ? g.def : '' }],
+    validate: v => {
+      if (!v.term.trim() || !v.def.trim()) return 'Preenche o termo e a definição.';
+      if (book.glossary.some(x => x !== g && x.term.toLowerCase() === v.term.trim().toLowerCase())) return 'Esse termo já existe no glossário.';
+      return null;
+    } });
   if (!r) return;
   const term = r.term.trim(), def = r.def.trim();
-  if (!term || !def) { toast('Preenche o termo e a definição.'); return; }
-  if (book.glossary.some(x => x !== g && x.term.toLowerCase() === term.toLowerCase())) { toast('Esse termo já existe no glossário.'); return; }
   if (g) { g.term = term; g.def = def; } else book.glossary.push({ id: uid(), term, def });
   save(); renderTree(); renderMain();
 }
@@ -950,22 +955,31 @@ function renderQuizEditor(n){
     n.quiz.splice(+b.dataset.qd, 1); touch(n); save(); renderQuizEditor(n);
   });
 }
+const splitOpts = txt => {
+  let o = String(txt).split('\n').map(x => x.trim()).filter(Boolean);
+  if (o.length === 1 && o[0].includes(';')) o = o[0].split(';').map(x => x.trim()).filter(Boolean);
+  return o;
+};
 async function editQuestion(n, i){
   const qq = i === null ? null : n.quiz[i];
   const r = await ask({ title: qq ? 'Editar pergunta' : 'Nova pergunta', ok: qq ? 'Guardar' : 'Adicionar', fields: [
     { id: 'q', label: 'Pergunta', value: qq ? qq.q : '' },
-    { id: 'opts', label: 'Opções de resposta', type: 'textarea', value: qq ? qq.opts.join('\n') : '', help: 'Uma opção por linha (entre 2 e 8).' },
-    { id: 'ok', label: 'Número da opção certa', type: 'number', value: qq ? qq.ok + 1 : 1, min: 1, max: 8 },
-    { id: 'exp', label: 'Explicação (opcional)', type: 'textarea', value: qq ? qq.exp : '', help: 'Aparece depois de o aluno responder.' }] });
+    { id: 'opts', label: 'Opções de resposta', type: 'textarea', value: qq ? qq.opts.join('\n') : '', help: 'Escreve cada opção numa linha nova (carrega em Enter entre opções). Entre 2 e 8 opções.' },
+    { id: 'ok', label: 'Número da opção certa', type: 'number', value: qq ? qq.ok + 1 : 1, min: 1, max: 8, help: 'A primeira opção é a 1, a segunda é a 2, e assim por diante.' },
+    { id: 'exp', label: 'Explicação (opcional)', type: 'textarea', value: qq ? qq.exp : '', help: 'Aparece depois de o aluno responder.' }],
+    validate: v => {
+      const opts = splitOpts(v.opts), ok = parseInt(v.ok, 10) - 1;
+      if (!v.q.trim()) return 'Escreve a pergunta.';
+      if (opts.length < 2) return 'Faltam opções. Escreve cada opção numa linha nova: depois de cada uma, carrega em Enter.';
+      if (opts.length > 8) return 'Indica no máximo 8 opções.';
+      if (!(ok >= 0 && ok < opts.length)) return `O número da opção certa tem de estar entre 1 e ${opts.length}.`;
+      return null;
+    } });
   if (!r) return;
-  const opts = r.opts.split('\n').map(s => s.trim()).filter(Boolean);
-  const ok = parseInt(r.ok, 10) - 1;
-  if (!r.q.trim()) { toast('Escreve a pergunta.'); return; }
-  if (opts.length < 2 || opts.length > 8) { toast('Indica entre 2 e 8 opções, uma por linha.'); return; }
-  if (!(ok >= 0 && ok < opts.length)) { toast(`O número da opção certa tem de estar entre 1 e ${opts.length}.`); return; }
-  const item = { q: r.q.trim(), opts, ok, exp: r.exp.trim() };
+  const item = { q: r.q.trim(), opts: splitOpts(r.opts), ok: parseInt(r.ok, 10) - 1, exp: r.exp.trim() };
   if (qq) n.quiz[i] = { ...qq, ...item }; else n.quiz.push(item);
   touch(n); save(); renderQuizEditor(n);
+  toast(qq ? 'Pergunta atualizada. Publica para os alunos verem.' : 'Pergunta adicionada. Publica para os alunos verem.');
 }
 
 /* ---------- Editor ---------- */
@@ -1352,6 +1366,7 @@ function ask(o){
     const m = $('#modal'), p = $('#mp'), f = $('#mf'), ok = $('#mok'), cn = $('#mcancel');
     $('#mt').textContent = o.title;
     p.textContent = o.text || ''; p.hidden = !o.text;
+    const err = $('#merr'); err.hidden = true; err.textContent = '';
     const fields = o.fields || [];
     f.innerHTML = fields.map(fd => {
       const id = 'f-' + fd.id, t = fd.type || 'text', help = fd.help ? `<small>${esc(fd.help)}</small>` : '';
@@ -1372,7 +1387,12 @@ function ask(o){
       const out = {}; fields.forEach(fd => { const el = $('#f-' + fd.id); out[fd.id] = fd.type === 'checkbox' ? el.checked : el.value; }); return out;
     };
     const done = v => { m.hidden = true; ok.onclick = cn.onclick = m.onclick = m.onkeydown = null; res(v); };
-    ok.onclick = () => done(collect());
+    ok.onclick = () => {
+      const v = collect();
+      const e = o.validate ? o.validate(v) : null;
+      if (e) { err.textContent = e; err.hidden = false; return; }
+      done(v);
+    };
     cn.onclick = () => done(null);
     m.onclick = e => { if (e.target === m) done(null); };
     m.onkeydown = e => {
