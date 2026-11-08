@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Livro Digital: configurar separador</title>
+<style>
+  body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;padding:2rem;color:#1C2733;line-height:1.5}
+  h1{font-size:1.25rem;margin:0 0 .5rem}
+  p{margin:0;color:#5B6878}
+  @media (prefers-color-scheme:dark){body{color:#DCE3EC;background:#18202A}p{color:#93A0B0}}
+</style>
+</head>
+<body>
+<h1>Livro Digital</h1>
+<p>O livro vai ser adicionado a este canal. Carrega em «Guardar» para concluir.</p>
+<script src="MicrosoftTeams.min.js"></script>
+<script>
+microsoftTeams.app.initialize().then(() => {
+  const base = location.href.replace(/config\.html.*$/, '');
+  microsoftTeams.pages.config.registerOnSaveHandler(ev => {
+    microsoftTeams.pages.config.setConfig({
+      entityId: 'livro-digital',
+      suggestedDisplayName: 'Livro Digital',
+      contentUrl: base + 'index.html',
+      websiteUrl: base + 'index.html'
+    }).then(() => ev.notifySuccess(), err => ev.notifyFailure(String(err)));
+  });
+  microsoftTeams.pages.config.setValidityState(true);
+});
+</script>
+</body>
+</html>
