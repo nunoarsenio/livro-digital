@@ -135,6 +135,12 @@ mark{background:var(--hl);color:#1C2733;border-radius:2px;padding:0 .1em}
 .ttl{position:relative;font:700 2.1rem/1.2 var(--read);margin:0 0 .6rem;letter-spacing:-.01em;text-wrap:balance}
 .ttl .num{position:absolute;right:calc(100% + 2.1rem);top:.6rem;font:700 .9rem var(--ui);color:var(--margin);white-space:nowrap;letter-spacing:0}
 .page-actions{display:flex;flex-wrap:wrap;gap:.2rem;margin:0 0 1.6rem -.5rem}
+.labcard{display:flex;align-items:center;gap:.9rem;max-width:38em;margin:0 0 1.6rem;padding:.9rem 1.1rem;border-radius:12px;background:color-mix(in srgb,var(--accent) 14%,var(--page));border:1px solid color-mix(in srgb,var(--accent) 50%,var(--line));text-decoration:none;color:var(--ink);transition:transform .15s,box-shadow .15s}
+.labcard:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.labcard .lab-ic{font-size:1.8rem;line-height:1}
+.labcard b{display:block;font:700 1rem var(--ui)}
+.labcard small{display:block;color:var(--muted);font-size:.85rem;margin-top:.1rem}
+.labcard .lab-go{margin-left:auto;font:700 .9rem var(--ui);color:var(--blue);white-space:nowrap}
 .sched-note{display:inline-block;font-size:.85rem;color:var(--muted);background:var(--side);border-radius:5px;padding:.3rem .6rem;margin-bottom:1.2rem}
 .content{font:400 1.12rem/1.75 var(--read);max-width:38em;overflow-wrap:break-word}
 .content::after{content:"";display:block;clear:both}
@@ -484,7 +490,11 @@ function flushNow(){ clearTimeout(saveTimer); flush(); }
 function setStatus(t){ const s = $('#st'); if (s) s.textContent = t; }
 function saveSoon(){ pending = true; clearTimeout(saveTimer); setStatus('A guardar rascunho…'); saveTimer = setTimeout(() => { flush(); setStatus('Rascunho guardado neste dispositivo. Publica para os alunos verem.'); }, 400); }
 
+/* Laboratórios animados: ligados aos tópicos pelo título (ficheiro labs.json, à parte da matéria) */
+let LABS = [];
+async function loadLabs(){ try { const r = await fetch('labs.json?v=' + Date.now(), { cache: 'no-store' }); if (r.ok) LABS = await r.json(); } catch (e) {} }
 async function loadBook(){
+  loadLabs();
   let published = null;
   try {
     const r = await fetch('livro.json?v=' + Date.now(), { cache: 'no-store' });
@@ -812,7 +822,7 @@ function renderMain(){
       <button class="link-btn${marked ? ' on' : ''}" id="markBtn" aria-pressed="${marked}">${STAR(marked)}${marked ? 'Marcada' : 'Marcar'}</button>
       <button class="link-btn" id="shareBtn">Copiar link</button>
       <button class="link-btn" id="printBtn">Imprimir ${x.kind === 's' ? 'o tópico' : KIND_NAME[x.kind]}</button>
-    </div>${sched}
+    </div>${sched}${labCard(x)}
     <div class="content" id="readContent">${body}</div>
     <section class="quiz" id="quiz" hidden></section>
     ${doneRow}
@@ -829,6 +839,12 @@ function renderMain(){
   setTimeout(renderTree, 0);
 }
 
+function labCard(x){
+  const t = norm(x.n.title || '');
+  const lab = LABS.find(l => l.match && t.includes(norm(l.match)));
+  if (!lab) return '';
+  return `<a class="labcard" href="${esc(lab.url)}" target="_blank" rel="noopener"><span class="lab-ic">🧪</span><span><b>Laboratório animado</b><small>${esc(lab.title)} · abre numa janela nova</small></span><span class="lab-go">Abrir ↗</span></a>`;
+}
 /* Código, vídeos e glossário na leitura */
 function enhance(root, opts = {}){
   root.querySelectorAll('pre').forEach(pre => {
