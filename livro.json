@@ -253,63 +253,72 @@
      "title": "Entrada e Saída de dados",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "p6ue0q4i",
      "title": "O Sistema de Ficheiros",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "p030sk95",
      "title": "Gestão de Recursos",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "p2lb5iqu",
      "title": "Proteção",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "pqaje7mc",
      "title": "Fiabilidade",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "p1duvhq0",
      "title": "Noção de “Job Control”",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "p6ekagy0",
      "title": "Tipos de funções dos Sistemas Operativos",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "p7jb693r",
      "title": "O conceito Multitarefa",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     },
     {
      "id": "pzc1v1fz",
      "title": "Partilha de informação e comunicação entre computadores",
      "html": "",
      "quiz": [],
-     "subs": []
+     "subs": [],
+     "from": "2027-02-02"
     }
    ]
   },
@@ -319,8 +328,8 @@
    "html": "",
    "quiz": [],
    "updated": 1794142773811,
-   "topics": [],
-   "from": "2027-03-01"
+   "from": "2027-03-01",
+   "topics": []
   },
   {
    "id": "p8zc4x5h",
@@ -328,8 +337,8 @@
    "html": "",
    "quiz": [],
    "updated": 1794142779334,
-   "topics": [],
-   "from": "2027-03-01"
+   "from": "2027-03-01",
+   "topics": []
   }
  ],
  "glossary": []
