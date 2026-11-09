@@ -606,6 +606,10 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
 .iso .lbl3 text{font:600 12.5px var(--ui);fill:var(--ink)}
 .iso .lbl3 line,.iso .lbl3 polyline{stroke:#e11d48;stroke-width:1.3;fill:none}
 .iso .lbl3 circle{fill:#e11d48}
+.iso.nolbl .lbl3{display:none}
+.iso .cl polyline{fill:none;stroke:#334155;stroke-width:1.4}
+.iso .cl circle{fill:#334155}
+.iso .cl text{font:700 12px var(--ui);fill:var(--ink)}
 .mb .hl{fill:none;stroke:#ffd84d;stroke-width:4;opacity:0;transition:opacity .3s;pointer-events:none}
 .mb .hl.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.45}}
@@ -1550,7 +1554,7 @@ const ISO = (() => {
     svg.innerHTML = s;
     const pad = 250; svg.setAttribute('viewBox', `${minX - pad} ${minY - 10} ${maxX - minX + pad * 2} ${maxY - minY + 40}`);
   }
-  return { render, rotate: d => { rot = (rot + d + 4) % 4; }, H };
+  return { render, rotate: d => { rot = (rot + d + 4) % 4; }, H, pr, plane, box, cyl, pts, scene, get rot(){ return rot; } };
 })();
 const ISOC = (() => {
     const S = .70, CX = 505, CY = 300;
@@ -1863,6 +1867,52 @@ pcDraw();
     return s;
   }
   /* --- monitor --- */
+  /* --- grande plano 3D do socket, com o processador a pairar --- */
+  let tween = null;
+  function setVB(svg2, to, ms){
+    clearInterval(tween);
+    const from = svg2.getAttribute('viewBox').split(/\s+/).map(Number);
+    if (ms <= 0 || from.length !== 4) { svg2.setAttribute('viewBox', to.join(' ')); return; }
+    const t0 = performance.now();
+    tween = setInterval(() => {
+      const p = Math.min(1, (performance.now() - t0) / ms), e = 1 - Math.pow(1 - p, 3);
+      svg2.setAttribute('viewBox', from.map((v, i) => (v + (to[i] - v) * e).toFixed(1)).join(' '));
+      if (p >= 1) clearInterval(tween);
+    }, 16);
+  }
+  function closeup(st, anim){
+    svg.classList.add('iso', 'nolbl');
+    ISO.render(svg, 'i3-');
+    const so = R('socket'), P3 = ISO.pr;
+    /* processador a pairar sobre o socket, ou já assente */
+    const hov = st.cpuDown ? 12 : 120;
+    let extra = '';
+    if (st.cpuHover || st.cpuDown) {
+      const sh = P3(so.x + so.w / 2, so.y + so.h / 2, 4);
+      extra += `<ellipse cx="${sh[0]}" cy="${sh[1]}" rx="${58 * (st.cpuDown ? 1 : 1.3)}" ry="${33 * (st.cpuDown ? 1 : 1.3)}" fill="#000" opacity="${st.cpuDown ? .38 : .22}"/>`;
+      const cx0 = so.x + 20, cy0 = so.y + 20, cw = so.w - 40, cd = so.h - 40;
+      const bx = ISO.box(cx0, cy0, cw, cd, 9, '#c8d0da', { z: hov, topFill: 'url(#i3-ihs2)' });
+      extra += bx.svg;
+      const t = P3(cx0 + 6, cy0 + cd - 6, hov + 9);
+      extra += `<polygon points="${ISO.pts([P3(cx0 + 4, cy0 + cd - 4, hov + 9.2), P3(cx0 + 22, cy0 + cd - 4, hov + 9.2), P3(cx0 + 4, cy0 + cd - 22, hov + 9.2)])}" fill="#f7dd94" stroke="#8a6a1a" stroke-width=".8"/>`;
+      const lt = P3(cx0 + cw / 2, cy0 + cd / 2, hov + 9);
+      extra += `<text x="${lt[0]}" y="${lt[1]}" text-anchor="middle" style="font:700 11px var(--head);fill:#56606e">CORE i5</text>`;
+      if (!st.cpuDown) { const a = P3(so.x + so.w / 2, so.y - 8, hov), b2 = P3(so.x + so.w / 2, so.y - 8, 18);
+        extra += `<path d="M${a[0]} ${a[1] + 18} L${b2[0]} ${b2[1] - 10}" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 6" fill="none"><animate attributeName="stroke-dashoffset" values="26;0" dur=".8s" repeatCount="indefinite"/></path><path d="M${b2[0] - 6} ${b2[1] - 16} l6 8 l6 -8" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }
+    }
+    /* etiquetas próprias do grande plano */
+    const L = [[so.x + so.w + 8, so.y + so.h * .72, 'alavanca de retenção', 1, 40], [so.x + so.w * .5, so.y + so.h - 6, 'contactos do socket (LGA)', 1, 150], [so.x + 6, so.y + 6, 'moldura metálica (ILM)', -1, -70], [so.x + 14, so.y + so.h - 14, 'triângulo de referência', -1, 40]];
+    L.forEach(([x, y, t, side, dy]) => { const q = P3(x, y, 10), dx = side * 190, w = t.length * 6.6 + 16;
+      const ex = q[0] + dx, ey = q[1] + dy;
+      extra += `<g class="cl"><polyline points="${q[0]},${q[1]} ${q[0] + dx * .45},${q[1] + dy * .7} ${ex},${ey}"/><circle cx="${q[0]}" cy="${q[1]}" r="3.5"/><rect x="${side > 0 ? ex + 4 : ex - w - 4}" y="${ey - 11}" width="${w}" height="21" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="${ex + (side > 0 ? 12 : -12)}" y="${ey + 4}" text-anchor="${side > 0 ? 'start' : 'end'}">${t}</text></g>`; });
+    svg.insertAdjacentHTML('beforeend', `<defs><linearGradient id="i3-ihs2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#cfd7e1"/><stop offset=".72" stop-color="#eef2f6"/><stop offset="1" stop-color="#97a1ae"/></linearGradient></defs>` + extra);
+    /* enquadramento: a câmara aproxima-se do socket */
+    const corners = [[so.x - 44, so.y - 44], [so.x + so.w + 44, so.y - 44], [so.x + so.w + 44, so.y + so.h + 44], [so.x - 44, so.y + so.h + 44]];
+    const ps = corners.map(([x, y]) => P3(x, y, 0)).concat(corners.map(([x, y]) => P3(x, y, 150)));
+    const xs = ps.map(p => p[0]), ys = ps.map(p => p[1]);
+    const x0 = Math.min(...xs) - 260, x1 = Math.max(...xs) + 240, y0 = Math.min(...ys) - 24, y1 = Math.max(...ys) + 50;
+    setVB(svg, [x0, y0, x1 - x0, y1 - y0], anim ? 900 : 0);
+  }
   let MONX = 686, MONY = 60;
   function monitor(mode){
     const L = mode === 'post' ? [['POST OK · UEFI 2.8', 'ok'], ['CPU .... Intel Core i5-14400F', ''], ['RAM .... 32 GB DDR5 (dual channel)', ''], ['NVMe ... PCIe 4.0 ×4 · 1 TB', ''], ['GPU .... PCIe 4.0 ×16', ''], ['', ''], ['Reboot and select proper boot device', 'warn']]
@@ -1880,7 +1930,10 @@ pcDraw();
   const STEPS = [
     ['Preparação', '5 min', 'Preparar a bancada', { tools: 1 }, 'Mesa estável, boa luz e espaço livre. Liga a <b>pulseira antiestática</b> a uma parte metálica da caixa. Tem à mão uma chave Philips n.º 2 e um recipiente para os parafusos. Abre as caixas por ordem e confere as peças pela fatura.', ''],
     ['Bancada', '1 min', 'Pousar a motherboard', { board: 1 }, 'Antes de montar, conhece a placa. Em <b>3D</b> vês o relevo de cada componente e podes rodá-la; na vista <b>de cima</b> acompanhas a montagem peça a peça. A placa monta-se <b>fora da caixa</b>, sobre a própria caixa de cartão, que serve de superfície isolante.', ''],
-    ['Bancada', '2 min', 'Instalar o processador', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
+    ['Bancada', '1 min', 'Aproximar o foco do socket', { zoom: 1 }, 'A câmara aproxima-se do <b>socket</b>, o encaixe do processador. Vês a <b>moldura metálica de retenção</b> (ILM), a <b>alavanca</b> que a prende e os milhares de <b>contactos dourados</b> no fundo. Repara no triângulo gravado num dos cantos.', 'socket'],
+    ['Bancada', '2 min', 'Pousar o processador no socket', { zoom: 1, cpuHover: 1 }, 'O processador desce <b>a direito</b> sobre o socket, com o <b>triângulo dourado</b> alinhado com o do canto. Pega-lhe sempre pelas bordas, nunca nos contactos nem na tampa.', 'socket'],
+    ['Bancada', '1 min', 'Fechar a alavanca', { zoom: 1, cpuDown: 1 }, 'Assentou pelo próprio peso: <b>nunca se força</b>. Baixa a alavanca, que faz alguma pressão sobre os contactos, e a tampa de proteção salta sozinha.', 'socket'],
+    ['Bancada', '0 min', 'Processador instalado', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
     ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
     ['Bancada', '5 min', 'Montar o cooler e ligar a ventoinha', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1 }, 'Assenta o cooler a direito, sem o arrastar, e aperta os parafusos <b>em cruz</b>, um pouco de cada vez. Liga a ficha da ventoinha ao <b>CPU_FAN</b>: muitas placas recusam arrancar sem ela.', 'socket'],
     ['Bancada', '2 min', 'Instalar a memória', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1, ram: 1 }, 'Abre as patilhas, alinha o <b>entalhe</b> e carrega nas duas pontas até ouvires o clique dos dois lados. Com dois módulos, usa as ranhuras que o manual indica para ativares o <b>dual channel</b>.', 'ram'],
@@ -1906,16 +1959,17 @@ pcDraw();
     const bare = st.board && !st.cpu && !st.cooler && !st.ram && !st.ssd;
     const v3 = $('#bd-view').value === '3d' && !st.iso && bare;
     $('#bd-vwrap').style.display = bare ? '' : 'none';
-    $('#bd-rot').style.display = v3 ? '' : 'none';
+    $('#bd-rot').style.display = v3 || st.zoom ? '' : 'none';
     let h = '';
-    if (st.iso) h = ISOC.draw(st.iso);
-    else if (v3) { svg.classList.add('iso'); ISO.render(svg, 'i3-'); h = null; }
+    if (st.zoom) { closeup(st, true); h = null; }
+    else if (st.iso) h = ISOC.draw(st.iso);
+    else if (v3) { svg.classList.add('iso'); svg.classList.remove('nolbl'); ISO.render(svg, 'i3-'); h = null; }
     else { h = bench(st); h += parts(st); }
     if (st.screen) { MONX = st.iso ? 686 : OX + BW + 40; MONY = st.iso ? 60 : OY + 20; h += monitor(st.screen); }
     if (st.tools) h += `<g transform="translate(${OX + BW + 70} ${OY + 120})"><rect x="-20" y="-20" width="230" height="190" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="95" y="8" text-anchor="middle" style="font:700 12px var(--head);fill:#334155">Antes de começar</text>${['🧰  Chave Philips n.º 2', '⚡  Pulseira antiestática', '🥣  Recipiente para parafusos', '💡  Luz direta sobre a mesa', '📄  Manual da motherboard'].map((t, i) => `<text x="0" y="${38 + i * 26}" style="font:500 12px var(--ui);fill:#475569">${t}</text>`).join('')}</g>`;
     if (h === null) { $('#bd-lv').textContent = s[0]; $('#bd-time').textContent = '⏱ ' + s[1]; sel.value = k;
       $('#bd-verdict').innerHTML = `<div class="verdict"><b>${k + 1}. ${s[2]}</b><br>${s[4]}</div>`; return; }
-    svg.classList.remove('iso');
+    svg.classList.remove('iso', 'nolbl');
     svg.setAttribute('viewBox', st.iso ? '0 0 980 620' : `${OX - 44} ${OY - 42} ${BW + 300} ${BH + 96}`);
     svg.innerHTML = `<defs><linearGradient id="bd-ihs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#ccd4de"/><stop offset=".7" stop-color="#eef2f6"/><stop offset="1" stop-color="#8e98a5"/></linearGradient><linearGradient id="bd-fin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient><pattern id="bd-scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="rgba(255,255,255,.05)"/></pattern></defs>` + h;
     $('#bd-lv').textContent = s[0]; $('#bd-time').textContent = '⏱ ' + s[1];
