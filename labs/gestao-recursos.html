@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestão de recursos · Laboratório animado</title>
+<style>
+:root{
+  --head:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,Menlo,monospace;
+  --bg:#EEF1F7; --card:#FFFFFF; --ink:#172033; --muted:#5A6577; --line:#D8DEE9; --soft:#F5F7FB;
+  --accent:#2F5BD3; --on-accent:#FFFFFF; --good:#1E8A5A; --good-soft:#E3F4EB; --bad:#C8402B; --bad-soft:#FCE8E4; --warn-soft:#FFF4D6;
+  --p1:#2F6FED; --p2:#E0533D; --p3:#1E9E6A; --p4:#C98A00; --p5:#8B5CF6; --p6:#0E9AA7;
+  --arrow:#9AA6B8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F141C; --card:#171E29; --ink:#E3E8F0; --muted:#97A3B6; --line:#2A3443; --soft:#1D2531;
+    --accent:#7FA2FF; --on-accent:#0F141C; --good:#5CCB92; --good-soft:rgba(92,203,146,.14); --bad:#F07C68; --bad-soft:rgba(240,124,104,.15); --warn-soft:rgba(255,196,64,.14);
+    --p1:#5B8EFF; --p2:#F07560; --p3:#3DC08A; --p4:#E5AA2B; --p5:#A585FF; --p6:#2CC0CC;
+    --arrow:#5E6B7E;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 1.5rem 0;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:.9rem;max-width:80rem;margin:0 auto}
+.chipico{width:44px;height:44px;flex:none}
+.brand h1{font:700 1.45rem/1.15 var(--head);margin:0;letter-spacing:.01em}
+.brand p{margin:.1rem 0 0;color:var(--muted);font-size:.9rem}
+.tabs{display:flex;gap:.25rem;max-width:80rem;margin:.8rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.6rem .9rem .7rem;border-bottom:3px solid transparent;font:600 .95rem var(--ui);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button span{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--soft);font-size:.78rem;margin-right:.4rem;color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button[aria-selected="true"] span{background:var(--accent);color:var(--on-accent)}
+
+main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
+.intro{margin:0 0 1.2rem;max-width:52rem}
+.intro h2{font:700 1.35rem/1.25 var(--head);margin:0 0 .35rem}
+.intro p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.2rem;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{font:700 1rem var(--head);margin:0 0 .6rem;letter-spacing:.01em}
+.side .card+.card{margin-top:1rem}
+.side ul{margin:.2rem 0 0;padding-left:1.1rem}
+.side li{margin:.35rem 0;font-size:.93rem}
+.side p{font-size:.93rem;margin:.3rem 0}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:600 .9rem var(--ui);padding:.5rem .95rem;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.speed{display:flex;align-items:center;gap:.4rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.speed input{accent-color:var(--accent);width:7rem}
+.clock{font:600 .9rem var(--mono);background:var(--soft);border-radius:6px;padding:.3rem .6rem}
+
+.log,.side .log{list-style:none;margin:0;padding:0;max-height:16rem;overflow:auto;font-size:.88rem}
+.log li{padding:.45rem 0;border-bottom:1px solid var(--line);display:flex;gap:.6rem}
+.log li:first-child{font-weight:600}
+.log time{font:600 .8rem var(--mono);color:var(--muted);flex:none;min-width:2.6rem;padding-top:.1rem}
+.log code{white-space:nowrap}
+.log .empty{color:var(--muted);font-style:italic}
+
+.pchip{display:inline-flex;align-items:center;justify-content:center;min-width:2.1rem;height:1.6rem;padding:0 .45rem;border-radius:999px;color:#fff;font:700 .78rem var(--mono)}
+
+/* 1. Estados */
+.stage{position:relative;width:100%;aspect-ratio:2/1;background:var(--soft);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.sbox{fill:var(--card);stroke:var(--line);stroke-width:2}
+.sbox.exec{stroke:var(--accent);stroke-width:3}
+.stitle{font:700 22px var(--head);fill:var(--ink)}
+.ssub{font:500 15px var(--ui);fill:var(--muted)}
+.arr{fill:none;stroke:var(--arrow);stroke-width:3;transition:stroke .25s}
+.arr.on{stroke:var(--accent);stroke-width:5}
+.alab{font:600 15px var(--ui);fill:var(--muted)}
+.alab.on{fill:var(--accent)}
+.tok{position:absolute;width:4.4%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 clamp(.6rem,1.4vw,.9rem) var(--mono);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),opacity .4s,transform .3s}
+.tok.out{opacity:0;transform:scale(.4)}
+.tok.run{transform:scale(1.2);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--c)}
+.ptable{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.9rem}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:.8rem;padding:.3rem .4rem;border-bottom:1px solid var(--line)}
+.ptable td{padding:.45rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.ph{display:inline-block;padding:.15rem .5rem;border-radius:5px;font:600 .78rem var(--mono);margin:.1rem .2rem .1rem 0;background:var(--soft);border:1px solid var(--line)}
+.ph.cur{background:var(--warn-soft);border-color:var(--p4)}
+.ph.done{opacity:.4;text-decoration:line-through}
+.stlab{font-size:.82rem;font-weight:600}
+
+/* 2. Escalonamento */
+.cfg{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem}
+.cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.82rem;font-weight:600;color:var(--muted)}
+.cfg select,.cfg input{padding:.45rem .55rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.ptab input{width:4.2rem;padding:.3rem .4rem;border:1px solid var(--line);border-radius:6px;background:var(--soft);text-align:center}
+.ptab td,.ptab th{padding:.3rem .4rem}
+.ptab .rm{border:0;background:none;color:var(--bad);cursor:pointer;font-size:1.1rem}
+.cpu-row{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:1rem;align-items:center;margin:1.2rem 0}
+.cpu{border:3px solid var(--accent);border-radius:12px;height:6.2rem;display:grid;place-items:center;text-align:center;background:var(--card);position:relative}
+.cpu small{position:absolute;top:.35rem;left:0;right:0;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.cpu .big{font:700 1.6rem var(--mono);margin-top:.6rem}
+.queue{border:2px dashed var(--line);border-radius:12px;min-height:6.2rem;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:relative}
+.queue::before{content:"Fila dos prontos";position:absolute;top:.35rem;left:.7rem;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.queue .pchip{margin-top:1rem;height:2.2rem;min-width:2.8rem;font-size:.9rem;animation:pop .3s}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:grid;gap:2px;min-width:30rem}
+.gcell{height:2.6rem;background:var(--soft);border-radius:3px;display:flex;align-items:center;padding-left:.3rem;color:#fff;font:700 .78rem var(--mono);transition:background .2s}
+.gaxis{display:grid;gap:2px;min-width:30rem;font:500 .7rem var(--mono);color:var(--muted)}
+.gaxis span{text-align:left}
+.results{margin-top:1.2rem;overflow-x:auto}
+.results table{border-collapse:collapse;width:100%;font-size:.9rem}
+.results th,.results td{padding:.4rem .6rem;border-bottom:1px solid var(--line);text-align:center}
+.results th{font-size:.8rem;color:var(--muted)}
+.results tfoot td{font-weight:700}
+.best{background:var(--good-soft);font-weight:700}
+
+.alg{padding:.7rem .8rem;border-radius:9px;margin:0 -.4rem .3rem;cursor:pointer;transition:background .2s}
+.alg:hover{background:var(--soft)}
+.alg.on{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--p4)}
+.alg h4{margin:0 0 .3rem;font:700 .98rem var(--head);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .5rem}
+.alg h4 span{font:500 .8rem var(--ui);color:var(--muted)}
+.alg.on h4::after{content:"em uso";margin-left:auto;font:700 .7rem var(--ui);background:var(--p4);color:#fff;padding:.1rem .45rem;border-radius:999px}
+.alg p{margin:.2rem 0;font-size:.88rem}
+.alg .pc{color:var(--muted)}
+.alg:not(.on) .pc{display:none}
+/* 3. Condição de corrida */
+.race{display:grid;grid-template-columns:1fr 12rem 1fr;gap:1rem;align-items:start}
+.proc{border:2px solid var(--line);border-radius:12px;padding:.8rem;background:var(--card)}
+.proc h4{margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem;font:700 1rem var(--head)}
+.proc .st{margin-left:auto;font:600 .75rem var(--ui);padding:.15rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.proc .st.blk{background:var(--bad-soft);color:var(--bad)}
+.proc .st.end{background:var(--good-soft);color:var(--good)}
+.code{list-style:none;margin:0;padding:0;font:500 .86rem/1.5 var(--mono)}
+.code li{display:flex;gap:.5rem;padding:.3rem .45rem;border-radius:6px;align-items:center}
+.code li .pc{width:1rem;flex:none;color:var(--accent);font-weight:700}
+.code li.next{background:var(--warn-soft)}
+.code li.ran{color:var(--muted)}
+.code li.lk{color:var(--p5);font-weight:700}
+.reg{margin-top:.7rem;font:600 .9rem var(--mono);background:var(--soft);padding:.4rem .6rem;border-radius:7px}
+.mem{border:3px solid var(--ink);border-radius:12px;text-align:center;padding:.8rem .5rem;background:var(--card)}
+.mem small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.06em}
+.mem .val{font:700 2.6rem/1.2 var(--mono);transition:transform .3s}
+.mem .val.bump{transform:scale(1.3)}
+.mutex{margin-top:.8rem;padding:.4rem;border-radius:8px;font:600 .82rem var(--ui);background:var(--soft)}
+.mutex.held{background:var(--warn-soft)}
+.verdict{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.verdict.bad{background:var(--bad-soft)}
+.verdict.good{background:var(--good-soft)}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mode button{border:0;background:transparent;padding:.45rem .8rem;font:600 .86rem var(--ui);cursor:pointer;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.bars{margin-top:.8rem}
+.bar{display:grid;grid-template-columns:7rem 1fr 3.5rem;gap:.5rem;align-items:center;margin:.35rem 0;font-size:.88rem}
+.bar i{display:block;height:1.1rem;border-radius:4px;background:var(--accent);transition:width .6s}
+.bar i.bad{background:var(--bad)}
+
+/* 4. Impasse */
+#dl-svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.node-p{stroke-width:4}
+.node-r{fill:var(--card);stroke:var(--ink);stroke-width:3}
+.ntext{font:700 22px var(--head);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.rtext{font:700 18px var(--head);fill:var(--ink);text-anchor:middle}
+.edge{stroke-width:4;fill:none;transition:opacity .3s}
+.edge.req{stroke:var(--muted);stroke-dasharray:10 7}
+.edge.own{stroke:var(--ink)}
+.edge.cyc{stroke:var(--bad)!important}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin-top:.6rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.cond{list-style:none;padding:0;margin:0}
+.cond li{display:flex;gap:.5rem;align-items:flex-start;padding:.35rem 0;font-size:.9rem}
+.cond li i{flex:none;width:1.2rem;height:1.2rem;border-radius:50%;border:2px solid var(--line);margin-top:.15rem}
+.cond li.on i{background:var(--bad);border-color:var(--bad)}
+
+/* 5. Testa-te */
+.quiz{max-width:46rem}
+.q{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:1rem 1.1rem;margin:0 0 1rem}
+.q legend{font:700 1rem var(--head);padding:0 .3rem;margin-left:-.3rem}
+.q label{display:flex;gap:.6rem;padding:.45rem .5rem;border-radius:7px;cursor:pointer;align-items:flex-start}
+.q label:hover{background:var(--soft)}
+.q label.right{background:var(--good-soft)}
+.q label.wrong{background:var(--bad-soft)}
+.q input{accent-color:var(--accent);margin-top:.3rem}
+.q .fb{margin:.6rem 0 0;font-size:.92rem}
+.score{font:700 1.1rem var(--head);margin:.5rem 0 1rem}
+
+
+/* Núcleo */
+.ksvg .layer{stroke:none}
+.kbox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s}
+.kbox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.kbox.bad{stroke:var(--bad);stroke-width:4;fill:var(--bad-soft)}
+.ktxt{font:600 17px var(--ui);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.klab{font:700 15px var(--head);letter-spacing:.06em;fill:var(--muted)}
+.kline{stroke:var(--bad);stroke-width:3;stroke-dasharray:10 8}
+.mode-ind{display:inline-flex;align-items:center;gap:.5rem;font:700 .85rem var(--ui);padding:.35rem .8rem;border-radius:999px;background:var(--soft)}
+.mode-ind i{width:.7rem;height:.7rem;border-radius:50%;background:var(--good)}
+.mode-ind.k i{background:var(--bad)}
+.pkt{position:absolute;width:3.4%;aspect-ratio:1;border-radius:8px;background:var(--accent);box-shadow:0 4px 10px rgba(0,0,0,.3);transition:left .6s cubic-bezier(.5,0,.3,1),top .6s cubic-bezier(.5,0,.3,1),background .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.pkt.k{background:var(--bad)}
+.kstage{position:relative;width:100%;aspect-ratio:1000/520;background:var(--soft);border-radius:10px;overflow:hidden}
+.kstage svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Memória contígua */
+.membar{position:relative;height:5.5rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px);margin-top:.4rem}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:700 .85rem var(--mono);border-right:2px solid var(--card);transition:left .6s cubic-bezier(.5,0,.3,1),width .6s cubic-bezier(.5,0,.3,1),box-shadow .2s;overflow:hidden;white-space:nowrap;cursor:pointer}
+.seg small{font:500 .72rem var(--mono);opacity:.9}
+.seg.os{background:#4B5568;cursor:default}
+.seg.hole{background:transparent;color:var(--muted);cursor:default}
+.seg.fit{box-shadow:inset 0 0 0 4px var(--good)}
+.seg.nofit{box-shadow:inset 0 0 0 4px var(--bad)}
+.seg.pick{box-shadow:inset 0 0 0 6px var(--good);background:var(--good-soft)}
+.seg.new{animation:pop .5s}
+.addr{position:relative;height:1.3rem;font:500 .7rem var(--mono);color:var(--muted)}
+.addr span{position:absolute;transform:translateX(-50%)}
+.reqs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;min-height:2.2rem}
+.reqs .op{font:600 .8rem var(--ui);padding:.3rem .6rem;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.reqs .op.cur{background:var(--warn-soft);border-color:var(--p4)}
+.reqs .op.ok{opacity:.5}
+.reqs .op.fail{background:var(--bad-soft);border-color:var(--bad)}
+.stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.9rem}
+.stat{background:var(--soft);border-radius:8px;padding:.45rem .8rem;font-size:.85rem}
+.stat b{font:700 1.05rem var(--mono);display:block}
+.manual{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.9rem}
+.manual input{width:5.5rem;padding:.45rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);text-align:center}
+
+/* Paginação */
+.pg{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1.2rem;align-items:start}
+.pg h4{margin:0 0 .5rem;font:700 .9rem var(--head);color:var(--muted);letter-spacing:.03em}
+.cells{display:flex;flex-direction:column;gap:3px}
+.cell{display:flex;justify-content:space-between;align-items:center;padding:.45rem .7rem;border-radius:6px;background:var(--soft);font:600 .82rem var(--mono);border:2px solid transparent;transition:border-color .3s,background .3s;position:relative}
+.cell small{font:500 .7rem var(--mono);color:var(--muted)}
+.cell.mine{background:color-mix(in srgb,var(--p1) 18%,var(--card))}
+.cell.other{background:color-mix(in srgb,var(--muted) 18%,var(--card))}
+.cell.on{border-color:var(--accent);background:var(--warn-soft)}
+.cell.miss{border-color:var(--bad);background:var(--bad-soft)}
+.cell .mark{position:absolute;top:2px;bottom:2px;width:3px;background:var(--bad);border-radius:2px}
+.ptbl{width:100%;border-collapse:collapse;font:600 .85rem var(--mono)}
+.ptbl th{font:600 .72rem var(--ui);color:var(--muted);padding:.3rem;border-bottom:1px solid var(--line)}
+.ptbl td{text-align:center;padding:.42rem .3rem;border-bottom:1px solid var(--line);transition:background .3s}
+.ptbl tr.on td{background:var(--warn-soft)}
+.ptbl tr.miss td{background:var(--bad-soft)}
+.calc{margin-top:1rem;font:500 .95rem/1.7 var(--mono);background:var(--soft);border-radius:10px;padding:.8rem 1rem;min-height:5rem}
+.calc div{animation:pop .3s}
+.calc .res{font-weight:700;color:var(--accent)}
+.calc .err{font-weight:700;color:var(--bad)}
+
+/* Substituição de páginas */
+.refgrid{overflow-x:auto}
+.refgrid table{border-collapse:separate;border-spacing:3px;font:600 .9rem var(--mono)}
+.refgrid th{min-width:2.4rem;height:2.4rem;background:var(--soft);border-radius:6px}
+.refgrid th.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.refgrid td{height:2.4rem;text-align:center;border-radius:6px;background:var(--card);border:1px solid var(--line);transition:background .3s}
+.refgrid td.lbl{border:0;background:none;font:600 .72rem var(--ui);color:var(--muted);text-align:right;padding-right:.4rem;white-space:nowrap}
+.refgrid td.in{background:var(--bad-soft);border-color:var(--bad)}
+.refgrid td.hitc{background:var(--good-soft);border-color:var(--good)}
+.refgrid td.res{border:0;font:700 .8rem var(--ui)}
+.refgrid td.res.f{color:var(--bad)}
+.refgrid td.res.h{color:var(--good)}
+.refgrid td.hide{visibility:hidden}
+
+
+/* E/S: técnicas */
+.iostage{position:relative;width:100%;aspect-ratio:1000/430;background:var(--soft);border-radius:10px;overflow:hidden}
+.iostage svg{position:absolute;inset:0;width:100%;height:100%}
+.iobox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s,opacity .3s}
+.iobox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.iobox.off{opacity:.3}
+.iot{font:700 19px var(--head);fill:var(--ink);text-anchor:middle}
+.ios{font:500 14px var(--ui);fill:var(--muted);text-anchor:middle}
+.bus{stroke:var(--muted);stroke-width:8;stroke-linecap:round}
+.byte{position:absolute;width:3%;aspect-ratio:1;border-radius:6px;background:var(--p2);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .35s ease-in-out,top .35s ease-in-out,opacity .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.cpubar{display:flex;gap:2px;height:1.7rem;margin-top:.4rem}
+.cpubar i{flex:1;border-radius:3px;background:var(--soft)}
+.cpubar i.u{background:var(--good)}
+.cpubar i.h{background:var(--p4)}
+.cpubar i.w{background:var(--bad)}
+.leg{display:flex;flex-wrap:wrap;gap:.9rem;font-size:.8rem;color:var(--muted);margin-top:.45rem}
+.leg span{display:inline-flex;align-items:center;gap:.35rem}
+.leg i{width:.9rem;height:.9rem;border-radius:3px;display:inline-block}
+
+/* Interrupção */
+.intg{display:grid;grid-template-columns:1fr 13rem 1fr;gap:1rem;align-items:start}
+.kbd{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:10px;background:var(--soft);font:600 .85rem var(--ui);transition:background .3s}
+.kbd.on{background:var(--bad-soft);box-shadow:inset 0 0 0 2px var(--bad)}
+.kbd kbd{font:700 1rem var(--mono);background:var(--card);border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:.2rem .55rem}
+.stack{border:2px solid var(--ink);border-radius:10px;padding:.5rem;min-height:5.5rem;margin-top:.8rem;background:var(--card)}
+.stack small,.vec small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.05em;margin-bottom:.35rem}
+.stack div{font:600 .8rem var(--mono);background:var(--warn-soft);border-radius:5px;padding:.25rem .45rem;margin-top:3px;animation:pop .3s}
+.vec{margin-top:.8rem}
+.vec table{width:100%;border-collapse:collapse;font:600 .8rem var(--mono)}
+.vec td{padding:.3rem .4rem;border-bottom:1px solid var(--line);transition:background .3s}
+.vec tr.on td{background:var(--warn-soft)}
+.bufbox{margin-top:.6rem;font:600 .85rem var(--mono);background:var(--soft);border-radius:7px;padding:.4rem .6rem}
+
+/* Buffer */
+.stream{display:grid;grid-template-columns:8rem 1fr 8rem;gap:1rem;align-items:center}
+.node{border:2px solid var(--line);border-radius:12px;background:var(--card);text-align:center;padding:.8rem .4rem;font:700 .9rem var(--head)}
+.node small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-top:.2rem}
+.node.stall{border-color:var(--bad);background:var(--bad-soft)}
+.node.play{border-color:var(--good);background:var(--good-soft)}
+.bufmeter{position:relative;height:3.4rem;border:2px dashed var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.bufmeter i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 35%,var(--card));transition:width .4s}
+.bufmeter span{position:absolute;inset:0;display:grid;place-items:center;font:700 .9rem var(--mono)}
+.vbar{position:relative;height:.7rem;border-radius:999px;background:var(--line);margin-top:1.2rem;overflow:hidden}
+.vbar .bf{position:absolute;left:0;top:0;bottom:0;background:var(--muted);opacity:.55;transition:width .4s}
+.vbar .pl{position:absolute;left:0;top:0;bottom:0;background:var(--bad);transition:width .4s}
+.screen{margin-top:1rem;aspect-ratio:16/6;border-radius:10px;background:#11161e;display:grid;place-items:center;color:#fff;font:700 1.1rem var(--head);position:relative;overflow:hidden}
+.screen .spin{width:2.6rem;height:2.6rem;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.screen .frame{font-size:2.6rem;animation:pop .4s}
+.chart{display:flex;align-items:flex-end;gap:2px;height:5rem;margin-top:1rem;border-bottom:1px solid var(--line)}
+.chart i{flex:1;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;opacity:.75}
+.chart i.st{background:var(--bad);opacity:1}
+
+/* Disco */
+.dsvg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.dpath{fill:none;stroke:var(--accent);stroke-width:3}
+.dret{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-dasharray:7 6}
+.dreq{fill:var(--card);stroke:var(--p2);stroke-width:3}
+.dreq.done{fill:var(--p2)}
+.dhead{fill:var(--accent)}
+.dax{font:500 13px var(--mono);fill:var(--muted)}
+.dlab{font:700 13px var(--mono);fill:var(--ink)}
+
+
+/* Funções em ação */
+.banner{min-height:3.4rem;padding:.8rem 1rem;border-radius:10px;background:var(--soft);font:600 1rem/1.45 var(--ui);margin-bottom:1rem}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.7rem}
+.fcard{position:relative;border:2px solid var(--line);border-radius:12px;padding:.8rem .9rem;background:var(--card);transition:border-color .3s,background .3s,transform .3s}
+.fcard .ic{font-size:1.6rem;line-height:1}
+.fcard h4{margin:.4rem 0 .2rem;font:700 .95rem var(--head)}
+.fcard p{margin:0;font-size:.8rem;color:var(--muted);line-height:1.4}
+.fcard .cnt{position:absolute;top:.6rem;right:.7rem;min-width:1.6rem;height:1.6rem;border-radius:999px;background:var(--soft);display:grid;place-items:center;font:700 .78rem var(--mono);color:var(--muted)}
+.fcard.used .cnt{background:var(--good-soft);color:var(--good)}
+.fcard.on{border-color:var(--accent);background:var(--warn-soft);transform:translateY(-3px)}
+.fcard.on .cnt{background:var(--accent);color:var(--on-accent)}
+
+/* Arranque */
+.bootg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:1.2rem;align-items:start}
+.stepper{list-style:none;margin:0;padding:0;counter-reset:s}
+.stepper li{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem .5rem;border-radius:8px;font-size:.88rem;color:var(--muted);transition:background .3s}
+.stepper li::before{counter-increment:s;content:counter(s);flex:none;width:1.5rem;height:1.5rem;border-radius:50%;display:grid;place-items:center;background:var(--soft);font:700 .75rem var(--mono);color:var(--muted)}
+.stepper li.done{color:var(--ink)}
+.stepper li.done::before{background:var(--good);color:#fff;content:"✓"}
+.stepper li.cur{background:var(--warn-soft);color:var(--ink);font-weight:600}
+.stepper li.cur::before{background:var(--accent);color:var(--on-accent)}
+.scr{position:relative;aspect-ratio:16/10;border-radius:10px;background:#000;border:8px solid #2b313b;overflow:hidden;color:#fff;display:grid;place-items:center;text-align:center;font:600 1rem var(--ui);transition:background .4s}
+.scr .brandlogo{font:800 1.6rem var(--head);letter-spacing:.1em;opacity:.9}
+.scr .small{font:500 .78rem var(--mono);opacity:.75;margin-top:.5rem}
+.scr .oslogo{font:700 1.4rem var(--head)}
+.scr .spin{width:2rem;height:2rem;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite;margin:.8rem auto 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scr.login{background:linear-gradient(135deg,#1d3b6e,#3b6fb6)}
+.scr .lbox{background:rgba(255,255,255,.15);border-radius:10px;padding:.8rem 1.2rem;font-size:.85rem}
+.scr .lbox i{display:block;width:9rem;height:1.4rem;border-radius:5px;background:rgba(255,255,255,.85);margin:.5rem auto 0}
+.scr.desk{background:linear-gradient(160deg,#2f6f73,#1e3d59);place-items:stretch}
+.scr .icons{display:flex;flex-direction:column;gap:.6rem;padding:.8rem;font-size:.72rem;align-items:flex-start}
+.scr .icons span{display:flex;flex-direction:column;align-items:center;gap:.15rem}
+.scr .icons b{font-size:1.5rem}
+.scr .taskbar{position:absolute;left:0;right:0;bottom:0;height:1.8rem;background:rgba(0,0,0,.55);display:flex;align-items:center;gap:.6rem;padding:0 .6rem;font-size:.8rem}
+.ram{display:flex;gap:2px;height:2.6rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:1rem;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px)}
+.ram i{display:grid;place-items:center;color:#fff;font:700 .7rem var(--ui);font-style:normal;padding:0 .3rem;text-align:center;line-height:1.1;animation:pop .4s}
+.ramlab{font-size:.8rem;color:var(--muted);margin-top:.3rem}
+
+/* Interfaces */
+.ifg{display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch}
+.ifg h4{margin:0 0 .45rem;font:700 .9rem var(--head);color:var(--muted)}
+.win{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);height:19rem;display:flex;flex-direction:column;position:relative}
+.win .tb{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--soft);font:600 .8rem var(--ui);border-bottom:1px solid var(--line)}
+.win .tb i{width:.6rem;height:.6rem;border-radius:50%;background:var(--line)}
+.win .addr{font:500 .78rem var(--mono);color:var(--muted);padding:.35rem .6rem;border-bottom:1px solid var(--line)}
+.win .items{display:flex;flex-wrap:wrap;gap:.6rem;padding:.8rem;align-content:flex-start;flex:1}
+.win .it{width:5.6rem;text-align:center;font-size:.75rem;padding:.4rem .2rem;border-radius:7px;word-break:break-word;animation:pop .3s}
+.win .it b{display:block;font-size:1.8rem;font-weight:400}
+.win .it.sel{background:color-mix(in srgb,var(--accent) 22%,var(--card));box-shadow:inset 0 0 0 1px var(--accent)}
+.win .it.gone{opacity:.25;text-decoration:line-through}
+.win .menu{position:absolute;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.2);font-size:.8rem;padding:.3rem 0;min-width:9rem;animation:pop .2s}
+.win .menu div{padding:.3rem .8rem}
+.win .menu div.on{background:var(--accent);color:var(--on-accent)}
+.win .tbl{width:100%;border-collapse:collapse;font:500 .76rem var(--mono)}
+.win .tbl td,.win .tbl th{padding:.25rem .5rem;border-bottom:1px solid var(--line);text-align:left}
+.win .cursor{position:absolute;font-size:1.3rem;transition:left .5s,top .5s;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+.term{border-radius:10px;background:#0c0f14;color:#d6dde6;font:500 .82rem/1.55 var(--mono);padding:.7rem .8rem;height:19rem;overflow:auto;white-space:pre-wrap}
+.term .pr{color:#7fd17f}
+.term .cmd{color:#fff;font-weight:600}
+.term .out{color:#9fb0c3}
+.term .caret{display:inline-block;width:.55rem;height:1em;background:#d6dde6;vertical-align:text-bottom;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pros{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;font-size:.86rem}
+.pros div{background:var(--soft);border-radius:9px;padding:.6rem .8rem}
+.pros div>b:first-child{display:block;margin-bottom:.2rem}
+
+/* Tipos de SO */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.8rem}
+.scard{border:2px solid var(--line);border-radius:12px;padding:.8rem .9rem;background:var(--card);transition:border-color .3s,background .3s}
+.scard h4{margin:0 0 .5rem;font:700 1rem var(--head);display:flex;gap:.5rem;align-items:center}
+.scard h4 b{font-size:1.5rem;font-weight:400}
+.scard .opts{display:flex;flex-wrap:wrap;gap:.3rem}
+.scard .opts button{border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 .76rem var(--ui);padding:.3rem .55rem;border-radius:999px;cursor:pointer}
+.scard .opts button:hover{border-color:var(--accent)}
+.scard.ok{border-color:var(--good);background:var(--good-soft)}
+.scard.no{border-color:var(--bad);background:var(--bad-soft)}
+.scard .fb{font-size:.82rem;margin:.5rem 0 0;line-height:1.45}
+.scard .opts button.right{background:var(--good);color:#fff;border-color:var(--good)}
+.scard .opts button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+
+
+/* Caminhos */
+.tree{list-style:none;margin:0;padding:0;font:500 .9rem/1.3 var(--mono)}
+.tree ul{list-style:none;margin:0;padding-left:1.4rem;border-left:1px dashed var(--line);margin-left:.55rem}
+.tree li>span{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .5rem;border-radius:6px;margin:.08rem 0;transition:background .3s,box-shadow .3s}
+.tree li>span.cwd{box-shadow:inset 0 0 0 2px var(--accent)}
+.tree li>span.cwd::after{content:"estás aqui";font:700 .65rem var(--ui);background:var(--accent);color:var(--on-accent);padding:.1rem .4rem;border-radius:999px}
+.tree li>span.vis{background:var(--soft)}
+.tree li>span.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.tree li>span.tgt{background:var(--good-soft);box-shadow:inset 0 0 0 2px var(--good)}
+.pathbox{font:600 1.05rem var(--mono);background:var(--soft);border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;word-break:break-all}
+.pathbox span{padding:.1rem .15rem;border-radius:4px}
+.pathbox span.on{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.pathbox span.done{color:var(--muted)}
+.pathbox small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-bottom:.2rem}
+
+/* Blocos */
+.disk{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.blk{position:relative;aspect-ratio:1.25;border-radius:6px;background:var(--soft);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 .82rem var(--mono);color:var(--ink);transition:background .3s,box-shadow .3s}
+.blk small{position:absolute;top:2px;left:4px;font:500 .62rem var(--mono);color:var(--muted)}
+.blk.f{color:#fff}
+.blk.f small{color:rgba(255,255,255,.8)}
+.blk .nx{font:600 .62rem var(--mono);opacity:.9}
+.blk.new{animation:pop .4s}
+.blk.rd{box-shadow:0 0 0 3px var(--ink)}
+.blk .acc{position:absolute;top:-8px;right:-6px;background:var(--ink);color:var(--card);border-radius:999px;font:700 .65rem var(--mono);padding:.05rem .35rem}
+.blk.idx{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 4px,transparent 4px 8px)}
+.dir{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:1rem}
+.dir th{font-size:.75rem;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.dir td{padding:.35rem .5rem;border-bottom:1px solid var(--line);font-family:var(--mono)}
+
+/* Permissões */
+.perm{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin:1rem 0}
+.pgrp{border:2px solid var(--line);border-radius:12px;padding:.7rem;text-align:center;transition:border-color .3s,background .3s}
+.pgrp h4{margin:0 0 .5rem;font:700 .85rem var(--head)}
+.pgrp h4 small{display:block;font:500 .72rem var(--ui);color:var(--muted)}
+.pgrp.on{border-color:var(--p4);background:var(--warn-soft)}
+.bits{display:flex;justify-content:center;gap:.35rem}
+.bit{width:2.4rem;height:2.4rem;border-radius:8px;border:1px solid var(--line);background:var(--soft);font:700 1rem var(--mono);cursor:pointer;color:var(--muted)}
+.bit.set{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.bit.chk{box-shadow:0 0 0 3px var(--p4)}
+.lsline{font:600 1.1rem var(--mono);background:#0c0f14;color:#d6dde6;border-radius:10px;padding:.7rem 1rem}
+.lsline b{color:#7fd17f}
+.attempts{display:grid;gap:.5rem;margin-top:1rem}
+.att{display:flex;gap:.7rem;align-items:center;padding:.55rem .8rem;border-radius:10px;background:var(--soft);font-size:.9rem;transition:background .3s}
+.att.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.att .res{margin-left:auto;font-weight:700;white-space:nowrap}
+.att.ok .res{color:var(--good)}
+.att.no .res{color:var(--bad)}
+
+/* Apagar */
+.dtab{width:100%;border-collapse:collapse;font-size:.88rem}
+.dtab th{font-size:.75rem;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.dtab td{padding:.4rem .5rem;border-bottom:1px solid var(--line)}
+.dtab tr.del td{color:var(--muted);text-decoration:line-through}
+.dtab tr.new td{font-weight:600}
+.disk2{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:1rem}
+.disk2 .blk{aspect-ratio:1;font-size:1.3rem}
+.blk.free{background:var(--card);border-style:dashed}
+.blk.ghost{opacity:.55}
+.blk.zero{font:700 .8rem var(--mono);color:var(--muted)}
+.recover{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.recover.good{background:var(--good-soft)}
+.recover.bad{background:var(--bad-soft)}
+.recover.half{background:var(--warn-soft)}
+
+
+/* Impressora */
+.prt{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1rem;align-items:center}
+.pbox{border:2px solid var(--line);border-radius:12px;padding:.7rem .8rem;background:var(--card);transition:border-color .3s,background .3s}
+.pbox h4{margin:0 0 .4rem;font:700 .95rem var(--head);display:flex;align-items:center;gap:.5rem}
+.pbox .st{margin-left:auto;font:600 .72rem var(--ui);padding:.12rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.pbox .st.blk{background:var(--bad-soft);color:var(--bad)}
+.pbox .st.free{background:var(--good-soft);color:var(--good)}
+.pages{display:flex;gap:.3rem;flex-wrap:wrap;min-height:2.6rem}
+.page{width:2rem;height:2.6rem;border-radius:3px;display:grid;place-items:center;color:#fff;font:700 .72rem var(--mono);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.printer{text-align:center}
+.printer .dev{font-size:3rem;line-height:1}
+.printer .now{min-height:2.8rem;display:flex;justify-content:center;margin-top:.3rem}
+.spool{margin-top:1rem;border:2px dashed var(--line);border-radius:12px;padding:.6rem .8rem;min-height:3.4rem}
+.spool small,.tray small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.05em;margin-bottom:.35rem}
+.job{display:inline-flex;align-items:center;gap:.35rem;margin:.15rem .3rem .15rem 0;padding:.25rem .6rem;border-radius:999px;color:#fff;font:600 .78rem var(--ui)}
+.tray{margin-top:1rem;background:var(--soft);border-radius:12px;padding:.6rem .8rem}
+
+/* Semáforos */
+.pc3{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:1rem;align-items:start}
+.slots{display:flex;gap:.4rem;justify-content:center;margin:.4rem 0 .8rem}
+.slot{width:3rem;height:3rem;border-radius:10px;border:2px dashed var(--line);display:grid;place-items:center;font:700 1rem var(--mono)}
+.slot.full{border-style:solid;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 20%,var(--card))}
+.sems{display:flex;justify-content:center;gap:.6rem}
+.sem{background:var(--soft);border-radius:10px;padding:.45rem .7rem;text-align:center;font-size:.78rem;min-width:5rem}
+.sem b{display:block;font:700 1.5rem var(--mono)}
+.sem.zero b{color:var(--bad)}
+.code li.ok{background:var(--good-soft)}
+.code li.stop{background:var(--bad-soft);color:var(--bad);font-weight:700}
+
+/* Banqueiro */
+.bank{width:100%;border-collapse:collapse;font-size:.92rem}
+.bank th{font-size:.75rem;color:var(--muted);padding:.4rem .5rem;border-bottom:1px solid var(--line);text-align:center}
+.bank td{padding:.5rem;border-bottom:1px solid var(--line);text-align:center;font-family:var(--mono);transition:background .3s}
+.bank tr.chk td{background:var(--warn-soft)}
+.bank tr.no td{background:var(--bad-soft)}
+.bank tr.fin td{background:var(--good-soft)}
+.bank td.req{color:var(--accent);font-weight:700}
+.avail{display:flex;align-items:center;gap:1rem;margin:1rem 0}
+.avail .big{font:700 2.4rem var(--mono);color:var(--accent);min-width:3rem;text-align:center}
+.seq{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;font-size:.85rem;color:var(--muted)}
+
+@media (max-width:960px){
+  .prt,.pc3{grid-template-columns:1fr}
+  .perm{grid-template-columns:1fr}
+  .bootg,.ifg,.pros{grid-template-columns:1fr}
+  .intg,.stream{grid-template-columns:1fr}
+  .pg{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .race{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+}
+.credit{max-width:80rem;margin:0 auto;padding:1.2rem 1.5rem 2rem;border-top:1px solid var(--line);text-align:center;font-size:.85rem;color:var(--muted)}
+body.instant *,body.instant *::before,body.instant *::after{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="chipico" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="8" fill="var(--accent)"/><g fill="var(--accent)"><circle cx="8" cy="10" r="4"/><circle cx="36" cy="10" r="4"/><circle cx="8" cy="34" r="4"/><circle cx="36" cy="34" r="4"/></g><path d="M11 12l6 6M33 12l-6 6M11 32l6-6M33 32l-6-6" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <div><h1>Gestão de recursos</h1><p>Laboratório animado · Sistemas Operativos</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Temas">
+    <button role="tab" aria-selected="true" data-tab="impressora"><span>1</span>Partilhar a impressora</button>
+    <button role="tab" aria-selected="false" data-tab="tipos"><span>2</span>Tipos de recursos</button>
+    <button role="tab" aria-selected="false" data-tab="semaforos"><span>3</span>Semáforos</button>
+    <button role="tab" aria-selected="false" data-tab="banqueiro"><span>4</span>Algoritmo do banqueiro</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+  </nav>
+</header>
+<main>
+
+<!-- 1. IMPRESSORA -->
+<section id="impressora" role="tabpanel">
+  <div class="intro"><h2>Dois programas, uma impressora</h2>
+  <p>Os <b>recursos</b> do computador (processador, memória, impressora, ficheiros…) são partilhados por muitos programas, e o SO tem de os repartir sem confusões. Exemplo: o Rui e a Ana mandam imprimir um documento de 3 páginas ao mesmo tempo. Compara três formas de gerir a impressora.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Como o SO gere a impressora<select id="r-mode">
+        <option value="free">Sem regras: quem chega primeiro, imprime</option>
+        <option value="excl">Acesso exclusivo: um de cada vez</option>
+        <option value="spool">Com spooling: fila de impressão no disco</option></select></label></div>
+      <div class="prt">
+        <div class="pbox" id="r-p0"></div>
+        <div class="printer"><div class="dev">🖨️</div><div class="now" id="r-now"></div></div>
+        <div class="pbox" id="r-p1"></div>
+      </div>
+      <div class="spool" id="r-spool"></div>
+      <div class="tray"><small>FOLHAS IMPRESSAS (pela ordem em que saíram)</small><div class="pages" id="r-tray"></div></div>
+      <div class="stats" id="r-stats"></div>
+      <div class="controls" data-ctl="impressora"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="r-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Recurso</b>: tudo aquilo de que um programa precisa para trabalhar: processador, memória, ficheiros, dispositivos.</li>
+        <li><b>Acesso exclusivo</b>: só um programa de cada vez pode usar o recurso.</li>
+        <li><b>Spooling</b>: os trabalhos são guardados numa fila no disco e um programa do SO (o <b>spooler</b>) envia-os à impressora, um a um. Os programas não ficam à espera.</li>
+        <li>É o que vês no Windows em <b>Impressoras → Ver o que está a ser impresso</b>.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. TIPOS -->
+<section id="tipos" role="tabpanel" hidden>
+  <div class="intro"><h2>Nem todos os recursos são iguais</h2>
+  <p>Há recursos que o SO pode tirar a um programa a meio e devolver depois, e outros não. Há recursos que vários podem usar ao mesmo tempo, e outros só um de cada vez. Responde a cada pergunta.</p></div>
+  <div class="grid">
+    <div class="card">
+      <p class="score" id="y-score"></p>
+      <div class="cards" id="y-cards"></div>
+      <div class="controls"><button class="btn ghost" id="y-again">Baralhar e recomeçar</button></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>Duas classificações</h3><ul>
+        <li><b>Preemptível</b>: pode ser retirado a um processo e devolvido mais tarde, sem estragar nada. Exemplos: o processador e a memória.</li>
+        <li><b>Não preemptível</b>: retirá-lo a meio estragava o trabalho. Exemplos: a impressora a meio de um documento, um gravador de DVD a gravar.</li>
+        <li><b>Partilhável</b>: vários processos podem usá-lo ao mesmo tempo, como um ficheiro só para leitura.</li>
+        <li><b>Exclusivo</b>: só um de cada vez, como a impressora ou um ficheiro que está a ser alterado.</li></ul>
+        <p>Os recursos não preemptíveis e exclusivos são os que podem provocar <b>impasses</b> (deadlocks).</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. SEMÁFOROS -->
+<section id="semaforos" role="tabpanel" hidden>
+  <div class="intro"><h2>Produtor e consumidor</h2>
+  <p>Um processo <b>produz</b> dados (por exemplo, descarrega pedaços de um vídeo) e outro <b>consome</b>-os (o leitor que o mostra). Entre eles há um buffer com 5 lugares. O SO usa <b>semáforos</b>, contadores especiais, para o produtor parar quando o buffer está cheio e o consumidor parar quando está vazio.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Ritmo<select id="s-ex"><option value="eq">Os dois ao mesmo ritmo</option><option value="fp">Produtor mais rápido (rede rápida)</option><option value="fc">Consumidor mais rápido (rede lenta)</option></select></label></div>
+      <div class="pc3">
+        <div class="proc" id="s-P"></div>
+        <div><div class="slots" id="s-buf"></div><div class="sems" id="s-sems"></div></div>
+        <div class="proc" id="s-C"></div>
+      </div>
+      <div class="stats" id="s-stats"></div>
+      <div class="controls" data-ctl="semaforos"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="s-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Como funciona um semáforo</h3><ul>
+        <li>É um contador que só se muda com duas operações.</li>
+        <li><b>wait(s)</b>: se s &gt; 0, diminui 1 e continua; se s = 0, o processo fica <b>bloqueado</b>.</li>
+        <li><b>signal(s)</b>: aumenta 1 e, se alguém estava bloqueado nesse semáforo, acorda-o.</li>
+        <li><b>vazios</b> conta os lugares livres, <b>cheios</b> conta os itens à espera, e o <b>mutex</b> (vale 0 ou 1) garante que só um de cada vez mexe no buffer.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. BANQUEIRO -->
+<section id="banqueiro" role="tabpanel" hidden>
+  <div class="intro"><h2>Emprestar só se for seguro</h2>
+  <p>O <b>algoritmo do banqueiro</b> evita impasses. Como um banco, que só empresta dinheiro se tiver a certeza de que todos os clientes conseguirão terminar e pagar, o SO só aceita um pedido se continuar a existir uma ordem pela qual todos os processos podem terminar. Aqui há 12 unidades de um recurso (por exemplo, blocos de memória) para três processos.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Exemplo<select id="q-ex">
+        <option value="safe">Verificar se o estado atual é seguro</option>
+        <option value="grant">P2 pede mais 2 unidades</option>
+        <option value="deny">P3 pede mais 1 unidade</option>
+        <option value="deny2">P1 pede mais 2 unidades</option></select></label></div>
+      <table class="bank" id="q-tab"></table>
+      <div class="avail"><span class="big" id="q-av"></span><span>unidades disponíveis<br><span class="seq" id="q-seq"></span></span></div>
+      <div id="q-verdict"></div>
+      <div class="controls" data-ctl="banqueiro"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="q-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Máximo</b>: quanto cada processo declara, à partida, que vai precisar no total.</li>
+        <li><b>Ainda precisa</b> = máximo − o que já tem.</li>
+        <li><b>Estado seguro</b>: existe uma ordem (uma <b>sequência segura</b>) pela qual todos os processos podem terminar, um de cada vez, devolvendo o que têm.</li>
+        <li><b>Estado inseguro</b>: essa ordem não existe. Ainda não é um impasse, mas pode vir a ser.</li>
+        <li>Um pedido só é aceite se o estado continuar seguro; senão, o processo espera.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TESTA-TE -->
+<section id="teste" role="tabpanel" hidden>
+  <div class="intro"><h2>Testa-te</h2><p>Responde às perguntas e vê logo se acertaste. As opções mudam de ordem cada vez que abres o teste.</p></div>
+  <div class="quiz" id="quiz"></div>
+</section>
+</main>
+<footer class="credit">© 2026 | Nuno Gonçalves - Equipa de Apoio Técnico</footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = i => `var(--p${(i % 6) + 1})`;
+const fmt = x => x.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+
+const players = [];
+/* Comandos: anterior, reproduzir, seguinte, recomeçar e velocidade.
+   «Anterior» repõe o início e repete, sem animação, todos os passos menos o último. */
+function makePlayer(name, { step, reset, pos, rewind, back }){
+  const box = document.querySelector(`[data-ctl="${name}"]`);
+  box.insertAdjacentHTML('beforeend', `<button class="btn ghost" data-a="back" title="Voltar ao passo anterior">⏮ Anterior</button><button class="btn" data-a="play">▶ Reproduzir</button><button class="btn ghost" data-a="step" title="Avançar um passo">Seguinte ⏭</button><button class="btn ghost" data-a="reset">↺ Recomeçar</button><label class="speed">Velocidade<input type="range" min="1" max="5" value="3" aria-label="Velocidade"></label>`);
+  const play = box.querySelector('[data-a=play]'), sp = box.querySelector('input[type=range]'), backBtn = box.querySelector('[data-a=back]');
+  let timer = null, finished = false;
+  const ms = () => [2200, 2200 * .7, 2200 * .5, 2200 * .32, 2200 * .18][sp.value - 1];
+  const sync = () => { backBtn.disabled = !(pos && pos() > 0); };
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = '▶ Reproduzir'; };
+  const tick = () => { const more = step(); finished = !more; if (!more) stop(); sync(); };
+  const start = () => { play.textContent = '⏸ Pausa'; tick(); if (!finished) timer = setInterval(tick, ms()); else stop(); };
+  play.onclick = () => { if (timer) return stop(); if (finished) { reset(); finished = false; } start(); };
+  sp.oninput = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, ms()); } };
+  box.querySelector('[data-a=step]').onclick = () => { stop(); tick(); };
+  box.querySelector('[data-a=reset]').onclick = () => { stop(); finished = false; reset(); sync(); };
+  backBtn.onclick = () => {
+    stop(); if (!(pos && pos() > 0)) return;
+    document.body.classList.add('instant'); window.FAST = true;
+    try {
+      if (back) back();
+      else { const target = pos() - 1; (rewind || reset)(); let g = 0; while (pos() < target && g++ < 3000) step(); }
+    } finally {
+      window.FAST = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('instant')));
+    }
+    finished = false; sync();
+  };
+  const p = { stop, ms, sync, setFinished: v => finished = v, start: () => { stop(); finished = false; start(); } };
+  players.push(p); setTimeout(sync);
+  return p;
+}
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(() => players.forEach(p => p.sync())), true));
+function logTo(el, msgs, t){
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  msgs.slice().reverse().forEach(m => el.insertAdjacentHTML('afterbegin', `<li>${t != null ? `<time>${t}</time>` : ''}<span>${m}</span></li>`));
+}
+function algCards(boxSel, select, onPick){
+  const mark = () => document.querySelectorAll(boxSel + ' .alg').forEach(el => el.classList.toggle('on', el.dataset.alg === select.value));
+  $(boxSel).addEventListener('click', e => { const el = e.target.closest('.alg'); if (!el || el.dataset.alg === select.value) return; select.value = el.dataset.alg; select.onchange(); });
+  mark(); return mark;
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  players.forEach(p => p.stop());
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+/* ================= 1. IMPRESSORA ================= */
+(() => {
+  const WHO = [{ n: 'Rui', doc: 'trabalho (Word)', c: 0 }, { n: 'Ana', doc: 'apresentação (PDF)', c: 1 }];
+  const pg = (w, i) => ({ w, i });
+  function plan(m){
+    const T = [];
+    if (m === 'free') {
+      const order = [pg(0, 1), pg(1, 1), pg(0, 2), pg(1, 2), pg(0, 3), pg(1, 3)];
+      order.forEach((p, j) => T.push({ print: p, st: [j < 4 ? 'blk' : j === 4 ? 'blk' : 'free', 'blk'].map((s, w) => (order.slice(j + 1).some(x => x.w === w) ? 'blk' : 'free')), msg: j === 0 ? 'Os dois programas mandam as páginas ao mesmo tempo, e a impressora imprime-as pela ordem em que chegam: uma do Rui, uma da Ana…' : `A impressora imprime a página ${p.i} ${p.w ? 'da Ana' : 'do Rui'}.` }));
+      T[T.length - 1].msg += ' Resultado: as folhas dos dois documentos ficaram <b>misturadas</b>! Por isso a impressora não pode ser usada por dois ao mesmo tempo.';
+    } else if (m === 'excl') {
+      [0, 1].forEach(w => [1, 2, 3].forEach(i => T.push({ print: pg(w, i), st: w === 0 ? (i < 3 ? ['blk', 'blk'] : ['free', 'blk']) : (i < 3 ? ['free', 'blk'] : ['free', 'free']), msg: w === 0 && i === 1 ? 'O Rui pediu primeiro e fica com a impressora: <b>acesso exclusivo</b>. A Ana também pediu, mas fica <b>bloqueada</b> à espera.' : w === 0 && i === 3 ? 'O Rui acabou e liberta a impressora.' : w === 1 && i === 1 ? 'Agora é a vez da Ana. O programa dela esteve parado este tempo todo.' : `Imprime a página ${i} ${w ? 'da Ana' : 'do Rui'}.` })));
+      T[T.length - 1].msg += ' As folhas saíram arrumadas, mas a Ana esteve bloqueada até ao fim.';
+    } else {
+      T.push({ spool: [0, 1], st: ['free', 'free'], msg: 'Os dois mandam imprimir, mas os documentos são guardados numa <b>fila no disco</b> (spool), o que é muito rápido. Os programas ficam logo livres para continuar a trabalhar!' });
+      [0, 1].forEach(w => [1, 2, 3].forEach(i => T.push({ print: pg(w, i), st: ['free', 'free'], msg: w === 0 && i === 1 ? 'O <b>spooler</b>, um programa do SO, envia à impressora o primeiro trabalho da fila: o do Rui.' : w === 1 && i === 1 ? 'Terminado o trabalho do Rui, o spooler envia o da Ana.' : `Imprime a página ${i} ${w ? 'da Ana' : 'do Rui'}.` })));
+      T[T.length - 1].msg += ' Folhas arrumadas e nenhum programa ficou à espera.';
+    }
+    return T;
+  }
+  const sel = $('#r-mode'), log = $('#r-log');
+  let T, k;
+  const page = p => `<span class="page" style="background:${COL(p.w)}">${WHO[p.w].n[0]}${p.i}</span>`;
+  function draw(){
+    const done = T.slice(0, k), printed = done.filter(x => x.print).map(x => x.print), cur = k ? T[k - 1] : null;
+    const spooled = done.some(x => x.spool);
+    [0, 1].forEach(w => {
+      const left = [1, 2, 3].filter(i => !printed.some(p => p.w === w && p.i === i) && !spooled);
+      const st = cur ? cur.st[w] : 'idle';
+      const label = st === 'blk' ? (sel.value === 'excl' && w === 1 && printed.filter(p => p.w === 0).length < 3 ? 'bloqueado à espera' : 'à espera da impressora') : st === 'free' ? 'livre: a trabalhar' : 'a escrever';
+      const el = $('#r-p' + w); el.style.borderColor = COL(w);
+      el.innerHTML = `<h4><span class="pchip" style="background:${COL(w)}">${WHO[w].n}</span>${WHO[w].doc}<span class="st ${st === 'blk' ? 'blk' : st === 'free' ? 'free' : ''}">${label}</span></h4><div class="pages">${left.map(i => page({ w, i })).join('') || '<span style="font-size:.82rem;color:var(--muted)">nada por imprimir</span>'}</div>`;
+    });
+    $('#r-now').innerHTML = cur && cur.print ? page(cur.print) : '';
+    const spoolLeft = spooled ? [0, 1].map(w => ({ w, n: 3 - printed.filter(p => p.w === w).length })).filter(j => j.n > 0) : [];
+    $('#r-spool').hidden = sel.value !== 'spool';
+    $('#r-spool').innerHTML = `<small>FILA DE IMPRESSÃO (SPOOL) NO DISCO</small>${spoolLeft.map(j => `<span class="job" style="background:${COL(j.w)}">${WHO[j.w].n}: ${j.n} pág.</span>`).join('') || '<span style="font-size:.82rem;color:var(--muted)">vazia</span>'}`;
+    $('#r-tray').innerHTML = printed.map(page).join('');
+    const blk = [0, 1].map(w => done.filter(x => x.st[w] === 'blk').length);
+    const mixed = printed.some((p, j) => j > 0 && p.w !== printed[j - 1].w && printed.slice(j).some(x => x.w === printed[j - 1].w));
+    $('#r-stats').innerHTML = `<div class="stat">Rui bloqueado<b>${blk[0]}</b></div><div class="stat">Ana bloqueada<b>${blk[1]}</b></div><div class="stat">Folhas misturadas<b>${printed.length ? (mixed ? 'sim' : 'não') : '–'}</b></div>`;
+  }
+  function reset(){ T = plan(sel.value); k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ if (k >= T.length) return false; k++; draw(); logTo(log, [T[k - 1].msg], 't=' + k); return k < T.length; }
+  sel.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('impressora', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 2. TIPOS DE RECURSOS ================= */
+(() => {
+  const QP = 'Pode ser retirado a meio e devolvido depois, sem estragar nada?', QS = 'Podem vários processos usá-lo ao mesmo tempo?';
+  const ITEMS = [
+    { ic: '🧠', n: 'Processador', q: QP, c: 'Sim', e: 'É <b>preemptível</b>: no fim do quantum, o SO tira o processador ao processo e devolve-lho mais tarde, sem problemas.' },
+    { ic: '💾', n: 'Memória RAM', q: QP, c: 'Sim', e: 'É <b>preemptível</b>: o SO pode passar páginas de um processo para o disco e trazê-las de volta quando forem precisas.' },
+    { ic: '🖨️', n: 'Impressora a meio de um documento', q: QP, c: 'Não', e: '<b>Não preemptível</b>: se lha tirassem a meio, as folhas de dois documentos ficavam misturadas.' },
+    { ic: '📀', n: 'Gravador de DVD a meio de uma gravação', q: QP, c: 'Não', e: '<b>Não preemptível</b>: interromper a gravação estraga o disco.' },
+    { ic: '📘', n: 'Ficheiro só para leitura (o manual em PDF)', q: QS, c: 'Sim', e: '<b>Partilhável</b>: vários programas podem lê-lo ao mesmo tempo, porque ninguém o altera.' },
+    { ic: '📝', n: 'Ficheiro que está a ser alterado', q: QS, c: 'Não', e: '<b>Exclusivo</b>: duas alterações ao mesmo tempo podiam estragar o ficheiro (condição de corrida). Por isso o Word avisa «o ficheiro está em uso».' },
+    { ic: '⚙️', n: 'Código de um programa aberto por dois utilizadores', q: QS, c: 'Sim', e: '<b>Partilhável</b>: o código só é lido, por isso o SO carrega-o uma vez para a memória e partilha-o.' },
+    { ic: '🖨️', n: 'Impressora', q: QS, c: 'Não', e: '<b>Exclusiva</b>: só imprime um documento de cada vez. O spooling disfarça isso, com uma fila.' }
+  ];
+  let order, ans;
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function draw(){
+    const n = Object.keys(ans).length, ok = Object.keys(ans).filter(i => ans[i] === ITEMS[i].c).length;
+    $('#y-score').textContent = n ? `Acertaste ${ok} de ${n}${n < ITEMS.length ? ` (faltam ${ITEMS.length - n})` : ok === n ? '. Muito bem!' : '. Lê as explicações e experimenta de novo.'}` : `Responde às ${ITEMS.length} perguntas.`;
+    $('#y-cards').innerHTML = order.map(i => {
+      const it = ITEMS[i], a = ans[i], done = a !== undefined;
+      return `<div class="scard${done ? (a === it.c ? ' ok' : ' no') : ''}"><h4><b>${it.ic}</b>${it.n}</h4><p style="font-size:.85rem;margin:0 0 .5rem">${it.q}</p><div class="opts">${['Sim', 'Não'].map(c => `<button data-i="${i}" data-c="${c}" ${done ? 'disabled' : ''} class="${done ? (c === it.c ? 'right' : c === a ? 'wrong' : '') : ''}">${c}</button>`).join('')}</div>${done ? `<p class="fb"><b>${a === it.c ? 'Certo!' : 'Ainda não.'}</b> ${it.e}</p>` : ''}</div>`;
+    }).join('');
+  }
+  $('#y-cards').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; ans[+b.dataset.i] = b.dataset.c; draw(); });
+  function reset(){ order = shuffle(ITEMS.map((_, i) => i)); ans = {}; draw(); }
+  $('#y-again').onclick = reset;
+  reset();
+})();
+
+/* ================= 3. SEMÁFOROS ================= */
+(() => {
+  const N = 5;
+  const SEQ = { eq: 'PCPCPCPCPCPC', fp: 'PPPCPPPPCPPCCCCCC', fc: 'CPCCPCPCCPCP' };
+  const PCODE = ['produzir um item', 'wait(vazios)', 'wait(mutex)', 'colocar no buffer', 'signal(mutex)', 'signal(cheios)'];
+  const CCODE = ['wait(cheios)', 'wait(mutex)', 'retirar do buffer', 'signal(mutex)', 'signal(vazios)', 'usar o item'];
+  const sel = $('#s-ex'), log = $('#s-log');
+  let S, k;
+  function fresh(){ return { buf: [], next: 1, vaz: N, che: 0, Pb: false, Cb: false, made: 0, used: 0, pl: null, cl: null, waitsP: 0, waitsC: 0 }; }
+  function put(s){ s.vaz--; s.buf.push(s.next++); s.che++; s.made++; }
+  function take(s){ s.che--; const it = s.buf.shift(); s.vaz++; s.used++; return it; }
+  function act(s, a){
+    s.pl = null; s.cl = null;
+    if (a === 'P') {
+      if (s.Pb) { s.waitsP++; s.pl = 'stop'; return 'O produtor continua <b>bloqueado</b>: o buffer está cheio.'; }
+      if (s.vaz > 0) {
+        put(s); s.pl = 'ok'; let m = `O produtor faz <code>wait(vazios)</code>: há lugar, por isso vazios passa a ${s.vaz}. Coloca o item ${s.next - 1} e faz <code>signal(cheios)</code>: cheios = ${s.che}.`;
+        if (s.Cb) { s.Cb = false; const it = take(s); s.cl = 'ok'; m += ` O consumidor, que estava bloqueado, <b>acorda</b> e retira o item ${it}.`; }
+        return m;
+      }
+      s.Pb = true; s.waitsP++; s.pl = 'stop'; return '<code>wait(vazios)</code> com vazios = 0: o buffer está cheio e o produtor fica <b>bloqueado</b>. Não gasta processador enquanto espera.';
+    }
+    if (s.Cb) { s.waitsC++; s.cl = 'stop'; return 'O consumidor continua <b>bloqueado</b>: o buffer está vazio.'; }
+    if (s.che > 0) {
+      const it = take(s); s.cl = 'ok'; let m = `O consumidor faz <code>wait(cheios)</code>: há itens, por isso cheios passa a ${s.che}. Retira o item ${it} e faz <code>signal(vazios)</code>: vazios = ${s.vaz}.`;
+      if (s.Pb) { s.Pb = false; put(s); s.pl = 'ok'; m += ` O produtor, que estava bloqueado, <b>acorda</b> e coloca o item ${s.next - 1}.`; }
+      return m;
+    }
+    s.Cb = true; s.waitsC++; s.cl = 'stop'; return '<code>wait(cheios)</code> com cheios = 0: o buffer está vazio e o consumidor fica <b>bloqueado</b>. No vídeo, é quando aparece «a carregar…».';
+  }
+  function code(lines, st, blockAt){ return `<ol class="code">${lines.map((l, j) => `<li class="${st === 'ok' ? 'ok' : st === 'stop' ? (j === blockAt ? 'stop' : j < blockAt ? 'ok' : '') : ''}"><span class="pc">${st === 'stop' && j === blockAt ? '⛔' : st === 'ok' ? '✓' : ''}</span><span>${l}</span></li>`).join('')}</ol>`; }
+  function draw(){
+    $('#s-P').style.borderColor = COL(0); $('#s-C').style.borderColor = COL(1);
+    $('#s-P').innerHTML = `<h4><span class="pchip" style="background:${COL(0)}">P</span>Produtor${S.Pb ? '<span class="st blk">bloqueado</span>' : '<span class="st">pronto</span>'}</h4>${code(PCODE, S.pl, 1)}`;
+    $('#s-C').innerHTML = `<h4><span class="pchip" style="background:${COL(1)}">C</span>Consumidor${S.Cb ? '<span class="st blk">bloqueado</span>' : '<span class="st">pronto</span>'}</h4>${code(CCODE, S.cl, 0)}`;
+    $('#s-buf').innerHTML = Array.from({ length: N }, (_, i) => `<div class="slot${i < S.buf.length ? ' full' : ''}">${S.buf[i] ?? ''}</div>`).join('');
+    $('#s-sems').innerHTML = `<div class="sem${S.vaz ? '' : ' zero'}">vazios<b>${S.vaz}</b></div><div class="sem${S.che ? '' : ' zero'}">cheios<b>${S.che}</b></div><div class="sem">mutex<b>1</b></div>`;
+    $('#s-stats').innerHTML = `<div class="stat">Itens produzidos<b>${S.made}</b></div><div class="stat">Itens consumidos<b>${S.used}</b></div><div class="stat">Vezes que o produtor esperou<b>${S.waitsP}</b></div><div class="stat">Vezes que o consumidor esperou<b>${S.waitsC}</b></div>`;
+  }
+  function reset(){ S = fresh(); k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ const q = SEQ[sel.value]; if (k >= q.length) return false; const m = act(S, q[k]); k++; draw(); logTo(log, [m], `${k}. ${q[k - 1] === 'P' ? 'P' : 'C'}`); return k < q.length; }
+  sel.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('semaforos', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 4. BANQUEIRO ================= */
+(() => {
+  const TOTAL = 12, BASE = [{ n: 'P1', max: 10, has: 5 }, { n: 'P2', max: 4, has: 2 }, { n: 'P3', max: 9, has: 2 }];
+  const REQ = { safe: null, grant: [1, 2], deny: [2, 1], deny2: [0, 2] };
+  const sel = $('#q-ex'), log = $('#q-log');
+  let P, k;
+  function plan(){
+    const req = REQ[sel.value], ps = BASE.map(p => ({ ...p })), out = [];
+    const avail0 = TOTAL - ps.reduce((a, p) => a + p.has, 0);
+    const snap = (o) => out.push({ ...o, ps: ps.map(p => ({ ...p })) });
+    let av = avail0;
+    snap({ av, msg: `Há ${TOTAL} unidades no total. Os processos já têm ${TOTAL - avail0}, por isso estão <b>${avail0} disponíveis</b>. Cada processo declarou quanto vai precisar no máximo.` });
+    if (req) {
+      const [i, q] = req;
+      ps[i].has += q; av -= q; ps[i].req = q;
+      snap({ av, msg: `<b>${ps[i].n} pede mais ${q} ${q === 1 ? 'unidade' : 'unidades'}</b>. Antes de aceitar, o SO faz de conta que aceitou (disponíveis passam a ${av}) e verifica se o estado continua seguro.` });
+    }
+    const fin = new Set(), seq = [];
+    let progress = true;
+    while (fin.size < ps.length && progress) {
+      progress = false;
+      for (let i = 0; i < ps.length; i++) {
+        if (fin.has(i)) continue;
+        const need = ps[i].max - ps[i].has;
+        if (need <= av) {
+          snap({ av, chk: i, ok: true, fin: [...fin], seq: seq.slice(), msg: `${ps[i].n} ainda precisa de ${need} e há ${av} disponíveis: <b>pode terminar</b>. Quando acabar, devolve as ${ps[i].has} que tem.` });
+          av += ps[i].has; fin.add(i); seq.push(ps[i].n); progress = true;
+          snap({ av, fin: [...fin], seq: seq.slice(), msg: `${ps[i].n} terminou (na simulação) e devolveu tudo: agora há <b>${av} disponíveis</b>.` });
+        } else snap({ av, chk: i, ok: false, fin: [...fin], seq: seq.slice(), msg: `${ps[i].n} ainda precisa de ${need}, mas só há ${av}: por agora <b>não pode terminar</b>.` });
+      }
+    }
+    const safe = fin.size === ps.length;
+    const v = !req ? (safe ? `<b>Estado seguro.</b> Todos podem terminar pela ordem ${seq.join(' → ')}.` : '<b>Estado inseguro.</b>')
+      : safe ? `<b>Pedido aceite.</b> Mesmo depois de dar as unidades a ${ps[req[0]].n}, todos podem terminar pela ordem ${seq.join(' → ')}.`
+      : `<b>Pedido recusado.</b> Se o SO desse as unidades a ${ps[req[0]].n}, nenhuma ordem permitiria que todos terminassem (estado inseguro), e podia acontecer um impasse. ${ps[req[0]].n} fica à espera e o pedido é tentado mais tarde.`;
+    snap({ av, fin: [...fin], seq: seq.slice(), done: true, safe, msg: v });
+    return out;
+  }
+  function draw(){
+    const s = k ? P[k - 1] : null, ps = s ? s.ps : BASE;
+    $('#q-tab').innerHTML = `<thead><tr><th>Processo</th><th>Máximo</th><th>Já tem</th><th>Ainda precisa</th><th>Simulação</th></tr></thead><tbody>${ps.map((p, i) => {
+      const fin = s && s.fin && s.fin.includes(i), chk = s && s.chk === i;
+      return `<tr class="${chk ? (s.ok ? 'chk' : 'no') : fin ? 'fin' : ''}"><td>${p.n}</td><td>${p.max}</td><td class="${p.req ? 'req' : ''}">${p.has}${p.req ? ` (+${p.req})` : ''}</td><td>${p.max - p.has}</td><td style="font-family:var(--ui)">${fin ? '✓ terminou' : chk ? (s.ok ? 'pode terminar' : 'tem de esperar') : ''}</td></tr>`;
+    }).join('')}</tbody>`;
+    $('#q-av').textContent = s ? s.av : TOTAL - BASE.reduce((a, p) => a + p.has, 0);
+    $('#q-seq').innerHTML = s && s.seq && s.seq.length ? 'Sequência segura até agora: ' + s.seq.map((n, i) => `<span class="pchip" style="background:${COL(+n[1] - 1)}">${n}</span>`).join(' → ') : '';
+    $('#q-verdict').innerHTML = s && s.done ? `<div class="verdict ${s.safe ? 'good' : 'bad'}">${s.msg}</div>` : '';
+  }
+  function reset(){ P = plan(); k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ if (k >= P.length) return false; k++; draw(); logTo(log, [P[k - 1].msg], k + '.'); return k < P.length; }
+  sel.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('banqueiro', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 5. TESTA-TE ================= */
+(() => {
+  const Q = [
+    { q: 'O que é o spooling de impressão?', o: ['Imprimir duas páginas por folha', 'Guardar os trabalhos numa fila no disco e enviá-los à impressora um de cada vez', 'Limpar a impressora', 'Imprimir mais depressa usando mais tinta'], c: 1, e: 'Os programas entregam o trabalho à fila e continuam a trabalhar; o spooler trata do resto.' },
+    { q: 'Qual destes recursos é preemptível?', o: ['O processador', 'Uma impressora a meio de um documento', 'Um gravador de DVD a gravar', 'Um ficheiro a ser alterado'], c: 0, e: 'O SO pode tirar o processador a um processo e devolvê-lo mais tarde sem estragar nada.' },
+    { q: 'No problema do produtor e consumidor, o que acontece quando o buffer está cheio?', o: ['O produtor deita o item fora', 'O produtor fica bloqueado até o consumidor retirar um item', 'O consumidor fica bloqueado', 'O buffer aumenta de tamanho'], c: 1, e: 'O wait(vazios) bloqueia o produtor; o signal(vazios) do consumidor acorda-o.' },
+    { q: 'Para que serve o mutex no produtor e consumidor?', o: ['Para contar os itens', 'Para garantir que só um de cada vez mexe no buffer', 'Para tornar o buffer maior', 'Para apagar os itens antigos'], c: 1, e: 'É a exclusão mútua: evita condições de corrida no acesso ao buffer.' },
+    { q: 'Quando é que o algoritmo do banqueiro recusa um pedido?', o: ['Quando o processo pede muito', 'Quando, se o aceitasse, o sistema ficaria num estado inseguro', 'Sempre que há outros processos à espera', 'Quando o recurso é preemptível'], c: 1, e: 'Mesmo que haja unidades disponíveis, o pedido espera se puder levar a um impasse.' },
+    { q: 'O que é um estado seguro?', o: ['Um estado sem processos', 'Um estado em que existe uma ordem pela qual todos os processos podem terminar', 'Um estado com antivírus ativo', 'Um estado em que todos os recursos estão livres'], c: 1, e: 'Essa ordem chama-se sequência segura.' }
+  ];
+  const ans = {};
+  /* Baralha a ordem das opções de cada pergunta (de novo em cada tentativa) */
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let ord = Q.map(x => shuffle(x.o.map((_, j) => j)));
+  function draw(){
+    const n = Object.keys(ans).length, right = Object.keys(ans).filter(i => ans[i] === Q[i].c).length;
+    $('#quiz').innerHTML = (n ? `<p class="score">Acertaste ${right} de ${Q.length}${n < Q.length ? ` (respondeste a ${n})` : ''}.</p>` : '')
+      + Q.map((x, i) => `<fieldset class="q"><legend>${i + 1}. ${x.q}</legend>${ord[i].map(j => `<label class="${i in ans ? (j === x.c ? 'right' : j === ans[i] ? 'wrong' : '') : ''}"><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? ' checked' : ''}${i in ans ? ' disabled' : ''}><span>${x.o[j]}</span></label>`).join('')}${i in ans ? `<p class="fb"><b>${ans[i] === x.c ? 'Certo!' : 'Ainda não.'}</b> ${x.e}</p>` : ''}</fieldset>`).join('')
+      + (n === Q.length ? '<button class="btn" id="qz-again">Responder de novo</button>' : '');
+    const again = $('#qz-again'); if (again) again.onclick = () => { Object.keys(ans).forEach(k => delete ans[k]); ord = Q.map(x => shuffle(x.o.map((_, j) => j))); draw(); };
+  }
+  $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
