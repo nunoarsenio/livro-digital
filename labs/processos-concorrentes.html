@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Processos concorrentes · Laboratório animado</title>
+<style>
+:root{
+  --head:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,Menlo,monospace;
+  --bg:#EEF1F7; --card:#FFFFFF; --ink:#172033; --muted:#5A6577; --line:#D8DEE9; --soft:#F5F7FB;
+  --accent:#2F5BD3; --on-accent:#FFFFFF; --good:#1E8A5A; --good-soft:#E3F4EB; --bad:#C8402B; --bad-soft:#FCE8E4; --warn-soft:#FFF4D6;
+  --p1:#2F6FED; --p2:#E0533D; --p3:#1E9E6A; --p4:#C98A00; --p5:#8B5CF6; --p6:#0E9AA7;
+  --arrow:#9AA6B8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F141C; --card:#171E29; --ink:#E3E8F0; --muted:#97A3B6; --line:#2A3443; --soft:#1D2531;
+    --accent:#7FA2FF; --on-accent:#0F141C; --good:#5CCB92; --good-soft:rgba(92,203,146,.14); --bad:#F07C68; --bad-soft:rgba(240,124,104,.15); --warn-soft:rgba(255,196,64,.14);
+    --p1:#5B8EFF; --p2:#F07560; --p3:#3DC08A; --p4:#E5AA2B; --p5:#A585FF; --p6:#2CC0CC;
+    --arrow:#5E6B7E;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 1.5rem 0;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:.9rem;max-width:80rem;margin:0 auto}
+.chipico{width:44px;height:44px;flex:none}
+.brand h1{font:700 1.45rem/1.15 var(--head);margin:0;letter-spacing:.01em}
+.brand p{margin:.1rem 0 0;color:var(--muted);font-size:.9rem}
+.tabs{display:flex;gap:.25rem;max-width:80rem;margin:.8rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.6rem .9rem .7rem;border-bottom:3px solid transparent;font:600 .95rem var(--ui);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button span{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--soft);font-size:.78rem;margin-right:.4rem;color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button[aria-selected="true"] span{background:var(--accent);color:var(--on-accent)}
+
+main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
+.intro{margin:0 0 1.2rem;max-width:52rem}
+.intro h2{font:700 1.35rem/1.25 var(--head);margin:0 0 .35rem}
+.intro p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.2rem;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{font:700 1rem var(--head);margin:0 0 .6rem;letter-spacing:.01em}
+.side .card+.card{margin-top:1rem}
+.side ul{margin:.2rem 0 0;padding-left:1.1rem}
+.side li{margin:.35rem 0;font-size:.93rem}
+.side p{font-size:.93rem;margin:.3rem 0}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:600 .9rem var(--ui);padding:.5rem .95rem;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.speed{display:flex;align-items:center;gap:.4rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.speed input{accent-color:var(--accent);width:7rem}
+.clock{font:600 .9rem var(--mono);background:var(--soft);border-radius:6px;padding:.3rem .6rem}
+
+.log,.side .log{list-style:none;margin:0;padding:0;max-height:16rem;overflow:auto;font-size:.88rem}
+.log li{padding:.45rem 0;border-bottom:1px solid var(--line);display:flex;gap:.6rem}
+.log li:first-child{font-weight:600}
+.log time{font:600 .8rem var(--mono);color:var(--muted);flex:none;min-width:2.6rem;padding-top:.1rem}
+.log .empty{color:var(--muted);font-style:italic}
+
+.pchip{display:inline-flex;align-items:center;justify-content:center;min-width:2.1rem;height:1.6rem;padding:0 .45rem;border-radius:999px;color:#fff;font:700 .78rem var(--mono)}
+
+/* 1. Estados */
+.stage{position:relative;width:100%;aspect-ratio:2/1;background:var(--soft);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.sbox{fill:var(--card);stroke:var(--line);stroke-width:2}
+.sbox.exec{stroke:var(--accent);stroke-width:3}
+.stitle{font:700 22px var(--head);fill:var(--ink)}
+.ssub{font:500 15px var(--ui);fill:var(--muted)}
+.arr{fill:none;stroke:var(--arrow);stroke-width:3;transition:stroke .25s}
+.arr.on{stroke:var(--accent);stroke-width:5}
+.alab{font:600 15px var(--ui);fill:var(--muted)}
+.alab.on{fill:var(--accent)}
+.tok{position:absolute;width:4.4%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 clamp(.6rem,1.4vw,.9rem) var(--mono);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),opacity .4s,transform .3s}
+.tok.out{opacity:0;transform:scale(.4)}
+.tok.run{transform:scale(1.2);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--c)}
+.ptable{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.9rem}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:.8rem;padding:.3rem .4rem;border-bottom:1px solid var(--line)}
+.ptable td{padding:.45rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.ph{display:inline-block;padding:.15rem .5rem;border-radius:5px;font:600 .78rem var(--mono);margin:.1rem .2rem .1rem 0;background:var(--soft);border:1px solid var(--line)}
+.ph.cur{background:var(--warn-soft);border-color:var(--p4)}
+.ph.done{opacity:.4;text-decoration:line-through}
+.stlab{font-size:.82rem;font-weight:600}
+
+/* 2. Escalonamento */
+.cfg{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem}
+.cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.82rem;font-weight:600;color:var(--muted)}
+.cfg select,.cfg input{padding:.45rem .55rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.ptab input{width:4.2rem;padding:.3rem .4rem;border:1px solid var(--line);border-radius:6px;background:var(--soft);text-align:center}
+.ptab td,.ptab th{padding:.3rem .4rem}
+.ptab .rm{border:0;background:none;color:var(--bad);cursor:pointer;font-size:1.1rem}
+.cpu-row{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:1rem;align-items:center;margin:1.2rem 0}
+.cpu{border:3px solid var(--accent);border-radius:12px;height:6.2rem;display:grid;place-items:center;text-align:center;background:var(--card);position:relative}
+.cpu small{position:absolute;top:.35rem;left:0;right:0;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.cpu .big{font:700 1.6rem var(--mono);margin-top:.6rem}
+.queue{border:2px dashed var(--line);border-radius:12px;min-height:6.2rem;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:relative}
+.queue::before{content:"Fila dos prontos";position:absolute;top:.35rem;left:.7rem;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.queue .pchip{margin-top:1rem;height:2.2rem;min-width:2.8rem;font-size:.9rem;animation:pop .3s}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:grid;gap:2px;min-width:30rem}
+.gcell{height:2.6rem;background:var(--soft);border-radius:3px;display:flex;align-items:center;padding-left:.3rem;color:#fff;font:700 .78rem var(--mono);transition:background .2s}
+.gaxis{display:grid;gap:2px;min-width:30rem;font:500 .7rem var(--mono);color:var(--muted)}
+.gaxis span{text-align:left}
+.results{margin-top:1.2rem;overflow-x:auto}
+.results table{border-collapse:collapse;width:100%;font-size:.9rem}
+.results th,.results td{padding:.4rem .6rem;border-bottom:1px solid var(--line);text-align:center}
+.results th{font-size:.8rem;color:var(--muted)}
+.results tfoot td{font-weight:700}
+.best{background:var(--good-soft);font-weight:700}
+
+.alg{padding:.7rem .8rem;border-radius:9px;margin:0 -.4rem .3rem;cursor:pointer;transition:background .2s}
+.alg:hover{background:var(--soft)}
+.alg.on{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--p4)}
+.alg h4{margin:0 0 .3rem;font:700 .98rem var(--head);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .5rem}
+.alg h4 span{font:500 .8rem var(--ui);color:var(--muted)}
+.alg.on h4::after{content:"em uso";margin-left:auto;font:700 .7rem var(--ui);background:var(--p4);color:#fff;padding:.1rem .45rem;border-radius:999px}
+.alg p{margin:.2rem 0;font-size:.88rem}
+.alg .pc{color:var(--muted)}
+.alg:not(.on) .pc{display:none}
+/* 3. Condição de corrida */
+.race{display:grid;grid-template-columns:1fr 12rem 1fr;gap:1rem;align-items:start}
+.proc{border:2px solid var(--line);border-radius:12px;padding:.8rem;background:var(--card)}
+.proc h4{margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem;font:700 1rem var(--head)}
+.proc .st{margin-left:auto;font:600 .75rem var(--ui);padding:.15rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.proc .st.blk{background:var(--bad-soft);color:var(--bad)}
+.proc .st.end{background:var(--good-soft);color:var(--good)}
+.code{list-style:none;margin:0;padding:0;font:500 .86rem/1.5 var(--mono)}
+.code li{display:flex;gap:.5rem;padding:.3rem .45rem;border-radius:6px;align-items:center}
+.code li .pc{width:1rem;flex:none;color:var(--accent);font-weight:700}
+.code li.next{background:var(--warn-soft)}
+.code li.ran{color:var(--muted)}
+.code li.lk{color:var(--p5);font-weight:700}
+.reg{margin-top:.7rem;font:600 .9rem var(--mono);background:var(--soft);padding:.4rem .6rem;border-radius:7px}
+.mem{border:3px solid var(--ink);border-radius:12px;text-align:center;padding:.8rem .5rem;background:var(--card)}
+.mem small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.06em}
+.mem .val{font:700 2.6rem/1.2 var(--mono);transition:transform .3s}
+.mem .val.bump{transform:scale(1.3)}
+.mutex{margin-top:.8rem;padding:.4rem;border-radius:8px;font:600 .82rem var(--ui);background:var(--soft)}
+.mutex.held{background:var(--warn-soft)}
+.verdict{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.verdict.bad{background:var(--bad-soft)}
+.verdict.good{background:var(--good-soft)}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mode button{border:0;background:transparent;padding:.45rem .8rem;font:600 .86rem var(--ui);cursor:pointer;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.bars{margin-top:.8rem}
+.bar{display:grid;grid-template-columns:7rem 1fr 3.5rem;gap:.5rem;align-items:center;margin:.35rem 0;font-size:.88rem}
+.bar i{display:block;height:1.1rem;border-radius:4px;background:var(--accent);transition:width .6s}
+.bar i.bad{background:var(--bad)}
+
+/* 4. Impasse */
+#dl-svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.node-p{stroke-width:4}
+.node-r{fill:var(--card);stroke:var(--ink);stroke-width:3}
+.ntext{font:700 22px var(--head);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.rtext{font:700 18px var(--head);fill:var(--ink);text-anchor:middle}
+.edge{stroke-width:4;fill:none;transition:opacity .3s}
+.edge.req{stroke:var(--muted);stroke-dasharray:10 7}
+.edge.own{stroke:var(--ink)}
+.edge.cyc{stroke:var(--bad)!important}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin-top:.6rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.cond{list-style:none;padding:0;margin:0}
+.cond li{display:flex;gap:.5rem;align-items:flex-start;padding:.35rem 0;font-size:.9rem}
+.cond li i{flex:none;width:1.2rem;height:1.2rem;border-radius:50%;border:2px solid var(--line);margin-top:.15rem}
+.cond li.on i{background:var(--bad);border-color:var(--bad)}
+
+/* 5. Testa-te */
+.quiz{max-width:46rem}
+.q{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:1rem 1.1rem;margin:0 0 1rem}
+.q legend{font:700 1rem var(--head);padding:0 .3rem;margin-left:-.3rem}
+.q label{display:flex;gap:.6rem;padding:.45rem .5rem;border-radius:7px;cursor:pointer;align-items:flex-start}
+.q label:hover{background:var(--soft)}
+.q label.right{background:var(--good-soft)}
+.q label.wrong{background:var(--bad-soft)}
+.q input{accent-color:var(--accent);margin-top:.3rem}
+.q .fb{margin:.6rem 0 0;font-size:.92rem}
+.score{font:700 1.1rem var(--head);margin:.5rem 0 1rem}
+
+@media (max-width:960px){
+  .grid{grid-template-columns:1fr}
+  .race{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+}
+.credit{max-width:80rem;margin:0 auto;padding:1.2rem 1.5rem 2rem;border-top:1px solid var(--line);text-align:center;font-size:.85rem;color:var(--muted)}
+body.instant *,body.instant *::before,body.instant *::after{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="chipico" viewBox="0 0 44 44" aria-hidden="true"><rect x="9" y="9" width="26" height="26" rx="4" fill="var(--accent)"/><rect x="15" y="15" width="14" height="14" rx="2" fill="var(--card)"/><g stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"><path d="M16 9V4M22 9V4M28 9V4M16 40v-5M22 40v-5M28 40v-5M9 16H4M9 22H4M9 28H4M40 16h-5M40 22h-5M40 28h-5"/></g></svg>
+    <div><h1>Processos concorrentes</h1><p>Laboratório animado · Sistemas Operativos</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Temas">
+    <button role="tab" aria-selected="true" data-tab="estados"><span>1</span>Estados de um processo</button>
+    <button role="tab" aria-selected="false" data-tab="escal"><span>2</span>Escalonamento</button>
+    <button role="tab" aria-selected="false" data-tab="corrida"><span>3</span>Condição de corrida</button>
+    <button role="tab" aria-selected="false" data-tab="impasse"><span>4</span>Impasse (deadlock)</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+  </nav>
+</header>
+<main>
+
+<!-- 1. ESTADOS -->
+<section id="estados" role="tabpanel">
+  <div class="intro"><h2>Como vive um processo</h2>
+  <p>Um processo é um programa em execução. Com um só processador, apenas um processo pode estar a executar de cada vez. Os outros esperam na fila ou estão bloqueados à espera do disco, do teclado ou da rede. Carrega em <b>Reproduzir</b> e acompanha os quatro processos.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Exemplo<select id="st-ex"><option value="0">Exemplo 1: cálculo e E/S misturados</option><option value="1">Exemplo 2: só cálculo, sem E/S</option><option value="2">Exemplo 3: muita E/S (editor, música, download)</option></select></label></div>
+      <div class="stage" id="st-stage">
+        <svg viewBox="0 0 1000 500" id="st-svg" aria-label="Diagrama de estados de um processo"></svg>
+      </div>
+      <div class="controls" data-ctl="estados"></div>
+      <table class="ptable" id="st-table"><thead><tr><th>Processo</th><th>Programa (CPU = usar o processador, E/S = esperar por um dispositivo)</th><th>Estado</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="st-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>Os estados</h3><ul>
+        <li><b>Novo</b>: o processo acabou de ser criado.</li>
+        <li><b>Pronto</b>: tem tudo o que precisa e espera a sua vez de usar o processador.</li>
+        <li><b>Em execução</b>: está a usar o processador.</li>
+        <li><b>Bloqueado</b>: espera que uma operação de entrada/saída termine (por exemplo, ler do disco).</li>
+        <li><b>Terminado</b>: acabou o seu trabalho.</li></ul>
+        <p>Cada processo pode usar o processador durante um <b>quantum</b> de 2 unidades de tempo. Se não acabar, volta para o fim da fila. É esta alternância rápida que dá a ilusão de que todos correm ao mesmo tempo: chama-se <b>concorrência</b>.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. ESCALONAMENTO -->
+<section id="escal" role="tabpanel" hidden>
+  <div class="intro"><h2>Quem usa o processador a seguir?</h2>
+  <p>O <b>escalonador</b> é a parte do sistema operativo que decide qual dos processos prontos usa o processador. Escolhe um algoritmo, altera os processos se quiseres e compara os tempos de espera.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Exemplo<select id="sc-ex"><option value="0">Exemplo da aula</option><option value="1">Um processo longo à frente (efeito comboio)</option><option value="2">Todos chegam ao mesmo tempo</option><option value="3">Urgências: prioridades muito diferentes</option></select></label>
+        <label>Algoritmo<select id="sc-alg">
+          <option value="fcfs">FCFS: primeiro a chegar, primeiro a ser servido</option>
+          <option value="sjf">SJF: o mais curto primeiro</option>
+          <option value="prio">Prioridades (1 = mais urgente)</option>
+          <option value="rr">Round Robin: à vez, com quantum</option>
+        </select></label>
+        <label id="sc-qwrap" hidden>Quantum<input id="sc-q" type="number" min="1" max="10" value="2"></label>
+      </div>
+      <table class="ptab"><thead><tr><th>Processo</th><th>Chegada</th><th>Duração</th><th>Prioridade</th><th></th></tr></thead><tbody id="sc-procs"></tbody></table>
+      <button class="btn ghost" id="sc-add" style="margin-top:.5rem">+ Processo</button>
+      <div class="cpu-row"><div class="cpu"><small>PROCESSADOR</small><div class="big" id="sc-cpu">–</div></div><div class="queue" id="sc-queue"></div></div>
+      <div class="gantt-wrap"><div class="gantt" id="sc-gantt"></div><div class="gaxis" id="sc-axis"></div></div>
+      <div class="controls" data-ctl="escal"><button class="btn ghost" id="sc-cmp" type="button">Comparar todos os algoritmos</button></div>
+      <div class="results" id="sc-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="sc-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>Os algoritmos</h3>
+        <div class="algs" id="sc-algs">
+          <div class="alg" data-alg="fcfs"><h4>FCFS <span>primeiro a chegar, primeiro a ser servido</span></h4>
+            <p>Os processos usam o processador pela ordem de chegada, como numa fila de supermercado. Quem entra no processador fica até acabar.</p>
+            <p class="pc"><b>Vantagem:</b> é simples e justo na ordem. <b>Desvantagem:</b> um processo longo à frente faz esperar todos os curtos que vêm atrás.</p></div>
+          <div class="alg" data-alg="sjf"><h4>SJF <span>o mais curto primeiro</span></h4>
+            <p>Quando o processador fica livre, entra o processo da fila com <b>menor duração</b>. Quem entra fica até acabar.</p>
+            <p class="pc"><b>Vantagem:</b> dá o menor tempo médio de espera. <b>Desvantagem:</b> é preciso saber a duração antes, e um processo longo pode esperar indefinidamente se continuarem a chegar curtos (míngua).</p></div>
+          <div class="alg" data-alg="prio"><h4>Prioridades <span>o mais urgente primeiro</span></h4>
+            <p>Cada processo tem uma prioridade; aqui, <b>1 é a mais urgente</b>. Quando o processador fica livre, entra o processo com prioridade mais alta. Em caso de empate, o que chegou primeiro.</p>
+            <p class="pc"><b>Vantagem:</b> os trabalhos importantes passam à frente. <b>Desvantagem:</b> os de prioridade baixa podem nunca ser atendidos. Uma solução é aumentar a prioridade de quem espera há muito tempo (envelhecimento).</p></div>
+          <div class="alg" data-alg="rr"><h4>Round Robin <span>à vez, com quantum</span></h4>
+            <p>Cada processo usa o processador durante, no máximo, um <b>quantum</b> (uma fatia de tempo). Se não acabar, volta para o fim da fila e passa a vez ao seguinte. É <b>preemptivo</b>.</p>
+            <p class="pc"><b>Vantagem:</b> todos avançam um pouco de cada vez, por isso o sistema responde depressa; é o mais usado em sistemas interativos. <b>Desvantagem:</b> cada troca de processo gasta tempo, e com um quantum demasiado grande comporta-se como o FCFS.</p></div>
+        </div></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Tempo de espera</b>: quanto tempo o processo passou na fila, pronto mas sem processador.</li>
+        <li><b>Tempo de resposta</b> (turnaround): desde que chega até terminar.</li>
+        <li><b>Preemptivo</b>: o sistema pode tirar o processador a um processo antes de ele acabar, como no Round Robin.</li>
+        <li><b>Míngua</b> (starvation): um processo espera indefinidamente porque há sempre outro escolhido à frente.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. CONDIÇÃO DE CORRIDA -->
+<section id="corrida" role="tabpanel" hidden>
+  <div class="intro"><h2>Dois processos, uma variável partilhada</h2>
+  <p id="rc-intro"></p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Exemplo<select id="rc-ex"><option value="cont">Dois processos somam 1 a um contador</option><option value="banco">Dois levantamentos da mesma conta bancária</option><option value="bilhete">Duas pessoas compram o último bilhete do concerto</option></select></label></div>
+      <div class="controls" style="margin:0 0 1rem"><div class="mode" id="rc-mode"><button aria-pressed="true" data-m="0">Sem proteção</button><button aria-pressed="false" data-m="1">Com exclusão mútua (mutex)</button></div></div>
+      <div class="race">
+        <div class="proc" id="rc-A"></div>
+        <div><div class="mem"><small>MEMÓRIA PARTILHADA</small><div id="rc-var">contador</div><div class="val" id="rc-val">0</div><div id="rc-out" style="font:600 .82rem var(--ui);color:var(--muted)"></div></div><div class="mutex" id="rc-mutex" hidden></div></div>
+        <div class="proc" id="rc-B"></div>
+      </div>
+      <div class="controls"><button class="btn" id="rc-stepA">Executar instrução de A</button><button class="btn" id="rc-stepB">Executar instrução de B</button></div>
+      <div id="rc-verdict"></div>
+      <div class="controls" data-ctl="corrida" style="border-top:1px solid var(--line);padding-top:1rem"><span style="font-size:.88rem;color:var(--muted)">Ou vê uma ordem que mostra o problema:</span></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="rc-log"><li class="empty">Executa instruções de A ou de B.</li></ul></div>
+      <div class="card"><h3>Experimenta 1000 vezes</h3><p>O sistema operativo escolhe a ordem e ninguém a controla. Vê os resultados de 1000 ordens ao acaso.</p>
+        <button class="btn ghost" id="rc-rand">Experimentar 1000 ordens</button><div class="bars" id="rc-bars"></div></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Condição de corrida</b>: o resultado depende da ordem em que os processos executam.</li>
+        <li><b>Secção crítica</b>: a parte do código que mexe nos dados partilhados.</li>
+        <li><b>Exclusão mútua</b>: só um processo de cada vez pode estar na secção crítica. Consegue-se com um <b>mutex</b> ou um <b>semáforo</b>.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. IMPASSE -->
+<section id="impasse" role="tabpanel" hidden>
+  <div class="intro"><h2>Quando ninguém consegue avançar</h2>
+  <p id="dl-intro"></p></div>
+  <div class="grid">
+    <div class="card dl">
+      <div class="cfg"><label>Exemplo<select id="dl-ex"><option value="imp">Impressora e disco</option><option value="banco">Duas transferências bancárias</option><option value="jogo">Dois amigos, um comando e uns auscultadores</option></select></label></div>
+      <div class="controls" style="margin:0 0 1rem"><div class="mode" id="dl-mode"><button aria-pressed="true" data-m="0">Pedem por ordens diferentes</button><button aria-pressed="false" data-m="1">Ambos pedem pela mesma ordem</button></div></div>
+      <svg viewBox="0 0 800 420" id="dl-svg" aria-label="Grafo de atribuição de recursos"></svg>
+      <div class="legend"><span><svg width="40" height="10"><path d="M0 5h40" stroke="var(--ink)" stroke-width="4"/></svg>o recurso está atribuído ao processo</span><span><svg width="40" height="10"><path d="M0 5h40" stroke="var(--muted)" stroke-width="4" stroke-dasharray="8 5"/></svg>o processo pediu e espera pelo recurso</span></div>
+      <div class="steps"><div class="proc" id="dl-P1"></div><div class="proc" id="dl-P2"></div></div>
+      <div class="controls"><button class="btn" id="dl-s1">Avançar P1</button><button class="btn" id="dl-s2">Avançar P2</button></div>
+      <div id="dl-verdict"></div>
+      <div class="controls" data-ctl="impasse" style="border-top:1px solid var(--line);padding-top:1rem"><span style="font-size:.88rem;color:var(--muted)">Ou vê os dois a alternar:</span></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="dl-log"><li class="empty">Avança P1 ou P2.</li></ul></div>
+      <div class="card"><h3>As 4 condições do impasse</h3><p>Só há impasse quando as quatro acontecem ao mesmo tempo:</p><ul class="cond" id="dl-cond">
+        <li><i></i><span><b>Exclusão mútua</b>: um recurso só pode ser usado por um processo de cada vez.</span></li>
+        <li><i></i><span><b>Posse e espera</b>: um processo fica com um recurso enquanto espera por outro.</span></li>
+        <li><i></i><span><b>Não preempção</b>: não se pode tirar um recurso a um processo à força.</span></li>
+        <li><i></i><span><b>Espera circular</b>: P1 espera por P2 e P2 espera por P1.</span></li></ul>
+        <p>Basta impedir uma delas para evitar o impasse. Pedir os recursos <b>sempre pela mesma ordem</b> impede a espera circular.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TESTA-TE -->
+<section id="teste" role="tabpanel" hidden>
+  <div class="intro"><h2>Testa-te</h2><p>Responde às perguntas e vê logo se acertaste.</p></div>
+  <div class="quiz" id="quiz"></div>
+</section>
+</main>
+<footer class="credit">© 2026 | Nuno Gonçalves - Equipa de Apoio Técnico</footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = i => `var(--p${(i % 6) + 1})`;
+
+/* ---------- Comandos comuns: reproduzir, passo, recomeçar, velocidade ---------- */
+const players = [];
+/* Comandos: anterior, reproduzir, seguinte, recomeçar e velocidade.
+   «Anterior» repõe o início e repete, sem animação, todos os passos menos o último. */
+function makePlayer(name, { step, reset, pos, rewind, back }){
+  const box = document.querySelector(`[data-ctl="${name}"]`);
+  box.insertAdjacentHTML('beforeend', `<button class="btn ghost" data-a="back" title="Voltar ao passo anterior">⏮ Anterior</button><button class="btn" data-a="play">▶ Reproduzir</button><button class="btn ghost" data-a="step" title="Avançar um passo">Seguinte ⏭</button><button class="btn ghost" data-a="reset">↺ Recomeçar</button><label class="speed">Velocidade<input type="range" min="1" max="5" value="3" aria-label="Velocidade"></label>`);
+  const play = box.querySelector('[data-a=play]'), sp = box.querySelector('input[type=range]'), backBtn = box.querySelector('[data-a=back]');
+  let timer = null, finished = false;
+  const ms = () => [1800, 1800 * .7, 1800 * .5, 1800 * .32, 1800 * .18][sp.value - 1];
+  const sync = () => { backBtn.disabled = !(pos && pos() > 0); };
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = '▶ Reproduzir'; };
+  const tick = () => { const more = step(); finished = !more; if (!more) stop(); sync(); };
+  const start = () => { play.textContent = '⏸ Pausa'; tick(); if (!finished) timer = setInterval(tick, ms()); else stop(); };
+  play.onclick = () => { if (timer) return stop(); if (finished) { reset(); finished = false; } start(); };
+  sp.oninput = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, ms()); } };
+  box.querySelector('[data-a=step]').onclick = () => { stop(); tick(); };
+  box.querySelector('[data-a=reset]').onclick = () => { stop(); finished = false; reset(); sync(); };
+  backBtn.onclick = () => {
+    stop(); if (!(pos && pos() > 0)) return;
+    document.body.classList.add('instant'); window.FAST = true;
+    try {
+      if (back) back();
+      else { const target = pos() - 1; (rewind || reset)(); let g = 0; while (pos() < target && g++ < 3000) step(); }
+    } finally {
+      window.FAST = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('instant')));
+    }
+    finished = false; sync();
+  };
+  const p = { stop, ms, sync, setFinished: v => finished = v, start: () => { stop(); finished = false; start(); } };
+  players.push(p); setTimeout(sync);
+  return p;
+}
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(() => players.forEach(p => p.sync())), true));
+function logTo(el, t, msgs){
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  msgs.slice().reverse().forEach(m => el.insertAdjacentHTML('afterbegin', `<li>${t !== null ? `<time>t=${t}</time>` : ''}<span>${m}</span></li>`));
+}
+
+/* ---------- Separadores ---------- */
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  players.forEach(p => p.stop());
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+/* ================= 1. ESTADOS ================= */
+(() => {
+  const B = {
+    novo: { x: 20, y: 30, w: 150, h: 150, t: 'Novo' },
+    pronto: { x: 250, y: 30, w: 300, h: 150, t: 'Pronto', s: 'fila de espera' },
+    exec: { x: 630, y: 30, w: 160, h: 150, t: 'Em execução', s: 'processador' },
+    term: { x: 830, y: 30, w: 150, h: 150, t: 'Terminado' },
+    bloq: { x: 400, y: 320, w: 300, h: 150, t: 'Bloqueado', s: 'à espera de E/S' }
+  };
+  const A = {
+    'novo-pronto': { d: 'M170 105 L244 105', x: 207, y: 93, t: 'admitido' },
+    'pronto-exec': { d: 'M550 78 L624 78', x: 590, y: 66, t: 'escolhido' },
+    'exec-pronto': { d: 'M630 136 L556 136', x: 590, y: 158, t: 'fim do|quantum' },
+    'exec-term': { d: 'M790 105 L824 105', x: 808, y: 205, t: 'termina' },
+    'exec-bloq': { d: 'M712 180 C712 250 690 290 668 314', x: 722, y: 262, t: 'pede E/S', a: 'start' },
+    'bloq-pronto': { d: 'M432 320 C410 280 400 235 400 186', x: 392, y: 262, t: 'E/S concluída', a: 'end' }
+  };
+  const svg = $('#st-svg');
+  let h = '<defs><marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
+  Object.entries(B).forEach(([k, b]) => {
+    h += `<rect class="sbox${k === 'exec' ? ' exec' : ''}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="14"/><text class="stitle" x="${b.x + 14}" y="${b.y + 30}">${b.t}</text>`;
+    if (b.s) h += `<text class="ssub" x="${b.x + 14}" y="${b.y + b.h - 14}">${b.s}</text>`;
+  });
+  Object.entries(A).forEach(([k, a]) => {
+    h += `<path class="arr" id="ar-${k}" d="${a.d}" marker-end="url(#ah)"/><text class="alab" id="al-${k}" x="${a.x}" y="${a.y}" text-anchor="${a.a || 'middle'}">${a.t.split('|').map((l, j) => `<tspan x="${a.x}" dy="${j ? 17 : 0}">${l}</tspan>`).join('')}</text>`;
+  });
+  svg.innerHTML = h;
+  const stage = $('#st-stage');
+  const DEFS = [
+    [{ name: 'P1', arr: 0, ph: [['C', 3], ['E', 2], ['C', 2]] }, { name: 'P2', arr: 1, ph: [['C', 2], ['E', 3], ['C', 1]] }, { name: 'P3', arr: 2, ph: [['C', 4]] }, { name: 'P4', arr: 3, ph: [['C', 1], ['E', 2], ['C', 2]] }],
+    [{ name: 'P1', arr: 0, ph: [['C', 5]] }, { name: 'P2', arr: 0, ph: [['C', 3]] }, { name: 'P3', arr: 1, ph: [['C', 4]] }],
+    [{ name: 'P1', arr: 0, ph: [['C', 1], ['E', 4], ['C', 1], ['E', 4], ['C', 1]] }, { name: 'P2', arr: 0, ph: [['C', 2], ['E', 2], ['C', 2]] }, { name: 'P3', arr: 1, ph: [['C', 1], ['E', 5], ['C', 1]] }, { name: 'P4', arr: 2, ph: [['C', 3]] }]
+  ];
+  let DEF = DEFS[0];
+  const Q = 2, ST = { fora: 'Ainda não existe', novo: 'Novo', pronto: 'Pronto', exec: 'Em execução', bloq: 'Bloqueado', term: 'Terminado' };
+  let P, ready, running, t, seq, pend, done;
+  const log = $('#st-log');
+  function reset(){
+    clearTimeout(pend); pend = null;
+    DEF = DEFS[+$('#st-ex').value];
+    P = DEF.map((d, i) => ({ ...d, i, k: 0, rem: d.ph[0][1], st: 'fora', slice: 0, ord: 0 }));
+    ready = []; running = null; t = 0; seq = 0; done = false;
+    stage.querySelectorAll('.tok').forEach(x => x.remove());
+    P.forEach(p => { const d = document.createElement('div'); d.className = 'tok out'; d.style.background = COL(p.i); d.style.setProperty('--c', COL(p.i)); d.textContent = p.name; d.id = 'tok-' + p.i; d.title = p.name; stage.append(d); });
+    log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Passo.</li>';
+    render([]);
+  }
+  const into = (p, st) => { p.st = st; p.ord = ++seq; };
+  function slot(b, i){ if (b === B.exec) return { cx: b.x + b.w / 2, cy: b.y + 80 }; const per = Math.max(1, Math.floor((b.w - 12) / 56)); return { cx: b.x + 40 + (i % per) * 56, cy: b.y + 82 + Math.floor(i / per) * 46 }; }
+  function render(arrows){
+    const groups = { novo: [], pronto: ready.slice(), exec: running ? [running] : [], bloq: [], term: [] };
+    P.forEach(p => { if (p.st === 'novo' || p.st === 'bloq' || p.st === 'term') groups[p.st].push(p); });
+    ['novo', 'bloq', 'term'].forEach(k => groups[k].sort((a, b) => a.ord - b.ord));
+    P.forEach(p => {
+      const el = $('#tok-' + p.i);
+      if (p.st === 'fora') { const s = slot(B.novo, 0); el.style.left = (s.cx - 22) / 10 + '%'; el.style.top = (s.cy - 22) / 5 + '%'; el.classList.add('out'); return; }
+      const s = slot(B[p.st], groups[p.st].indexOf(p));
+      el.classList.remove('out'); el.classList.toggle('run', p.st === 'exec');
+      el.style.left = (s.cx - 22) / 10 + '%'; el.style.top = (s.cy - 22) / 5 + '%';
+    });
+    document.querySelectorAll('.arr.on,.alab.on').forEach(x => x.classList.remove('on'));
+    arrows.forEach(k => { $('#ar-' + k).classList.add('on'); $('#al-' + k).classList.add('on'); });
+    $('#st-table tbody').innerHTML = P.map(p => `<tr><td><span class="pchip" style="background:${COL(p.i)}">${p.name}</span></td><td>${p.ph.map((f, j) => {
+      const cls = j < p.k || p.st === 'term' ? 'done' : (j === p.k && p.st !== 'fora' ? 'cur' : '');
+      const lab = f[0] === 'C' ? 'CPU' : 'E/S';
+      return `<span class="ph ${cls}">${lab} ${cls === 'cur' ? `${f[1] - p.rem}/${f[1]}` : f[1]}</span>`;
+    }).join('→ ')}</td><td class="stlab">${ST[p.st]}${p.st === 'fora' ? ` (chega em t=${p.arr})` : ''}</td></tr>`).join('');
+    const ck = document.querySelector('[data-ctl="estados"] .clock');
+    if (ck) ck.textContent = 't = ' + t;
+  }
+  function dispatch(){
+    pend = null;
+    if (running || !ready.length) return;
+    const p = ready.shift(); into(p, 'exec'); p.slice = 0; running = p;
+    logTo(log, t, [`O escalonador escolhe <b>${p.name}</b>, o primeiro da fila, para usar o processador.`]);
+    render(['pronto-exec']);
+  }
+  function step(){
+    if (done) return false;
+    if (pend) { clearTimeout(pend); dispatch(); }
+    const msgs = [], arrows = [];
+    P.filter(p => p.st === 'novo').forEach(p => { into(p, 'pronto'); ready.push(p); msgs.push(`<b>${p.name}</b> foi admitido e entra na fila dos prontos.`); arrows.push('novo-pronto'); });
+    P.filter(p => p.st === 'fora' && p.arr === t).forEach(p => { into(p, 'novo'); msgs.push(`<b>${p.name}</b> foi criado: estado Novo.`); });
+    P.filter(p => p.st === 'bloq').forEach(p => {
+      p.rem--;
+      if (p.rem === 0) { p.k++; p.rem = p.ph[p.k][1]; into(p, 'pronto'); ready.push(p); msgs.push(`A operação de E/S de <b>${p.name}</b> terminou: volta à fila dos prontos.`); arrows.push('bloq-pronto'); }
+    });
+    if (running) {
+      const p = running; p.rem--; p.slice++;
+      if (p.rem === 0) {
+        p.k++; running = null;
+        if (p.k >= p.ph.length) { into(p, 'term'); msgs.push(`<b>${p.name}</b> terminou o seu trabalho.`); arrows.push('exec-term'); }
+        else { p.rem = p.ph[p.k][1]; into(p, 'bloq'); msgs.push(`<b>${p.name}</b> pediu uma operação de E/S (por exemplo, ler do disco) e fica Bloqueado.`); arrows.push('exec-bloq'); }
+      } else if (p.slice >= Q && ready.length) { into(p, 'pronto'); ready.push(p); running = null; msgs.push(`Acabou o quantum de <b>${p.name}</b> (${Q} unidades): volta para o fim da fila.`); arrows.push('exec-pronto'); }
+      else msgs.push(`<b>${p.name}</b> continua a usar o processador.`);
+    } else if (P.some(p => p.st !== 'term' && p.st !== 'fora') && !ready.length) msgs.push('O processador está livre: ninguém está pronto.');
+    t++;
+    logTo(log, t, msgs.length ? msgs : ['…']);
+    render(arrows);
+    done = P.every(p => p.st === 'term');
+    if (done) { logTo(log, t, ['Todos os processos terminaram. Carrega em Recomeçar para ver de novo.']); return false; }
+    if (!running && ready.length) pend = setTimeout(dispatch, player.ms() * 0.45);
+    return true;
+  }
+  const player = makePlayer('estados', { step, reset, pos: () => t });
+  $('#st-ex').onchange = () => { player.stop(); reset(); };
+  document.querySelector('[data-ctl="estados"]').insertAdjacentHTML('afterbegin', '<span class="clock">t = 0</span>');
+  reset();
+})();
+
+/* ================= 2. ESCALONAMENTO ================= */
+(() => {
+  let procs = [{ n: 'P1', a: 0, d: 6, p: 3 }, { n: 'P2', a: 1, d: 3, p: 1 }, { n: 'P3', a: 2, d: 8, p: 4 }, { n: 'P4', a: 3, d: 2, p: 2 }];
+  const NAMES = { fcfs: 'FCFS', sjf: 'SJF', prio: 'Prioridades', rr: 'Round Robin' };
+  const tb = $('#sc-procs'), alg = $('#sc-alg'), qi = $('#sc-q'), log = $('#sc-log');
+  let S, k;
+  function schedule(list, al, Q){
+    const ps = list.map((x, i) => ({ ...x, i, rem: x.d, start: null, finish: null }));
+    const tl = [], qs = [], ev = [];
+    let t = 0, ready = [], run = null, slice = 0, n = 0, last = [];
+    while (n < ps.length && t < 400) {
+      const e = [];
+      ps.filter(p => p.a === t).forEach(p => { ready.push(p); e.push(`<b>${esc(p.n)}</b> chega e entra na fila.`); });
+      if (run && run.rem === 0) { run.finish = t; n++; e.push(`<b>${esc(run.n)}</b> terminou.`); run = null; }
+      if (n === ps.length) { last = e; break; }
+      if (run && al === 'rr' && slice >= Q && ready.length) { ready.push(run); e.push(`Acabou o quantum de <b>${esc(run.n)}</b>: volta para o fim da fila.`); run = null; }
+      if (!run && ready.length) {
+        let pick;
+        if (al === 'fcfs' || al === 'rr') pick = ready[0];
+        else if (al === 'sjf') pick = ready.reduce((b, p) => (p.d < b.d || (p.d === b.d && p.a < b.a)) ? p : b);
+        else pick = ready.reduce((b, p) => (p.p < b.p || (p.p === b.p && p.a < b.a)) ? p : b);
+        const alone = ready.length === 1;
+        ready.splice(ready.indexOf(pick), 1); run = pick; slice = 0; if (pick.start === null) pick.start = t;
+        const why = alone ? 'é o único na fila' : al === 'fcfs' ? 'chegou primeiro' : al === 'rr' ? `é o primeiro da fila e pode usar o processador até ${Q} unidades` : al === 'sjf' ? `é o mais curto da fila (duração ${pick.d})` : `tem a prioridade mais alta da fila (${pick.p})`;
+        e.push(`<b>${esc(pick.n)}</b> entra no processador: ${why}.`);
+      } else if (!run) e.push('O processador está parado: não há processos prontos.');
+      tl.push(run ? run.i : null); qs.push(ready.map(p => p.i)); ev.push(e);
+      if (run) { run.rem--; slice++; }
+      t++;
+    }
+    ps.forEach(p => { p.tat = p.finish - p.a; p.wait = p.tat - p.d; });
+    return { ps, tl, qs, ev, last };
+  }
+  function avg(ps, f){ return ps.reduce((s, p) => s + p[f], 0) / ps.length; }
+  const fmt = x => x.toLocaleString('pt-PT', { maximumFractionDigits: 2 });
+  function drawTable(){
+    tb.innerHTML = procs.map((p, i) => `<tr><td><span class="pchip" style="background:${COL(i)}">${esc(p.n)}</span></td><td><input type="number" min="0" max="50" value="${p.a}" data-i="${i}" data-f="a" aria-label="Chegada de ${esc(p.n)}"></td><td><input type="number" min="1" max="20" value="${p.d}" data-i="${i}" data-f="d" aria-label="Duração de ${esc(p.n)}"></td><td><input type="number" min="1" max="9" value="${p.p}" data-i="${i}" data-f="p" aria-label="Prioridade de ${esc(p.n)}"></td><td>${procs.length > 2 ? `<button class="rm" data-rm="${i}" aria-label="Remover ${esc(p.n)}">×</button>` : ''}</td></tr>`).join('');
+  }
+  tb.addEventListener('change', e => {
+    const el = e.target; if (!el.dataset.f) return;
+    const lim = { a: [0, 50], d: [1, 20], p: [1, 9] }[el.dataset.f];
+    let v = parseInt(el.value, 10); if (isNaN(v)) v = lim[0]; v = Math.min(lim[1], Math.max(lim[0], v));
+    procs[+el.dataset.i][el.dataset.f] = v; el.value = v; player.stop(); reset();
+  });
+  tb.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; procs.splice(+b.dataset.rm, 1); procs.forEach((p, i) => p.n = 'P' + (i + 1)); drawTable(); player.stop(); reset(); });
+  $('#sc-add').onclick = () => { if (procs.length >= 6) return; procs.push({ n: 'P' + (procs.length + 1), a: procs.length, d: 3, p: 2 }); drawTable(); player.stop(); reset(); };
+  const markAlg = () => document.querySelectorAll('#sc-algs .alg').forEach(el => el.classList.toggle('on', el.dataset.alg === alg.value));
+  const SCEX = [
+    [{ n: 'P1', a: 0, d: 6, p: 3 }, { n: 'P2', a: 1, d: 3, p: 1 }, { n: 'P3', a: 2, d: 8, p: 4 }, { n: 'P4', a: 3, d: 2, p: 2 }],
+    [{ n: 'P1', a: 0, d: 12, p: 3 }, { n: 'P2', a: 1, d: 2, p: 1 }, { n: 'P3', a: 1, d: 1, p: 2 }, { n: 'P4', a: 2, d: 2, p: 2 }],
+    [{ n: 'P1', a: 0, d: 6, p: 3 }, { n: 'P2', a: 0, d: 3, p: 1 }, { n: 'P3', a: 0, d: 8, p: 4 }, { n: 'P4', a: 0, d: 2, p: 2 }],
+    [{ n: 'P1', a: 0, d: 4, p: 5 }, { n: 'P2', a: 1, d: 3, p: 1 }, { n: 'P3', a: 2, d: 5, p: 3 }, { n: 'P4', a: 3, d: 2, p: 1 }, { n: 'P5', a: 4, d: 3, p: 2 }]
+  ];
+  $('#sc-ex').onchange = () => { procs = SCEX[+$('#sc-ex').value].map(p => ({ ...p })); drawTable(); player.stop(); reset(); $('#sc-res').innerHTML = ''; };
+  alg.onchange = () => { $('#sc-qwrap').hidden = alg.value !== 'rr'; markAlg(); player.stop(); reset(); };
+  $('#sc-algs').addEventListener('click', e => { const el = e.target.closest('.alg'); if (!el || el.dataset.alg === alg.value) return; alg.value = el.dataset.alg; alg.onchange(); });
+  qi.onchange = () => { let v = parseInt(qi.value, 10) || 2; qi.value = Math.min(10, Math.max(1, v)); player.stop(); reset(); };
+  function reset(){
+    S = schedule(procs, alg.value, +qi.value); k = 0;
+    const N = S.tl.length, cols = `repeat(${N}, minmax(1.4rem, 1fr))`;
+    $('#sc-gantt').style.gridTemplateColumns = cols; $('#sc-axis').style.gridTemplateColumns = cols;
+    $('#sc-gantt').innerHTML = S.tl.map(() => '<div class="gcell"></div>').join('');
+    $('#sc-axis').innerHTML = S.tl.map((_, i) => `<span>${N <= 30 || i % 5 === 0 ? i : ''}</span>`).join('');
+    $('#sc-cpu').textContent = '–'; $('#sc-cpu').style.color = ''; $('#sc-queue').innerHTML = '';
+    $('#sc-res').innerHTML = ''; log.innerHTML = `<li class="empty">Algoritmo: ${NAMES[alg.value]}. Carrega em Reproduzir ou em Passo.</li>`;
+  }
+  function step(){
+    if (k >= S.tl.length) return false;
+    const cells = $('#sc-gantt').children, id = S.tl[k];
+    const c = cells[k];
+    if (id !== null) { c.style.background = COL(id); if (k === 0 || S.tl[k - 1] !== id) c.textContent = S.ps[id].n; }
+    else c.style.background = 'transparent';
+    $('#sc-cpu').textContent = id !== null ? S.ps[id].n : '–'; $('#sc-cpu').style.color = id !== null ? COL(id) : '';
+    $('#sc-queue').innerHTML = S.qs[k].map(i => `<span class="pchip" style="background:${COL(i)}">${esc(S.ps[i].n)}</span>`).join('');
+    logTo(log, k, S.ev[k]);
+    k++;
+    if (k >= S.tl.length) { logTo(log, k, ['Todos os processos terminaram. Vê os tempos em baixo.'].concat(S.last)); $('#sc-cpu').textContent = '✓'; $('#sc-cpu').style.color = 'var(--good)'; $('#sc-queue').innerHTML = ''; showResults(); return false; }
+    return true;
+  }
+  function showResults(){
+    const ps = S.ps;
+    $('#sc-res').innerHTML = `<h3>Resultados com ${NAMES[alg.value]}</h3><table><thead><tr><th>Processo</th><th>Chegada</th><th>Duração</th><th>Terminou em</th><th>Tempo de espera</th><th>Tempo de resposta</th></tr></thead><tbody>${ps.map(p => `<tr><td><span class="pchip" style="background:${COL(p.i)}">${esc(p.n)}</span></td><td>${p.a}</td><td>${p.d}</td><td>${p.finish}</td><td>${p.wait}</td><td>${p.tat}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="4">Média</td><td>${fmt(avg(ps, 'wait'))}</td><td>${fmt(avg(ps, 'tat'))}</td></tr></tfoot></table>`;
+  }
+  $('#sc-cmp').onclick = () => {
+    const rows = Object.keys(NAMES).map(a => { const r = schedule(procs, a, +qi.value); return { a, w: avg(r.ps, 'wait'), t: avg(r.ps, 'tat') }; });
+    const bw = Math.min(...rows.map(r => r.w)), bt = Math.min(...rows.map(r => r.t));
+    $('#sc-res').innerHTML = `<h3>Comparação com estes processos</h3><table><thead><tr><th>Algoritmo</th><th>Espera média</th><th>Resposta média</th></tr></thead><tbody>${rows.map(r => `<tr><td>${NAMES[r.a]}${r.a === 'rr' ? ` (quantum ${qi.value})` : ''}</td><td class="${r.w === bw ? 'best' : ''}">${fmt(r.w)}</td><td class="${r.t === bt ? 'best' : ''}">${fmt(r.t)}</td></tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">A verde, o melhor valor. Muda as durações ou as chegadas e compara de novo.</p>`;
+  };
+  drawTable();
+  const player = makePlayer('escal', { step, reset, pos: () => k });
+  markAlg(); reset();
+})();
+
+/* ================= 3. CONDIÇÃO DE CORRIDA ================= */
+(() => {
+  const SCN = {
+    cont: { v0: 0, var: 'contador', amt: [1, 1],
+      intro: 'Os processos A e B querem ambos somar 1 à variável <code>contador</code>, que começa em 0. No fim, devia valer 2. Mas cada soma são três instruções separadas, e o sistema pode trocar de processo a meio. Executa as instruções pela ordem que quiseres e vê o que acontece.',
+      lines: a => [{ op: 'ld', t: 'registo ← contador' }, { op: 'add', t: 'registo ← registo + 1' }, { op: 'st', t: 'contador ← registo' }],
+      order: [0, 1, 0, 0, 1, 1],
+      out: () => '', good: s => s.v === 2, label: s => `contador = ${s.v}`,
+      verdict: s => s.v === 2 ? 'Resultado correto: o contador vale 2.' : `O contador vale ${s.v}, mas devia valer 2! Uma das somas perdeu-se: os dois processos leram o mesmo valor antes de qualquer um o escrever. Isto é uma <b>condição de corrida</b>.` },
+    banco: { v0: 100, var: 'saldo (€)', amt: [70, 50],
+      intro: 'A conta tem 100 €. Ao mesmo tempo, o processo A tenta levantar 70 € numa caixa multibanco e o processo B tenta levantar 50 € na aplicação do banco. Só um dos levantamentos devia ser autorizado. Executa as instruções pela ordem que quiseres.',
+      lines: a => [{ op: 'ld', t: 'registo ← saldo' }, { op: 'chk', t: `se registo < ${a}: recusar e sair` }, { op: 'sub', t: `registo ← registo − ${a}` }, { op: 'st', t: 'saldo ← registo' }, { op: 'act', t: `entregar ${a} € ao cliente` }],
+      order: [0, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+      out: s => `entregue: ${s.out} €`, good: s => s.out <= 100 && s.out === 100 - s.v, label: s => s.out <= 100 && s.out === 100 - s.v ? 'correto' : 'o banco perdeu dinheiro',
+      verdict: s => (s.out <= 100 && s.out === 100 - s.v) ? `Correto: foram entregues ${s.out} € e o saldo ficou em ${s.v} €. Um dos levantamentos foi recusado.` : `O banco entregou <b>${s.out} €</b> mas a conta só tinha 100 €, e o saldo ainda diz ${s.v} €! Os dois processos leram o saldo antes de qualquer um o atualizar. Isto é uma <b>condição de corrida</b>.` },
+    bilhete: { v0: 1, var: 'lugares livres', amt: [1, 1],
+      intro: 'Falta vender o último bilhete do concerto. A Ana e o Rui carregam em «Comprar» ao mesmo tempo, e cada compra é tratada por um processo (A e B). Só um deles devia ficar com o bilhete.',
+      lines: a => [{ op: 'ld', t: 'registo ← lugares' }, { op: 'chk', t: 'se registo = 0: «esgotado» e sair' }, { op: 'sub', t: 'registo ← registo − 1' }, { op: 'st', t: 'lugares ← registo' }, { op: 'act', t: 'emitir o bilhete' }],
+      order: [0, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+      out: s => `bilhetes vendidos: ${s.out}`, good: s => s.out <= 1 && s.out === 1 - s.v, label: s => s.out <= 1 ? 'correto: 1 bilhete' : '2 bilhetes para 1 lugar',
+      verdict: s => s.out <= 1 && s.out === 1 - s.v ? 'Correto: só um bilhete foi vendido; a outra pessoa recebeu «esgotado».' : `Foram vendidos <b>${s.out} bilhetes</b> para um só lugar! Os dois processos viram «1 lugar livre» antes de qualquer um o ocupar. Isto é uma <b>condição de corrida</b>.` }
+  };
+  let mode = 0, S, sc = SCN.cont;
+  const log = $('#rc-log');
+  const code = i => { const l = sc.lines(sc.amt[i]); return mode ? [{ op: 'lock', t: 'bloquear(mutex)' }, ...l, { op: 'unlock', t: 'desbloquear(mutex)' }] : l; };
+  function fresh(){ return { v: sc.v0, out: 0, mx: null, P: [{ n: 'A', pc: 0, reg: null, blk: false, res: '' }, { n: 'B', pc: 0, reg: null, blk: false, res: '' }] }; }
+  function exec(st, i){
+    const p = st.P[i], cd = code(i), ins = cd[p.pc];
+    if (!ins) return null;
+    switch (ins.op) {
+      case 'lock':
+        if (st.mx !== null && st.mx !== i) { p.blk = true; return `<b>${p.n}</b> tentou entrar na secção crítica, mas o mutex está com <b>${st.P[st.mx].n}</b>: fica bloqueado à espera.`; }
+        st.mx = i; p.blk = false; p.pc++; return `<b>${p.n}</b> fica com o mutex e entra na secção crítica.`;
+      case 'ld': p.reg = st.v; p.pc++; return `<b>${p.n}</b> lê da memória: o seu registo fica com ${p.reg}.`;
+      case 'add': p.reg++; p.pc++; return `<b>${p.n}</b> soma 1 no seu registo: fica com ${p.reg} (a memória ainda não mudou).`;
+      case 'chk':
+        if (p.reg < sc.amt[i]) { p.res = 'recusado'; p.pc = mode ? cd.length - 1 : cd.length; return `<b>${p.n}</b> vê que não chega (${p.reg} < ${sc.amt[i]}): o pedido é <b>recusado</b>.`; }
+        p.pc++; return `<b>${p.n}</b> vê ${p.reg} no seu registo: chega, por isso continua.`;
+      case 'sub': p.reg -= sc.amt[i]; p.pc++; return `<b>${p.n}</b> calcula no seu registo: fica com ${p.reg} (a memória ainda não mudou).`;
+      case 'st': st.v = p.reg; p.pc++; return `<b>${p.n}</b> escreve ${p.reg} na memória.`;
+      case 'act': st.out += sc.amt[i]; p.res = 'feito'; p.pc++; return `<b>${p.n}</b>: ${ins.t}.`;
+      case 'unlock': st.mx = null; p.pc++; const o = st.P[1 - i]; o.blk = false; return `<b>${p.n}</b> liberta o mutex e sai da secção crítica.`;
+    }
+  }
+  const doneP = (st, i) => st.P[i].pc >= code(i).length;
+  let hist = [];
+  function reset(){ S = fresh(); oi = 0; hist = []; log.innerHTML = '<li class="empty">Executa instruções de A ou de B.</li>'; $('#rc-verdict').innerHTML = ''; render(); }
+  function render(bump){
+    [0, 1].forEach(i => {
+      const p = S.P[i], el = $(i ? '#rc-B' : '#rc-A'), cd = code(i);
+      const st = doneP(S, i) ? `<span class="st end">${p.res === 'recusado' ? 'recusado' : 'terminou'}</span>` : p.blk ? '<span class="st blk">bloqueado</span>' : '<span class="st">pronto</span>';
+      el.style.borderColor = COL(i);
+      el.innerHTML = `<h4><span class="pchip" style="background:${COL(i)}">${p.n}</span>Processo ${p.n}${st}</h4><ol class="code">${cd.map((c, j) => `<li class="${j === p.pc ? 'next' : j < p.pc ? 'ran' : ''}${c.op === 'lock' || c.op === 'unlock' ? ' lk' : ''}"><span class="pc">${j === p.pc ? '▶' : j < p.pc ? '✓' : ''}</span><span>${c.t}</span></li>`).join('')}</ol><div class="reg">registo de ${p.n} = ${p.reg === null ? '?' : p.reg}</div>`;
+    });
+    $('#rc-var').textContent = sc.var; $('#rc-out').textContent = sc.out(S);
+    const v = $('#rc-val'); v.textContent = S.v;
+    if (bump) { v.classList.add('bump'); setTimeout(() => v.classList.remove('bump'), 300); }
+    const mx = $('#rc-mutex'); mx.hidden = mode !== 1;
+    mx.className = 'mutex' + (S.mx !== null ? ' held' : ''); mx.textContent = S.mx === null ? 'mutex: livre' : `mutex: com ${S.P[S.mx].n}`;
+    $('#rc-stepA').disabled = doneP(S, 0); $('#rc-stepB').disabled = doneP(S, 1);
+    if (doneP(S, 0) && doneP(S, 1)) {
+      const ok = sc.good(S);
+      $('#rc-verdict').innerHTML = `<div class="verdict ${ok ? 'good' : 'bad'}">${sc.verdict(S)}${ok ? (mode ? ' O mutex garantiu que só um processo de cada vez estava na secção crítica.' : ' Desta vez correu bem, mas só por causa da ordem. Experimenta trocar a ordem!') : ''}</div>`;
+    }
+  }
+  function run(i, o0 = oi){ if (doneP(S, i)) return; hist.push({ i, o0 }); const before = S.v, m = exec(S, i); logTo(log, null, [m]); render(S.v !== before); }
+  $('#rc-stepA').onclick = () => { player.stop(); run(0); };
+  $('#rc-stepB').onclick = () => { player.stop(); run(1); };
+  let oi = 0;
+  const player = makePlayer('corrida', {
+    step(){
+      const ORDER = sc.order;
+      if (doneP(S, 0) && doneP(S, 1)) return false;
+      const o0 = oi; let guard = 0;
+      while (guard++ < 40) { if (oi >= ORDER.length) oi = 0; if (!doneP(S, ORDER[oi])) break; oi++; }
+      run(ORDER[oi], o0); oi++;
+      return !(doneP(S, 0) && doneP(S, 1));
+    },
+    reset(){ reset(); },
+    pos: () => hist.length,
+    back(){ const h = hist.slice(0, -1), last = hist[hist.length - 1]; reset(); h.forEach(e => run(e.i, e.o0)); oi = last.o0; }
+  });
+  function setup(){ sc = SCN[$('#rc-ex').value]; $('#rc-intro').innerHTML = sc.intro; $('#rc-bars').innerHTML = ''; player.stop(); player.setFinished(false); reset(); }
+  $('#rc-ex').onchange = setup;
+  $('#rc-mode').onclick = e => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    mode = +b.dataset.m; $('#rc-mode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    setup();
+  };
+  $('#rc-rand').onclick = () => {
+    const res = {}, good = {};
+    for (let r = 0; r < 1000; r++) {
+      const st = fresh(); let guard = 0;
+      while (!(doneP(st, 0) && doneP(st, 1)) && guard++ < 100) {
+        const can = [0, 1].filter(i => !doneP(st, i) && !(st.P[i].blk && st.mx !== null && st.mx !== i));
+        exec(st, can[Math.floor(Math.random() * can.length)]);
+      }
+      const l = sc.label(st); res[l] = (res[l] || 0) + 1; good[l] = sc.good(st);
+    }
+    const keys = Object.keys(res).sort((x, y) => good[y] - good[x]);
+    const bad = keys.filter(k => !good[k]).reduce((s, k) => s + res[k], 0);
+    $('#rc-bars').innerHTML = keys.map(k => `<div class="bar"><span>${k}</span><span><i class="${good[k] ? '' : 'bad'}" style="width:0"></i></span><span>${(res[k] / 10).toLocaleString('pt-PT')}%</span></div>`).join('')
+      + `<p>${bad ? `Em ${(bad / 10).toLocaleString('pt-PT')}% das vezes o resultado ficou errado. O pior é que o erro aparece só às vezes: é muito difícil de encontrar!` : 'Com o mutex, o resultado está sempre certo.'}</p>`;
+    requestAnimationFrame(() => $('#rc-bars').querySelectorAll('i').forEach((el, j) => el.style.width = res[keys[j]] / 10 + '%'));
+  };
+  setup();
+})();
+
+/* ================= 4. IMPASSE ================= */
+(() => {
+  const DLS = {
+    imp: { r: ['Impressora', 'Disco'], w: ['a impressora', 'o disco'], pw: ['pela impressora', 'pelo disco'], p: ['P1', 'P2'], req: ['pedir a impressora', 'pedir o disco'], rel: ['libertar a impressora', 'libertar o disco'], use: ['imprimir o ficheiro do disco', 'imprimir o ficheiro do disco'],
+      intro: 'Os processos P1 e P2 precisam ambos da <b>impressora</b> e do <b>disco</b> para trabalhar. Cada um pede um recurso de cada vez. Se pedirem pela ordem errada, cada um fica com um recurso à espera do outro, para sempre: é um <b>impasse</b> (deadlock).' },
+    banco: { r: ['Conta X', 'Conta Y'], w: ['a conta X', 'a conta Y'], pw: ['pela conta X', 'pela conta Y'], p: ['P1', 'P2'], req: ['bloquear a conta X', 'bloquear a conta Y'], rel: ['desbloquear a conta X', 'desbloquear a conta Y'], use: ['passar 50 € de X para Y', 'passar 20 € de Y para X'],
+      intro: 'Para fazer uma transferência sem erros, o banco bloqueia as duas contas envolvidas. P1 transfere 50 € da conta X para a conta Y; ao mesmo tempo, P2 transfere 20 € da conta Y para a conta X. Cada um bloqueia primeiro a conta de onde sai o dinheiro…' },
+    jogo: { r: ['Comando', 'Auscultadores'], w: ['o comando', 'os auscultadores'], pw: ['pelo comando', 'pelos auscultadores'], p: ['Ana', 'Rui'], req: ['pegar no comando', 'pegar nos auscultadores'], rel: ['pousar o comando', 'pousar os auscultadores'], use: ['jogar online', 'jogar online'],
+      intro: 'A Ana e o Rui querem jogar online, e para isso cada um precisa do <b>comando</b> e dos <b>auscultadores</b>. Há só um de cada. A Ana pega primeiro no comando; o Rui pega primeiro nos auscultadores. Nenhum larga o que tem até conseguir jogar…' }
+  };
+  let D = DLS.imp;
+  const R = [{ x: 400, y: 70 }, { x: 400, y: 350 }];
+  const PN = [{ x: 130, y: 210 }, { x: 670, y: 210 }];
+  const SCRIPT = mode => [
+    [{ op: 'req', r: 0 }, { op: 'req', r: 1 }, { op: 'use' }, { op: 'rel', r: 1 }, { op: 'rel', r: 0 }],
+    mode ? [{ op: 'req', r: 0 }, { op: 'req', r: 1 }, { op: 'use' }, { op: 'rel', r: 1 }, { op: 'rel', r: 0 }]
+         : [{ op: 'req', r: 1 }, { op: 'req', r: 0 }, { op: 'use' }, { op: 'rel', r: 0 }, { op: 'rel', r: 1 }]
+  ];
+  const TXT = (s, i) => s.op === 'req' ? D.req[s.r] : s.op === 'use' ? D.use[i] : D.rel[s.r];
+  const RN = r => D.r[r].toLowerCase(), PNn = i => D.p[i];
+  let mode = 0, S, SC, dead = false;
+  const log = $('#dl-log');
+  let hist = [];
+  function reset(){ SC = SCRIPT(mode); S = { own: [null, null], wait: [null, null], pc: [0, 0] }; dead = false; hist = []; log.innerHTML = '<li class="empty">Avança P1 ou P2.</li>'; $('#dl-verdict').innerHTML = ''; render(); }
+  const finished = i => S.pc[i] >= SC[i].length;
+  function adv(i){
+    if (finished(i) || dead) return null;
+    if (S.wait[i] !== null) return `<b>${PNn(i)}</b> continua à espera de ${RN(S.wait[i])}, que está com <b>${PNn(S.own[S.wait[i]])}</b>.`;
+    const s = SC[i][S.pc[i]];
+    if (s.op === 'req') {
+      if (S.own[s.r] === null) { S.own[s.r] = i; S.pc[i]++; return `<b>${PNn(i)}</b>: ${D.req[s.r]}. Consegue.`; }
+      S.wait[i] = s.r; return `<b>${PNn(i)}</b> quer ${D.w[s.r]}, mas está com <b>${PNn(S.own[s.r])}</b>: fica à espera.`;
+    }
+    if (s.op === 'use') { S.pc[i]++; return `<b>${PNn(i)}</b> tem os dois recursos: ${D.use[i]}.`; }
+    S.own[s.r] = null; S.pc[i]++;
+    let m = `<b>${PNn(i)}</b>: ${D.rel[s.r]}.`;
+    const o = 1 - i;
+    if (S.wait[o] === s.r) { S.own[s.r] = o; S.wait[o] = null; S.pc[o]++; m += ` <b>${PNn(o)}</b>, que estava à espera, fica com ${D.w[s.r]}.`; }
+    return m;
+  }
+  function render(){
+    const cyc = S.wait[0] !== null && S.wait[1] !== null;
+    let h = '<defs><marker id="dh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
+    const edge = (x1, y1, x2, y2, cls, pad1, pad2) => {
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      const rp = Math.min(85 / Math.abs(ux || 1e-9), 42 / Math.abs(uy || 1e-9)) + 8;
+      if (pad1 === 'r') pad1 = rp; if (pad2 === 'r') pad2 = rp;
+      return `<path class="edge ${cls}" d="M${x1 + ux * pad1} ${y1 + uy * pad1} L${x2 - ux * pad2} ${y2 - uy * pad2}" marker-end="url(#dh)"/>`;
+    };
+    [0, 1].forEach(r => { if (S.own[r] !== null) h += edge(R[r].x, R[r].y, PN[S.own[r]].x, PN[S.own[r]].y, 'own' + (cyc ? ' cyc' : ''), 'r', 62); });
+    [0, 1].forEach(i => { if (S.wait[i] !== null) h += edge(PN[i].x, PN[i].y, R[S.wait[i]].x, R[S.wait[i]].y, 'req' + (cyc ? ' cyc' : ''), 58, 'r'); });
+    R.forEach((r, j) => { h += `<rect class="node-r" x="${r.x - 85}" y="${r.y - 42}" width="170" height="84" rx="10"/><text class="rtext" x="${r.x}" y="${r.y + 6}">${D.r[j]}</text>`; });
+    PN.forEach((p, i) => { h += `<circle class="node-p" cx="${p.x}" cy="${p.y}" r="52" fill="${COL(i)}" stroke="${cyc ? 'var(--bad)' : 'var(--card)'}"/><text class="ntext" x="${p.x}" y="${p.y}">${D.p[i]}</text>`; });
+    if (cyc) h += '<text x="400" y="215" text-anchor="middle" style="font:700 30px var(--head);fill:var(--bad)">IMPASSE</text>';
+    $('#dl-svg').innerHTML = h;
+    [0, 1].forEach(i => {
+      const el = $('#dl-P' + (i + 1));
+      const st = finished(i) ? '<span class="st end">terminou</span>' : S.wait[i] !== null ? '<span class="st blk">à espera</span>' : '<span class="st">pronto</span>';
+      el.style.borderColor = COL(i);
+      el.innerHTML = `<h4><span class="pchip" style="background:${COL(i)}">${PNn(i)}</span>Programa${st}</h4><ol class="code">${SC[i].map((s, j) => `<li class="${j === S.pc[i] ? 'next' : j < S.pc[i] ? 'ran' : ''}"><span class="pc">${j === S.pc[i] ? '▶' : j < S.pc[i] ? '✓' : ''}</span><span>${TXT(s, i)}</span></li>`).join('')}</ol>`;
+    });
+    const holdWait = [0, 1].some(i => S.wait[i] !== null && S.own.includes(i));
+    const lit = [S.own.some(x => x !== null), holdWait, holdWait, cyc];
+    document.querySelectorAll('#dl-cond li').forEach((li, j) => li.classList.toggle('on', lit[j]));
+    $('#dl-s1').disabled = finished(0) || dead; $('#dl-s2').disabled = finished(1) || dead;
+    if (cyc && !dead) {
+      dead = true; $('#dl-s1').disabled = $('#dl-s2').disabled = true;
+      $('#dl-verdict').innerHTML = `<div class="verdict bad">Impasse! ${D.p[0]} tem ${D.w[0]} e espera ${D.pw[1]}; ${D.p[1]} tem ${D.w[1]} e espera ${D.pw[0]}. Nenhum consegue avançar e nenhum larga o que tem. Experimenta a opção «Ambos pedem pela mesma ordem».</div>`;
+      logTo(log, null, ['Formou-se um ciclo de espera: <b>impasse</b>.']);
+    } else if (finished(0) && finished(1)) $('#dl-verdict').innerHTML = `<div class="verdict good">Os dois terminaram. Como ambos começam ${D.pw[0]}, quem não conseguiu esperou sem ficar com ${D.w[1]} preso: não há espera circular.</div>`;
+  }
+  function go(i, t0 = turn){ hist.push({ i, t0 }); const m = adv(i); if (m) logTo(log, null, [m]); render(); }
+  $('#dl-s1').onclick = () => { player.stop(); go(0); };
+  $('#dl-s2').onclick = () => { player.stop(); go(1); };
+  let turn = 0;
+  const player = makePlayer('impasse', {
+    step(){
+      if (dead || (finished(0) && finished(1))) return false;
+      const t0 = turn; let i = turn % 2; turn++;
+      if (finished(i) || S.wait[i] !== null) i = 1 - i;
+      go(i, t0);
+      return !(dead || (finished(0) && finished(1)));
+    },
+    reset(){ turn = 0; reset(); },
+    pos: () => hist.length,
+    back(){ const h = hist.slice(0, -1), last = hist[hist.length - 1]; reset(); h.forEach(e => go(e.i, e.t0)); turn = last.t0; }
+  });
+  $('#dl-ex').onchange = () => { D = DLS[$('#dl-ex').value]; $('#dl-intro').innerHTML = D.intro; player.stop(); player.setFinished(false); turn = 0; reset(); };
+  $('#dl-intro').innerHTML = D.intro;
+  $('#dl-mode').onclick = e => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    mode = +b.dataset.m; $('#dl-mode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    player.stop(); player.setFinished(false); turn = 0; reset();
+  };
+  reset();
+})();
+
+/* ================= 5. TESTA-TE ================= */
+(() => {
+  const Q = [
+    { q: 'Um processo que espera que o disco acabe de ler um ficheiro está no estado…', o: ['Pronto', 'Bloqueado', 'Em execução', 'Terminado'], c: 1, e: 'Fica Bloqueado: mesmo que o processador esteja livre, não pode avançar sem os dados do disco.' },
+    { q: 'Com um só processador, quantos processos podem estar Em execução ao mesmo tempo?', o: ['Um', 'Dois', 'Todos os que estão prontos', 'Depende da memória'], c: 0, e: 'Só um. A sensação de que correm ao mesmo tempo vem da alternância rápida entre processos (concorrência).' },
+    { q: 'No Round Robin, o que acontece quando acaba o quantum de um processo que ainda não terminou?', o: ['Termina à força', 'Fica bloqueado', 'Volta para o fim da fila dos prontos', 'Continua até acabar'], c: 2, e: 'Volta para o fim da fila e espera pela próxima vez.' },
+    { q: 'Qual destes algoritmos dá, em geral, o menor tempo médio de espera?', o: ['FCFS', 'SJF', 'Round Robin', 'Escolher ao acaso'], c: 1, e: 'O SJF despacha primeiro os trabalhos curtos, por isso a média de espera desce. O risco é um processo longo esperar muito.' },
+    { q: 'Dois processos somam 1 a um contador partilhado e no fim ele vale 1 em vez de 2. Porquê?', o: ['O processador avariou', 'Houve uma condição de corrida', 'Houve um impasse', 'O contador estava cheio'], c: 1, e: 'Os dois leram o mesmo valor antes de qualquer um o escrever: uma das somas perdeu-se.' },
+    { q: 'Qual é uma forma de evitar o impasse entre dois processos que precisam de dois recursos?', o: ['Dar mais memória', 'Pedir os recursos sempre pela mesma ordem', 'Aumentar o quantum', 'Usar o SJF'], c: 1, e: 'Pedir sempre pela mesma ordem impede a espera circular, uma das quatro condições do impasse.' }
+  ];
+  const ans = {};
+  /* Baralha a ordem das opções de cada pergunta (de novo em cada tentativa) */
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let ord = Q.map(x => shuffle(x.o.map((_, j) => j)));
+  function draw(){
+    const right = Object.keys(ans).filter(i => ans[i] === Q[i].c).length;
+    $('#quiz').innerHTML = (Object.keys(ans).length ? `<p class="score">Acertaste ${right} de ${Q.length}${Object.keys(ans).length < Q.length ? ` (respondeste a ${Object.keys(ans).length})` : ''}.</p>` : '')
+      + Q.map((x, i) => `<fieldset class="q"><legend>${i + 1}. ${x.q}</legend>${ord[i].map(j => `<label class="${i in ans ? (j === x.c ? 'right' : j === ans[i] ? 'wrong' : '') : ''}"><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? ' checked' : ''}${i in ans ? ' disabled' : ''}><span>${x.o[j]}</span></label>`).join('')}${i in ans ? `<p class="fb"><b>${ans[i] === x.c ? 'Certo!' : 'Ainda não.'}</b> ${x.e}</p>` : ''}</fieldset>`).join('')
+      + (Object.keys(ans).length === Q.length ? '<button class="btn" id="qz-again">Responder de novo</button>' : '');
+    const again = $('#qz-again'); if (again) again.onclick = () => { Object.keys(ans).forEach(k => delete ans[k]); ord = Q.map(x => shuffle(x.o.map((_, j) => j))); draw(); };
+  }
+  $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
