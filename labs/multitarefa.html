@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O conceito Multitarefa · Laboratório animado</title>
+<style>
+:root{
+  --head:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,Menlo,monospace;
+  --bg:#EEF1F7; --card:#FFFFFF; --ink:#172033; --muted:#5A6577; --line:#D8DEE9; --soft:#F5F7FB;
+  --accent:#2F5BD3; --on-accent:#FFFFFF; --good:#1E8A5A; --good-soft:#E3F4EB; --bad:#C8402B; --bad-soft:#FCE8E4; --warn-soft:#FFF4D6;
+  --p1:#2F6FED; --p2:#E0533D; --p3:#1E9E6A; --p4:#C98A00; --p5:#8B5CF6; --p6:#0E9AA7;
+  --arrow:#9AA6B8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F141C; --card:#171E29; --ink:#E3E8F0; --muted:#97A3B6; --line:#2A3443; --soft:#1D2531;
+    --accent:#7FA2FF; --on-accent:#0F141C; --good:#5CCB92; --good-soft:rgba(92,203,146,.14); --bad:#F07C68; --bad-soft:rgba(240,124,104,.15); --warn-soft:rgba(255,196,64,.14);
+    --p1:#5B8EFF; --p2:#F07560; --p3:#3DC08A; --p4:#E5AA2B; --p5:#A585FF; --p6:#2CC0CC;
+    --arrow:#5E6B7E;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 1.5rem 0;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:.9rem;max-width:80rem;margin:0 auto}
+.chipico{width:44px;height:44px;flex:none}
+.brand h1{font:700 1.45rem/1.15 var(--head);margin:0;letter-spacing:.01em}
+.brand p{margin:.1rem 0 0;color:var(--muted);font-size:.9rem}
+.tabs{display:flex;gap:.25rem;max-width:80rem;margin:.8rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.6rem .9rem .7rem;border-bottom:3px solid transparent;font:600 .95rem var(--ui);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button span{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--soft);font-size:.78rem;margin-right:.4rem;color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button[aria-selected="true"] span{background:var(--accent);color:var(--on-accent)}
+
+main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
+.intro{margin:0 0 1.2rem;max-width:52rem}
+.intro h2{font:700 1.35rem/1.25 var(--head);margin:0 0 .35rem}
+.intro p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.2rem;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{font:700 1rem var(--head);margin:0 0 .6rem;letter-spacing:.01em}
+.side .card+.card{margin-top:1rem}
+.side ul{margin:.2rem 0 0;padding-left:1.1rem}
+.side li{margin:.35rem 0;font-size:.93rem}
+.side p{font-size:.93rem;margin:.3rem 0}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:600 .9rem var(--ui);padding:.5rem .95rem;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.speed{display:flex;align-items:center;gap:.4rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.speed input{accent-color:var(--accent);width:7rem}
+.clock{font:600 .9rem var(--mono);background:var(--soft);border-radius:6px;padding:.3rem .6rem}
+
+.log,.side .log{list-style:none;margin:0;padding:0;max-height:16rem;overflow:auto;font-size:.88rem}
+.log li{padding:.45rem 0;border-bottom:1px solid var(--line);display:flex;gap:.6rem}
+.log li:first-child{font-weight:600}
+.log time{font:600 .8rem var(--mono);color:var(--muted);flex:none;min-width:2.6rem;padding-top:.1rem}
+.log code{white-space:nowrap}
+.log .empty{color:var(--muted);font-style:italic}
+
+.pchip{display:inline-flex;align-items:center;justify-content:center;min-width:2.1rem;height:1.6rem;padding:0 .45rem;border-radius:999px;color:#fff;font:700 .78rem var(--mono)}
+
+/* 1. Estados */
+.stage{position:relative;width:100%;aspect-ratio:2/1;background:var(--soft);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.sbox{fill:var(--card);stroke:var(--line);stroke-width:2}
+.sbox.exec{stroke:var(--accent);stroke-width:3}
+.stitle{font:700 22px var(--head);fill:var(--ink)}
+.ssub{font:500 15px var(--ui);fill:var(--muted)}
+.arr{fill:none;stroke:var(--arrow);stroke-width:3;transition:stroke .25s}
+.arr.on{stroke:var(--accent);stroke-width:5}
+.alab{font:600 15px var(--ui);fill:var(--muted)}
+.alab.on{fill:var(--accent)}
+.tok{position:absolute;width:4.4%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 clamp(.6rem,1.4vw,.9rem) var(--mono);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),opacity .4s,transform .3s}
+.tok.out{opacity:0;transform:scale(.4)}
+.tok.run{transform:scale(1.2);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--c)}
+.ptable{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.9rem}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:.8rem;padding:.3rem .4rem;border-bottom:1px solid var(--line)}
+.ptable td{padding:.45rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.ph{display:inline-block;padding:.15rem .5rem;border-radius:5px;font:600 .78rem var(--mono);margin:.1rem .2rem .1rem 0;background:var(--soft);border:1px solid var(--line)}
+.ph.cur{background:var(--warn-soft);border-color:var(--p4)}
+.ph.done{opacity:.4;text-decoration:line-through}
+.stlab{font-size:.82rem;font-weight:600}
+
+/* 2. Escalonamento */
+.cfg{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem}
+.cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.82rem;font-weight:600;color:var(--muted)}
+.cfg select,.cfg input{padding:.45rem .55rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.ptab input{width:4.2rem;padding:.3rem .4rem;border:1px solid var(--line);border-radius:6px;background:var(--soft);text-align:center}
+.ptab td,.ptab th{padding:.3rem .4rem}
+.ptab .rm{border:0;background:none;color:var(--bad);cursor:pointer;font-size:1.1rem}
+.cpu-row{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:1rem;align-items:center;margin:1.2rem 0}
+.cpu{border:3px solid var(--accent);border-radius:12px;height:6.2rem;display:grid;place-items:center;text-align:center;background:var(--card);position:relative}
+.cpu small{position:absolute;top:.35rem;left:0;right:0;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.cpu .big{font:700 1.6rem var(--mono);margin-top:.6rem}
+.queue{border:2px dashed var(--line);border-radius:12px;min-height:6.2rem;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:relative}
+.queue::before{content:"Fila dos prontos";position:absolute;top:.35rem;left:.7rem;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.queue .pchip{margin-top:1rem;height:2.2rem;min-width:2.8rem;font-size:.9rem;animation:pop .3s}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:grid;gap:2px;min-width:30rem}
+.gcell{height:2.6rem;background:var(--soft);border-radius:3px;display:flex;align-items:center;padding-left:.3rem;color:#fff;font:700 .78rem var(--mono);transition:background .2s}
+.gaxis{display:grid;gap:2px;min-width:30rem;font:500 .7rem var(--mono);color:var(--muted)}
+.gaxis span{text-align:left}
+.results{margin-top:1.2rem;overflow-x:auto}
+.results table{border-collapse:collapse;width:100%;font-size:.9rem}
+.results th,.results td{padding:.4rem .6rem;border-bottom:1px solid var(--line);text-align:center}
+.results th{font-size:.8rem;color:var(--muted)}
+.results tfoot td{font-weight:700}
+.best{background:var(--good-soft);font-weight:700}
+
+.alg{padding:.7rem .8rem;border-radius:9px;margin:0 -.4rem .3rem;cursor:pointer;transition:background .2s}
+.alg:hover{background:var(--soft)}
+.alg.on{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--p4)}
+.alg h4{margin:0 0 .3rem;font:700 .98rem var(--head);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .5rem}
+.alg h4 span{font:500 .8rem var(--ui);color:var(--muted)}
+.alg.on h4::after{content:"em uso";margin-left:auto;font:700 .7rem var(--ui);background:var(--p4);color:#fff;padding:.1rem .45rem;border-radius:999px}
+.alg p{margin:.2rem 0;font-size:.88rem}
+.alg .pc{color:var(--muted)}
+.alg:not(.on) .pc{display:none}
+/* 3. Condição de corrida */
+.race{display:grid;grid-template-columns:1fr 12rem 1fr;gap:1rem;align-items:start}
+.proc{border:2px solid var(--line);border-radius:12px;padding:.8rem;background:var(--card)}
+.proc h4{margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem;font:700 1rem var(--head)}
+.proc .st{margin-left:auto;font:600 .75rem var(--ui);padding:.15rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.proc .st.blk{background:var(--bad-soft);color:var(--bad)}
+.proc .st.end{background:var(--good-soft);color:var(--good)}
+.code{list-style:none;margin:0;padding:0;font:500 .86rem/1.5 var(--mono)}
+.code li{display:flex;gap:.5rem;padding:.3rem .45rem;border-radius:6px;align-items:center}
+.code li .pc{width:1rem;flex:none;color:var(--accent);font-weight:700}
+.code li.next{background:var(--warn-soft)}
+.code li.ran{color:var(--muted)}
+.code li.lk{color:var(--p5);font-weight:700}
+.reg{margin-top:.7rem;font:600 .9rem var(--mono);background:var(--soft);padding:.4rem .6rem;border-radius:7px}
+.mem{border:3px solid var(--ink);border-radius:12px;text-align:center;padding:.8rem .5rem;background:var(--card)}
+.mem small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.06em}
+.mem .val{font:700 2.6rem/1.2 var(--mono);transition:transform .3s}
+.mem .val.bump{transform:scale(1.3)}
+.mutex{margin-top:.8rem;padding:.4rem;border-radius:8px;font:600 .82rem var(--ui);background:var(--soft)}
+.mutex.held{background:var(--warn-soft)}
+.verdict{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.verdict.bad{background:var(--bad-soft)}
+.verdict.good{background:var(--good-soft)}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mode button{border:0;background:transparent;padding:.45rem .8rem;font:600 .86rem var(--ui);cursor:pointer;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.bars{margin-top:.8rem}
+.bar{display:grid;grid-template-columns:7rem 1fr 3.5rem;gap:.5rem;align-items:center;margin:.35rem 0;font-size:.88rem}
+.bar i{display:block;height:1.1rem;border-radius:4px;background:var(--accent);transition:width .6s}
+.bar i.bad{background:var(--bad)}
+
+/* 4. Impasse */
+#dl-svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.node-p{stroke-width:4}
+.node-r{fill:var(--card);stroke:var(--ink);stroke-width:3}
+.ntext{font:700 22px var(--head);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.rtext{font:700 18px var(--head);fill:var(--ink);text-anchor:middle}
+.edge{stroke-width:4;fill:none;transition:opacity .3s}
+.edge.req{stroke:var(--muted);stroke-dasharray:10 7}
+.edge.own{stroke:var(--ink)}
+.edge.cyc{stroke:var(--bad)!important}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin-top:.6rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.cond{list-style:none;padding:0;margin:0}
+.cond li{display:flex;gap:.5rem;align-items:flex-start;padding:.35rem 0;font-size:.9rem}
+.cond li i{flex:none;width:1.2rem;height:1.2rem;border-radius:50%;border:2px solid var(--line);margin-top:.15rem}
+.cond li.on i{background:var(--bad);border-color:var(--bad)}
+
+/* 5. Testa-te */
+.quiz{max-width:46rem}
+.q{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:1rem 1.1rem;margin:0 0 1rem}
+.q legend{font:700 1rem var(--head);padding:0 .3rem;margin-left:-.3rem}
+.q label{display:flex;gap:.6rem;padding:.45rem .5rem;border-radius:7px;cursor:pointer;align-items:flex-start}
+.q label:hover{background:var(--soft)}
+.q label.right{background:var(--good-soft)}
+.q label.wrong{background:var(--bad-soft)}
+.q input{accent-color:var(--accent);margin-top:.3rem}
+.q .fb{margin:.6rem 0 0;font-size:.92rem}
+.score{font:700 1.1rem var(--head);margin:.5rem 0 1rem}
+
+
+/* Núcleo */
+.ksvg .layer{stroke:none}
+.kbox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s}
+.kbox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.kbox.bad{stroke:var(--bad);stroke-width:4;fill:var(--bad-soft)}
+.ktxt{font:600 17px var(--ui);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.klab{font:700 15px var(--head);letter-spacing:.06em;fill:var(--muted)}
+.kline{stroke:var(--bad);stroke-width:3;stroke-dasharray:10 8}
+.mode-ind{display:inline-flex;align-items:center;gap:.5rem;font:700 .85rem var(--ui);padding:.35rem .8rem;border-radius:999px;background:var(--soft)}
+.mode-ind i{width:.7rem;height:.7rem;border-radius:50%;background:var(--good)}
+.mode-ind.k i{background:var(--bad)}
+.pkt{position:absolute;width:3.4%;aspect-ratio:1;border-radius:8px;background:var(--accent);box-shadow:0 4px 10px rgba(0,0,0,.3);transition:left .6s cubic-bezier(.5,0,.3,1),top .6s cubic-bezier(.5,0,.3,1),background .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.pkt.k{background:var(--bad)}
+.kstage{position:relative;width:100%;aspect-ratio:1000/520;background:var(--soft);border-radius:10px;overflow:hidden}
+.kstage svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Memória contígua */
+.membar{position:relative;height:5.5rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px);margin-top:.4rem}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:700 .85rem var(--mono);border-right:2px solid var(--card);transition:left .6s cubic-bezier(.5,0,.3,1),width .6s cubic-bezier(.5,0,.3,1),box-shadow .2s;overflow:hidden;white-space:nowrap;cursor:pointer}
+.seg small{font:500 .72rem var(--mono);opacity:.9}
+.seg.os{background:#4B5568;cursor:default}
+.seg.hole{background:transparent;color:var(--muted);cursor:default}
+.seg.fit{box-shadow:inset 0 0 0 4px var(--good)}
+.seg.nofit{box-shadow:inset 0 0 0 4px var(--bad)}
+.seg.pick{box-shadow:inset 0 0 0 6px var(--good);background:var(--good-soft)}
+.seg.new{animation:pop .5s}
+.addr{position:relative;height:1.3rem;font:500 .7rem var(--mono);color:var(--muted)}
+.addr span{position:absolute;transform:translateX(-50%)}
+.reqs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;min-height:2.2rem}
+.reqs .op{font:600 .8rem var(--ui);padding:.3rem .6rem;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.reqs .op.cur{background:var(--warn-soft);border-color:var(--p4)}
+.reqs .op.ok{opacity:.5}
+.reqs .op.fail{background:var(--bad-soft);border-color:var(--bad)}
+.stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.9rem}
+.stat{background:var(--soft);border-radius:8px;padding:.45rem .8rem;font-size:.85rem}
+.stat b{font:700 1.05rem var(--mono);display:block}
+.manual{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.9rem}
+.manual input{width:5.5rem;padding:.45rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);text-align:center}
+
+/* Paginação */
+.pg{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1.2rem;align-items:start}
+.pg h4{margin:0 0 .5rem;font:700 .9rem var(--head);color:var(--muted);letter-spacing:.03em}
+.cells{display:flex;flex-direction:column;gap:3px}
+.cell{display:flex;justify-content:space-between;align-items:center;padding:.45rem .7rem;border-radius:6px;background:var(--soft);font:600 .82rem var(--mono);border:2px solid transparent;transition:border-color .3s,background .3s;position:relative}
+.cell small{font:500 .7rem var(--mono);color:var(--muted)}
+.cell.mine{background:color-mix(in srgb,var(--p1) 18%,var(--card))}
+.cell.other{background:color-mix(in srgb,var(--muted) 18%,var(--card))}
+.cell.on{border-color:var(--accent);background:var(--warn-soft)}
+.cell.miss{border-color:var(--bad);background:var(--bad-soft)}
+.cell .mark{position:absolute;top:2px;bottom:2px;width:3px;background:var(--bad);border-radius:2px}
+.ptbl{width:100%;border-collapse:collapse;font:600 .85rem var(--mono)}
+.ptbl th{font:600 .72rem var(--ui);color:var(--muted);padding:.3rem;border-bottom:1px solid var(--line)}
+.ptbl td{text-align:center;padding:.42rem .3rem;border-bottom:1px solid var(--line);transition:background .3s}
+.ptbl tr.on td{background:var(--warn-soft)}
+.ptbl tr.miss td{background:var(--bad-soft)}
+.calc{margin-top:1rem;font:500 .95rem/1.7 var(--mono);background:var(--soft);border-radius:10px;padding:.8rem 1rem;min-height:5rem}
+.calc div{animation:pop .3s}
+.calc .res{font-weight:700;color:var(--accent)}
+.calc .err{font-weight:700;color:var(--bad)}
+
+/* Substituição de páginas */
+.refgrid{overflow-x:auto}
+.refgrid table{border-collapse:separate;border-spacing:3px;font:600 .9rem var(--mono)}
+.refgrid th{min-width:2.4rem;height:2.4rem;background:var(--soft);border-radius:6px}
+.refgrid th.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.refgrid td{height:2.4rem;text-align:center;border-radius:6px;background:var(--card);border:1px solid var(--line);transition:background .3s}
+.refgrid td.lbl{border:0;background:none;font:600 .72rem var(--ui);color:var(--muted);text-align:right;padding-right:.4rem;white-space:nowrap}
+.refgrid td.in{background:var(--bad-soft);border-color:var(--bad)}
+.refgrid td.hitc{background:var(--good-soft);border-color:var(--good)}
+.refgrid td.res{border:0;font:700 .8rem var(--ui)}
+.refgrid td.res.f{color:var(--bad)}
+.refgrid td.res.h{color:var(--good)}
+.refgrid td.hide{visibility:hidden}
+
+
+/* E/S: técnicas */
+.iostage{position:relative;width:100%;aspect-ratio:1000/430;background:var(--soft);border-radius:10px;overflow:hidden}
+.iostage svg{position:absolute;inset:0;width:100%;height:100%}
+.iobox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s,opacity .3s}
+.iobox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.iobox.off{opacity:.3}
+.iot{font:700 19px var(--head);fill:var(--ink);text-anchor:middle}
+.ios{font:500 14px var(--ui);fill:var(--muted);text-anchor:middle}
+.bus{stroke:var(--muted);stroke-width:8;stroke-linecap:round}
+.byte{position:absolute;width:3%;aspect-ratio:1;border-radius:6px;background:var(--p2);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .35s ease-in-out,top .35s ease-in-out,opacity .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.cpubar{display:flex;gap:2px;height:1.7rem;margin-top:.4rem}
+.cpubar i{flex:1;border-radius:3px;background:var(--soft)}
+.cpubar i.u{background:var(--good)}
+.cpubar i.h{background:var(--p4)}
+.cpubar i.w{background:var(--bad)}
+.leg{display:flex;flex-wrap:wrap;gap:.9rem;font-size:.8rem;color:var(--muted);margin-top:.45rem}
+.leg span{display:inline-flex;align-items:center;gap:.35rem}
+.leg i{width:.9rem;height:.9rem;border-radius:3px;display:inline-block}
+
+/* Interrupção */
+.intg{display:grid;grid-template-columns:1fr 13rem 1fr;gap:1rem;align-items:start}
+.kbd{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:10px;background:var(--soft);font:600 .85rem var(--ui);transition:background .3s}
+.kbd.on{background:var(--bad-soft);box-shadow:inset 0 0 0 2px var(--bad)}
+.kbd kbd{font:700 1rem var(--mono);background:var(--card);border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:.2rem .55rem}
+.stack{border:2px solid var(--ink);border-radius:10px;padding:.5rem;min-height:5.5rem;margin-top:.8rem;background:var(--card)}
+.stack small,.vec small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.05em;margin-bottom:.35rem}
+.stack div{font:600 .8rem var(--mono);background:var(--warn-soft);border-radius:5px;padding:.25rem .45rem;margin-top:3px;animation:pop .3s}
+.vec{margin-top:.8rem}
+.vec table{width:100%;border-collapse:collapse;font:600 .8rem var(--mono)}
+.vec td{padding:.3rem .4rem;border-bottom:1px solid var(--line);transition:background .3s}
+.vec tr.on td{background:var(--warn-soft)}
+.bufbox{margin-top:.6rem;font:600 .85rem var(--mono);background:var(--soft);border-radius:7px;padding:.4rem .6rem}
+
+/* Buffer */
+.stream{display:grid;grid-template-columns:8rem 1fr 8rem;gap:1rem;align-items:center}
+.node{border:2px solid var(--line);border-radius:12px;background:var(--card);text-align:center;padding:.8rem .4rem;font:700 .9rem var(--head)}
+.node small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-top:.2rem}
+.node.stall{border-color:var(--bad);background:var(--bad-soft)}
+.node.play{border-color:var(--good);background:var(--good-soft)}
+.bufmeter{position:relative;height:3.4rem;border:2px dashed var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.bufmeter i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 35%,var(--card));transition:width .4s}
+.bufmeter span{position:absolute;inset:0;display:grid;place-items:center;font:700 .9rem var(--mono)}
+.vbar{position:relative;height:.7rem;border-radius:999px;background:var(--line);margin-top:1.2rem;overflow:hidden}
+.vbar .bf{position:absolute;left:0;top:0;bottom:0;background:var(--muted);opacity:.55;transition:width .4s}
+.vbar .pl{position:absolute;left:0;top:0;bottom:0;background:var(--bad);transition:width .4s}
+.screen{margin-top:1rem;aspect-ratio:16/6;border-radius:10px;background:#11161e;display:grid;place-items:center;color:#fff;font:700 1.1rem var(--head);position:relative;overflow:hidden}
+.screen .spin{width:2.6rem;height:2.6rem;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.screen .frame{font-size:2.6rem;animation:pop .4s}
+.chart{display:flex;align-items:flex-end;gap:2px;height:5rem;margin-top:1rem;border-bottom:1px solid var(--line)}
+.chart i{flex:1;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;opacity:.75}
+.chart i.st{background:var(--bad);opacity:1}
+
+/* Disco */
+.dsvg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.dpath{fill:none;stroke:var(--accent);stroke-width:3}
+.dret{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-dasharray:7 6}
+.dreq{fill:var(--card);stroke:var(--p2);stroke-width:3}
+.dreq.done{fill:var(--p2)}
+.dhead{fill:var(--accent)}
+.dax{font:500 13px var(--mono);fill:var(--muted)}
+.dlab{font:700 13px var(--mono);fill:var(--ink)}
+
+
+/* Funções em ação */
+.banner{min-height:3.4rem;padding:.8rem 1rem;border-radius:10px;background:var(--soft);font:600 1rem/1.45 var(--ui);margin-bottom:1rem}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.7rem}
+.fcard{position:relative;border:2px solid var(--line);border-radius:12px;padding:.8rem .9rem;background:var(--card);transition:border-color .3s,background .3s,transform .3s}
+.fcard .ic{font-size:1.6rem;line-height:1}
+.fcard h4{margin:.4rem 0 .2rem;font:700 .95rem var(--head)}
+.fcard p{margin:0;font-size:.8rem;color:var(--muted);line-height:1.4}
+.fcard .cnt{position:absolute;top:.6rem;right:.7rem;min-width:1.6rem;height:1.6rem;border-radius:999px;background:var(--soft);display:grid;place-items:center;font:700 .78rem var(--mono);color:var(--muted)}
+.fcard.used .cnt{background:var(--good-soft);color:var(--good)}
+.fcard.on{border-color:var(--accent);background:var(--warn-soft);transform:translateY(-3px)}
+.fcard.on .cnt{background:var(--accent);color:var(--on-accent)}
+
+/* Arranque */
+.bootg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:1.2rem;align-items:start}
+.stepper{list-style:none;margin:0;padding:0;counter-reset:s}
+.stepper li{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem .5rem;border-radius:8px;font-size:.88rem;color:var(--muted);transition:background .3s}
+.stepper li::before{counter-increment:s;content:counter(s);flex:none;width:1.5rem;height:1.5rem;border-radius:50%;display:grid;place-items:center;background:var(--soft);font:700 .75rem var(--mono);color:var(--muted)}
+.stepper li.done{color:var(--ink)}
+.stepper li.done::before{background:var(--good);color:#fff;content:"✓"}
+.stepper li.cur{background:var(--warn-soft);color:var(--ink);font-weight:600}
+.stepper li.cur::before{background:var(--accent);color:var(--on-accent)}
+.scr{position:relative;aspect-ratio:16/10;border-radius:10px;background:#000;border:8px solid #2b313b;overflow:hidden;color:#fff;display:grid;place-items:center;text-align:center;font:600 1rem var(--ui);transition:background .4s}
+.scr .brandlogo{font:800 1.6rem var(--head);letter-spacing:.1em;opacity:.9}
+.scr .small{font:500 .78rem var(--mono);opacity:.75;margin-top:.5rem}
+.scr .oslogo{font:700 1.4rem var(--head)}
+.scr .spin{width:2rem;height:2rem;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite;margin:.8rem auto 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scr.login{background:linear-gradient(135deg,#1d3b6e,#3b6fb6)}
+.scr .lbox{background:rgba(255,255,255,.15);border-radius:10px;padding:.8rem 1.2rem;font-size:.85rem}
+.scr .lbox i{display:block;width:9rem;height:1.4rem;border-radius:5px;background:rgba(255,255,255,.85);margin:.5rem auto 0}
+.scr.desk{background:linear-gradient(160deg,#2f6f73,#1e3d59);place-items:stretch}
+.scr .icons{display:flex;flex-direction:column;gap:.6rem;padding:.8rem;font-size:.72rem;align-items:flex-start}
+.scr .icons span{display:flex;flex-direction:column;align-items:center;gap:.15rem}
+.scr .icons b{font-size:1.5rem}
+.scr .taskbar{position:absolute;left:0;right:0;bottom:0;height:1.8rem;background:rgba(0,0,0,.55);display:flex;align-items:center;gap:.6rem;padding:0 .6rem;font-size:.8rem}
+.ram{display:flex;gap:2px;height:2.6rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:1rem;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px)}
+.ram i{display:grid;place-items:center;color:#fff;font:700 .7rem var(--ui);font-style:normal;padding:0 .3rem;text-align:center;line-height:1.1;animation:pop .4s}
+.ramlab{font-size:.8rem;color:var(--muted);margin-top:.3rem}
+
+/* Interfaces */
+.ifg{display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch}
+.ifg h4{margin:0 0 .45rem;font:700 .9rem var(--head);color:var(--muted)}
+.win{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);height:19rem;display:flex;flex-direction:column;position:relative}
+.win .tb{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--soft);font:600 .8rem var(--ui);border-bottom:1px solid var(--line)}
+.win .tb i{width:.6rem;height:.6rem;border-radius:50%;background:var(--line)}
+.win .addr{font:500 .78rem var(--mono);color:var(--muted);padding:.35rem .6rem;border-bottom:1px solid var(--line)}
+.win .items{display:flex;flex-wrap:wrap;gap:.6rem;padding:.8rem;align-content:flex-start;flex:1}
+.win .it{width:5.6rem;text-align:center;font-size:.75rem;padding:.4rem .2rem;border-radius:7px;word-break:break-word;animation:pop .3s}
+.win .it b{display:block;font-size:1.8rem;font-weight:400}
+.win .it.sel{background:color-mix(in srgb,var(--accent) 22%,var(--card));box-shadow:inset 0 0 0 1px var(--accent)}
+.win .it.gone{opacity:.25;text-decoration:line-through}
+.win .menu{position:absolute;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.2);font-size:.8rem;padding:.3rem 0;min-width:9rem;animation:pop .2s}
+.win .menu div{padding:.3rem .8rem}
+.win .menu div.on{background:var(--accent);color:var(--on-accent)}
+.win .tbl{width:100%;border-collapse:collapse;font:500 .76rem var(--mono)}
+.win .tbl td,.win .tbl th{padding:.25rem .5rem;border-bottom:1px solid var(--line);text-align:left}
+.win .cursor{position:absolute;font-size:1.3rem;transition:left .5s,top .5s;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+.term{border-radius:10px;background:#0c0f14;color:#d6dde6;font:500 .82rem/1.55 var(--mono);padding:.7rem .8rem;height:19rem;overflow:auto;white-space:pre-wrap}
+.term .pr{color:#7fd17f}
+.term .cmd{color:#fff;font-weight:600}
+.term .out{color:#9fb0c3}
+.term .caret{display:inline-block;width:.55rem;height:1em;background:#d6dde6;vertical-align:text-bottom;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pros{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;font-size:.86rem}
+.pros div{background:var(--soft);border-radius:9px;padding:.6rem .8rem}
+.pros div>b:first-child{display:block;margin-bottom:.2rem}
+
+/* Tipos de SO */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.8rem}
+.scard{border:2px solid var(--line);border-radius:12px;padding:.8rem .9rem;background:var(--card);transition:border-color .3s,background .3s}
+.scard h4{margin:0 0 .5rem;font:700 1rem var(--head);display:flex;gap:.5rem;align-items:center}
+.scard h4 b{font-size:1.5rem;font-weight:400}
+.scard .opts{display:flex;flex-wrap:wrap;gap:.3rem}
+.scard .opts button{border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 .76rem var(--ui);padding:.3rem .55rem;border-radius:999px;cursor:pointer}
+.scard .opts button:hover{border-color:var(--accent)}
+.scard.ok{border-color:var(--good);background:var(--good-soft)}
+.scard.no{border-color:var(--bad);background:var(--bad-soft)}
+.scard .fb{font-size:.82rem;margin:.5rem 0 0;line-height:1.45}
+.scard .opts button.right{background:var(--good);color:#fff;border-color:var(--good)}
+.scard .opts button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+
+
+/* Caminhos */
+.tree{list-style:none;margin:0;padding:0;font:500 .9rem/1.3 var(--mono)}
+.tree ul{list-style:none;margin:0;padding-left:1.4rem;border-left:1px dashed var(--line);margin-left:.55rem}
+.tree li>span{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .5rem;border-radius:6px;margin:.08rem 0;transition:background .3s,box-shadow .3s}
+.tree li>span.cwd{box-shadow:inset 0 0 0 2px var(--accent)}
+.tree li>span.cwd::after{content:"estás aqui";font:700 .65rem var(--ui);background:var(--accent);color:var(--on-accent);padding:.1rem .4rem;border-radius:999px}
+.tree li>span.vis{background:var(--soft)}
+.tree li>span.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.tree li>span.tgt{background:var(--good-soft);box-shadow:inset 0 0 0 2px var(--good)}
+.pathbox{font:600 1.05rem var(--mono);background:var(--soft);border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;word-break:break-all}
+.pathbox span{padding:.1rem .15rem;border-radius:4px}
+.pathbox span.on{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.pathbox span.done{color:var(--muted)}
+.pathbox small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-bottom:.2rem}
+
+/* Blocos */
+.disk{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.blk{position:relative;aspect-ratio:1.25;border-radius:6px;background:var(--soft);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 .82rem var(--mono);color:var(--ink);transition:background .3s,box-shadow .3s}
+.blk small{position:absolute;top:2px;left:4px;font:500 .62rem var(--mono);color:var(--muted)}
+.blk.f{color:#fff}
+.blk.f small{color:rgba(255,255,255,.8)}
+.blk .nx{font:600 .62rem var(--mono);opacity:.9}
+.blk.new{animation:pop .4s}
+.blk.rd{box-shadow:0 0 0 3px var(--ink)}
+.blk .acc{position:absolute;top:-8px;right:-6px;background:var(--ink);color:var(--card);border-radius:999px;font:700 .65rem var(--mono);padding:.05rem .35rem}
+.blk.idx{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 4px,transparent 4px 8px)}
+.dir{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:1rem}
+.dir th{font-size:.75rem;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.dir td{padding:.35rem .5rem;border-bottom:1px solid var(--line);font-family:var(--mono)}
+
+/* Permissões */
+.perm{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin:1rem 0}
+.pgrp{border:2px solid var(--line);border-radius:12px;padding:.7rem;text-align:center;transition:border-color .3s,background .3s}
+.pgrp h4{margin:0 0 .5rem;font:700 .85rem var(--head)}
+.pgrp h4 small{display:block;font:500 .72rem var(--ui);color:var(--muted)}
+.pgrp.on{border-color:var(--p4);background:var(--warn-soft)}
+.bits{display:flex;justify-content:center;gap:.35rem}
+.bit{width:2.4rem;height:2.4rem;border-radius:8px;border:1px solid var(--line);background:var(--soft);font:700 1rem var(--mono);cursor:pointer;color:var(--muted)}
+.bit.set{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.bit.chk{box-shadow:0 0 0 3px var(--p4)}
+.lsline{font:600 1.1rem var(--mono);background:#0c0f14;color:#d6dde6;border-radius:10px;padding:.7rem 1rem}
+.lsline b{color:#7fd17f}
+.attempts{display:grid;gap:.5rem;margin-top:1rem}
+.att{display:flex;gap:.7rem;align-items:center;padding:.55rem .8rem;border-radius:10px;background:var(--soft);font-size:.9rem;transition:background .3s}
+.att.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.att .res{margin-left:auto;font-weight:700;white-space:nowrap}
+.att.ok .res{color:var(--good)}
+.att.no .res{color:var(--bad)}
+
+/* Apagar */
+.dtab{width:100%;border-collapse:collapse;font-size:.88rem}
+.dtab th{font-size:.75rem;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.dtab td{padding:.4rem .5rem;border-bottom:1px solid var(--line)}
+.dtab tr.del td{color:var(--muted);text-decoration:line-through}
+.dtab tr.new td{font-weight:600}
+.disk2{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:1rem}
+.disk2 .blk{aspect-ratio:1;font-size:1.3rem}
+.blk.free{background:var(--card);border-style:dashed}
+.blk.ghost{opacity:.55}
+.blk.zero{font:700 .8rem var(--mono);color:var(--muted)}
+.recover{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.recover.good{background:var(--good-soft)}
+.recover.bad{background:var(--bad-soft)}
+.recover.half{background:var(--warn-soft)}
+
+
+/* Impressora */
+.prt{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1rem;align-items:center}
+.pbox{border:2px solid var(--line);border-radius:12px;padding:.7rem .8rem;background:var(--card);transition:border-color .3s,background .3s}
+.pbox h4{margin:0 0 .4rem;font:700 .95rem var(--head);display:flex;align-items:center;gap:.5rem}
+.pbox .st{margin-left:auto;font:600 .72rem var(--ui);padding:.12rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.pbox .st.blk{background:var(--bad-soft);color:var(--bad)}
+.pbox .st.free{background:var(--good-soft);color:var(--good)}
+.pages{display:flex;gap:.3rem;flex-wrap:wrap;min-height:2.6rem}
+.page{width:2rem;height:2.6rem;border-radius:3px;display:grid;place-items:center;color:#fff;font:700 .72rem var(--mono);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.printer{text-align:center}
+.printer .dev{font-size:3rem;line-height:1}
+.printer .now{min-height:2.8rem;display:flex;justify-content:center;margin-top:.3rem}
+.spool{margin-top:1rem;border:2px dashed var(--line);border-radius:12px;padding:.6rem .8rem;min-height:3.4rem}
+.spool small,.tray small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.05em;margin-bottom:.35rem}
+.job{display:inline-flex;align-items:center;gap:.35rem;margin:.15rem .3rem .15rem 0;padding:.25rem .6rem;border-radius:999px;color:#fff;font:600 .78rem var(--ui)}
+.tray{margin-top:1rem;background:var(--soft);border-radius:12px;padding:.6rem .8rem}
+
+/* Semáforos */
+.pc3{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:1rem;align-items:start}
+.slots{display:flex;gap:.4rem;justify-content:center;margin:.4rem 0 .8rem}
+.slot{width:3rem;height:3rem;border-radius:10px;border:2px dashed var(--line);display:grid;place-items:center;font:700 1rem var(--mono)}
+.slot.full{border-style:solid;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 20%,var(--card))}
+.sems{display:flex;justify-content:center;gap:.6rem}
+.sem{background:var(--soft);border-radius:10px;padding:.45rem .7rem;text-align:center;font-size:.78rem;min-width:5rem}
+.sem b{display:block;font:700 1.5rem var(--mono)}
+.sem.zero b{color:var(--bad)}
+.code li.ok{background:var(--good-soft)}
+.code li.stop{background:var(--bad-soft);color:var(--bad);font-weight:700}
+
+/* Banqueiro */
+.bank{width:100%;border-collapse:collapse;font-size:.92rem}
+.bank th{font-size:.75rem;color:var(--muted);padding:.4rem .5rem;border-bottom:1px solid var(--line);text-align:center}
+.bank td{padding:.5rem;border-bottom:1px solid var(--line);text-align:center;font-family:var(--mono);transition:background .3s}
+.bank tr.chk td{background:var(--warn-soft)}
+.bank tr.no td{background:var(--bad-soft)}
+.bank tr.fin td{background:var(--good-soft)}
+.bank td.req{color:var(--accent);font-weight:700}
+.avail{display:flex;align-items:center;gap:1rem;margin:1rem 0}
+.avail .big{font:700 2.4rem var(--mono);color:var(--accent);min-width:3rem;text-align:center}
+.seq{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;font-size:.85rem;color:var(--muted)}
+
+
+/* Motor de diagramas */
+.fstage{position:relative;width:100%;background:var(--soft);border-radius:10px;overflow:hidden}
+.fstage svg{position:absolute;inset:0;width:100%;height:100%}
+.fedge{stroke:var(--line);stroke-width:4;stroke-linecap:round;fill:none;transition:stroke .3s}
+.fedge.on{stroke:var(--accent);stroke-width:6}
+.fn{position:absolute;border:2px solid var(--line);border-radius:12px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:.3rem .4rem;transition:border-color .3s,background .3s,box-shadow .3s,opacity .3s;overflow:hidden}
+.fn .ic{font-size:clamp(1.1rem,2.2vw,1.7rem);line-height:1.1}
+.fn b{font:700 clamp(.68rem,1.15vw,.88rem)/1.2 var(--head)}
+.fn small{display:block;font:500 clamp(.6rem,1vw,.76rem)/1.3 var(--ui);color:var(--muted);margin-top:.15rem}
+.fn.on{border-color:var(--accent);background:var(--warn-soft);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.fn.bad{border-color:var(--bad);background:var(--bad-soft)}
+.fn.good{border-color:var(--good);background:var(--good-soft)}
+.fn.off{opacity:.35}
+.fzone{position:absolute;border:2px dashed var(--line);border-radius:14px;font:700 .7rem var(--head);color:var(--muted);letter-spacing:.05em;padding:.3rem .5rem}
+.ftok{position:absolute;min-width:2.2rem;height:1.6rem;padding:0 .4rem;border-radius:999px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:700 .68rem var(--mono);box-shadow:0 3px 10px rgba(0,0,0,.3);transform:translate(-50%,-50%);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),background .3s,opacity .3s;white-space:nowrap;z-index:3}
+.ftok.bad{background:var(--bad)}
+.ftok.good{background:var(--good)}
+/* Grelha temporal */
+.tgrid{overflow-x:auto}
+.tgrid table{border-collapse:separate;border-spacing:3px;font:600 .78rem var(--mono)}
+.tgrid td{min-width:1.9rem;height:2rem;border-radius:5px;background:var(--soft);text-align:center;color:#fff;transition:background .2s}
+.tgrid td.lbl{background:none;color:var(--ink);text-align:right;padding-right:.5rem;font:600 .8rem var(--ui);white-space:nowrap;min-width:auto}
+.tgrid td.io{background:repeating-linear-gradient(45deg,var(--line) 0 4px,var(--soft) 4px 8px);color:var(--muted)}
+.tgrid td.wait{background:var(--bad-soft);color:var(--bad)}
+.tgrid td.sw{background:var(--ink);color:var(--card)}
+.tgrid td.hide{background:transparent}
+.tgrid tr.axis td{background:none;color:var(--muted);height:1rem;font-weight:500}
+.meter{height:.9rem;border-radius:999px;background:var(--line);overflow:hidden;margin:.3rem 0}
+.meter i{display:block;height:100%;border-radius:999px;transition:width .4s,background .4s}
+.big2{font:700 1.8rem var(--mono)}
+.inrow{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.inrow input[type=text],.inrow input[type=number],.inrow select{padding:.5rem .6rem;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);font:500 .95rem var(--ui)}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.chip{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:.3rem .65rem;font:600 .8rem var(--ui);cursor:pointer;color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+@media (max-width:960px){
+  .prt,.pc3{grid-template-columns:1fr}
+  .perm{grid-template-columns:1fr}
+  .bootg,.ifg,.pros{grid-template-columns:1fr}
+  .intg,.stream{grid-template-columns:1fr}
+  .pg{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .race{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+}
+.credit{max-width:80rem;margin:0 auto;padding:1.2rem 1.5rem 2rem;border-top:1px solid var(--line);text-align:center;font-size:.85rem;color:var(--muted)}
+body.instant *,body.instant *::before,body.instant *::after{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="chipico" viewBox="0 0 44 44" aria-hidden="true"><rect x="4" y="6" width="22" height="16" rx="3" fill="var(--accent)" opacity=".55"/><rect x="11" y="13" width="22" height="16" rx="3" fill="var(--accent)" opacity=".8"/><rect x="18" y="20" width="22" height="16" rx="3" fill="var(--accent)"/></svg>
+    <div><h1>O conceito Multitarefa</h1><p>Laboratório animado · Sistemas Operativos</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Temas">
+    <button role="tab" aria-selected="true" data-tab="mono"><span>1</span>Monotarefa e multitarefa</button>
+    <button role="tab" aria-selected="false" data-tab="coop"><span>2</span>Cooperativa ou preemptiva</button>
+    <button role="tab" aria-selected="false" data-tab="contexto"><span>3</span>Mudança de contexto</button>
+    <button role="tab" aria-selected="false" data-tab="nucleos"><span>4</span>Vários núcleos</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+  </nav>
+</header>
+<main>
+
+<section id="mono" role="tabpanel">
+  <div class="intro"><h2>Um de cada vez, ou vários ao mesmo tempo?</h2>
+  <p>Um SO <b>monotarefa</b> (como o antigo MS-DOS) executa um programa de cada vez, do princípio ao fim. Um SO <b>multitarefa</b> mantém vários programas em memória e, sempre que um fica à espera do disco ou da rede, passa o processador a outro. Compara com três programas: o Word, um leitor de música e uma transferência.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Sistema<select id="mo-ex"></select></label></div>
+      <div class="tgrid" id="mo-grid"></div>
+      <div class="leg"><span><i style="background:repeating-linear-gradient(45deg,var(--line) 0 4px,var(--soft) 4px 8px)"></i>à espera de E/S (disco, rede)</span><span><i style="background:var(--bad-soft)"></i>pronto, à espera do processador</span><span><i style="background:var(--soft);border:1px solid var(--line)"></i>processador parado / processo ainda não começou</span></div>
+      <div class="stats" id="mo-stats"></div>
+      <div class="controls" data-ctl="mono"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="mo-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul><li><b>Multitarefa</b>: vários programas em execução, à vez, tão depressa que parecem simultâneos.</li><li><b>Multiprogramação</b>: vários programas carregados em memória ao mesmo tempo. É o que torna a multitarefa possível.</li><li>A grande vantagem: o processador quase nunca fica parado à espera da E/S.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section id="coop" role="tabpanel" hidden>
+  <div class="intro"><h2>E se um programa não quiser largar o processador?</h2>
+  <p>Na multitarefa <b>cooperativa</b> (Windows 3.1, Mac OS 9), cada programa tem de «ceder a vez» por iniciativa própria. Na multitarefa <b>preemptiva</b> (Windows, macOS, Linux e Android atuais), é o SO que tira o processador ao programa quando acaba o seu quantum, com a ajuda do relógio. Vê o que acontece quando um programa tem um erro e entra num ciclo infinito.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Tipo de multitarefa<select id="co-ex"></select></label></div>
+      <div class="tgrid" id="co-grid"></div>
+      <div class="leg"><span><i style="background:repeating-linear-gradient(45deg,var(--line) 0 4px,var(--soft) 4px 8px)"></i>à espera de E/S (disco, rede)</span><span><i style="background:var(--bad-soft)"></i>pronto, à espera do processador</span><span><i style="background:var(--soft);border:1px solid var(--line)"></i>processador parado / processo ainda não começou</span></div>
+      <div class="stats" id="co-stats"></div>
+      <div class="controls" data-ctl="coop"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="co-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Comparação</h3><div class="algs"><div class="alg"><h4>Cooperativa</h4><p>Simples, mas um programa mal feito pode bloquear o sistema inteiro: o rato deixa de mexer e só resta reiniciar.</p></div><div class="alg"><h4>Preemptiva</h4><p>O SO está sempre no comando. Um programa com erros só se bloqueia a si próprio, e pode ser terminado no Gestor de Tarefas.</p></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="contexto" role="tabpanel" hidden>
+  <div class="intro"><h2>Trocar de processo: a mudança de contexto</h2>
+  <p>Para passar o processador de um processo para outro, o SO tem de guardar o «ponto onde ia» o primeiro (os <b>registos</b> do processador) e repor o do segundo. A isto chama-se <b>mudança de contexto</b>. Cada processo tem um <b>PCB</b> (bloco de controlo do processo) onde fica guardado o seu contexto.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Exemplo<select id="cx-ex"></select></label></div>
+      <div id="cx-stage"></div>
+      <div class="controls" data-ctl="contexto"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="cx-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Os registos</h3><ul><li><b>PC</b> (contador de programa): o endereço da próxima instrução.</li><li><b>SP</b> (ponteiro de pilha): onde está a pilha do processo.</li><li><b>AX, BX…</b>: valores com que o processo estava a trabalhar.</li></ul><p>Uma mudança de contexto demora alguns microssegundos, durante os quais nenhum programa avança. Por isso o quantum não pode ser demasiado curto: o processador passaria mais tempo a trocar do que a trabalhar.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="nucleos" role="tabpanel" hidden>
+  <div class="intro"><h2>Concorrência e paralelismo</h2>
+  <p>Com <b>um núcleo</b>, os programas alternam: é <b>concorrência</b>. Com <b>vários núcleos</b>, correm mesmo ao mesmo tempo: é <b>paralelismo</b>. Quatro tarefas, cada uma com 4 unidades de trabalho, em 1, 2 ou 4 núcleos.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Processador<select id="nu-ex"></select></label></div>
+      <div class="tgrid" id="nu-grid"></div>
+      <div class="stats" id="nu-stats"></div>
+      <div class="controls" data-ctl="nucleos"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="nu-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul><li><b>Núcleo</b> (core): um processador completo dentro do chip. Os computadores atuais têm 4, 8 ou mais.</li><li><b>Fio de execução</b> (thread): uma parte de um programa que pode correr em paralelo com as outras partes.</li><li>Um programa que não está dividido em threads só usa <b>um</b> núcleo, por muitos que haja.</li><li>No Gestor de Tarefas (separador Desempenho) vês o gráfico de cada núcleo.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section id="teste" role="tabpanel" hidden>
+  <div class="intro"><h2>Testa-te</h2><p>Responde às perguntas e vê logo se acertaste. As opções mudam de ordem cada vez que abres o teste.</p></div>
+  <div class="quiz" id="quiz"></div>
+</section>
+</main>
+<footer class="credit">© 2026 | Nuno Gonçalves - Equipa de Apoio Técnico</footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = i => `var(--p${(i % 6) + 1})`;
+const fmt = x => x.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+
+const players = [];
+/* Comandos: anterior, reproduzir, seguinte, recomeçar e velocidade.
+   «Anterior» repõe o início e repete, sem animação, todos os passos menos o último. */
+function makePlayer(name, { step, reset, pos, rewind, back }){
+  const box = document.querySelector(`[data-ctl="${name}"]`);
+  box.insertAdjacentHTML('beforeend', `<button class="btn ghost" data-a="back" title="Voltar ao passo anterior">⏮ Anterior</button><button class="btn" data-a="play">▶ Reproduzir</button><button class="btn ghost" data-a="step" title="Avançar um passo">Seguinte ⏭</button><button class="btn ghost" data-a="reset">↺ Recomeçar</button><label class="speed">Velocidade<input type="range" min="1" max="5" value="3" aria-label="Velocidade"></label>`);
+  const play = box.querySelector('[data-a=play]'), sp = box.querySelector('input[type=range]'), backBtn = box.querySelector('[data-a=back]');
+  let timer = null, finished = false;
+  const ms = () => [2200, 2200 * .7, 2200 * .5, 2200 * .32, 2200 * .18][sp.value - 1];
+  const sync = () => { backBtn.disabled = !(pos && pos() > 0); };
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = '▶ Reproduzir'; };
+  const tick = () => { const more = step(); finished = !more; if (!more) stop(); sync(); };
+  const start = () => { play.textContent = '⏸ Pausa'; tick(); if (!finished) timer = setInterval(tick, ms()); else stop(); };
+  play.onclick = () => { if (timer) return stop(); if (finished) { reset(); finished = false; } start(); };
+  sp.oninput = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, ms()); } };
+  box.querySelector('[data-a=step]').onclick = () => { stop(); tick(); };
+  box.querySelector('[data-a=reset]').onclick = () => { stop(); finished = false; reset(); sync(); };
+  backBtn.onclick = () => {
+    stop(); if (!(pos && pos() > 0)) return;
+    document.body.classList.add('instant'); window.FAST = true;
+    try {
+      if (back) back();
+      else { const target = pos() - 1; (rewind || reset)(); let g = 0; while (pos() < target && g++ < 3000) step(); }
+    } finally {
+      window.FAST = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('instant')));
+    }
+    finished = false; sync();
+  };
+  const p = { stop, ms, sync, setFinished: v => finished = v, start: () => { stop(); finished = false; start(); } };
+  players.push(p); setTimeout(sync);
+  return p;
+}
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(() => players.forEach(p => p.sync())), true));
+function logTo(el, msgs, t){
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  msgs.slice().reverse().forEach(m => el.insertAdjacentHTML('afterbegin', `<li>${t != null ? `<time>${t}</time>` : ''}<span>${m}</span></li>`));
+}
+function algCards(boxSel, select, onPick){
+  const mark = () => document.querySelectorAll(boxSel + ' .alg').forEach(el => el.classList.toggle('on', el.dataset.alg === select.value));
+  $(boxSel).addEventListener('click', e => { const el = e.target.closest('.alg'); if (!el || el.dataset.alg === select.value) return; select.value = el.dataset.alg; select.onchange(); });
+  mark(); return mark;
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  players.forEach(p => p.stop());
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+/* ---------- Motor de diagramas animados ----------
+   nodes: { id: { x, y, w, h, t, ic, s } } em percentagem do palco
+   zones: [{ x, y, w, h, t }]  ·  edges: [[a, b], …]
+   scenarios: { chave: { name, start (nó inicial do sinal), steps: [{ at, tok, tokc, on, bad, good, off, sub: { id: texto }, msg }] } } */
+function makeFlow(o){
+  const stage = $(o.stage), log = $(o.log), sel = o.select ? $(o.select) : null;
+  stage.classList.add('fstage'); stage.style.aspectRatio = o.ratio || '1000/460';
+  const ids = Object.keys(o.nodes);
+  let k = 0;
+  const C = id => { const n = o.nodes[id]; return { x: n.x + n.w / 2, y: n.y + n.h / 2 }; };
+  function build(){
+    let h = '<svg viewBox="0 0 100 100" preserveAspectRatio="none">' + (o.edges || []).map(([a, b]) => { const p = C(a), q = C(b); return `<line class="fedge" data-e="${a}|${b}" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" vector-effect="non-scaling-stroke"/>`; }).join('') + '</svg>';
+    h += (o.zones || []).map(z => `<div class="fzone" style="left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%">${z.t}</div>`).join('');
+    h += ids.map(id => { const n = o.nodes[id]; return `<div class="fn" data-n="${id}" style="left:${n.x}%;top:${n.y}%;width:${n.w}%;height:${n.h}%">${n.ic ? `<span class="ic">${n.ic}</span>` : ''}<b>${n.t}</b><small data-s></small></div>`; }).join('');
+    h += '<div class="ftok" hidden></div>';
+    stage.innerHTML = h;
+  }
+  const scn = () => o.scenarios[sel ? sel.value : Object.keys(o.scenarios)[0]];
+  function draw(){
+    const S = scn(), steps = S.steps.slice(0, k), cur = steps[steps.length - 1];
+    const sub = {}; ids.forEach(id => sub[id] = o.nodes[id].s || '');
+    steps.forEach(s => Object.assign(sub, s.sub || {}));
+    stage.querySelectorAll('.fn').forEach(el => {
+      const id = el.dataset.n;
+      el.className = 'fn' + (cur && (cur.on || []).includes(id) ? ' on' : '') + (cur && (cur.bad || []).includes(id) ? ' bad' : '') + (cur && (cur.good || []).includes(id) ? ' good' : '') + (cur && (cur.off || []).includes(id) ? ' off' : '');
+      el.querySelector('[data-s]').innerHTML = sub[id];
+    });
+    const tok = stage.querySelector('.ftok');
+    const at = cur ? cur.at : S.start, prev = steps.length > 1 ? steps[steps.length - 2].at : S.start;
+    if (at) { const p = C(at); tok.hidden = false; tok.style.left = p.x + '%'; tok.style.top = (o.nodes[at].y - 1.5) + '%'; tok.textContent = (steps.slice().reverse().find(x => x.tok) || {}).tok || S.tok || '✉'; tok.className = 'ftok' + (cur && cur.tokc ? ' ' + cur.tokc : ''); }
+    else tok.hidden = true;
+    stage.querySelectorAll('.fedge').forEach(e => { const [a, b] = e.dataset.e.split('|'); e.classList.toggle('on', !!cur && !!prev && ((a === prev && b === at) || (b === prev && a === at))); });
+    if (o.onDraw) o.onDraw(k, steps, cur);
+  }
+  function reset(){ k = 0; log.innerHTML = `<li class="empty">${o.empty || 'Carrega em Reproduzir ou em Seguinte.'}</li>`; if (o.onReset) o.onReset(); draw(); }
+  function step(){ const S = scn(); if (k >= S.steps.length) return false; k++; draw(); logTo(log, [S.steps[k - 1].msg], k + '.'); if (k >= S.steps.length && S.end) logTo(log, [S.end]); return k < S.steps.length; }
+  build();
+  if (sel) { sel.innerHTML = Object.entries(o.scenarios).map(([v, s]) => `<option value="${v}">${s.name}</option>`).join(''); sel.onchange = () => { player.stop(); reset(); }; }
+  const player = makePlayer(o.sec, { step, reset, pos: () => k });
+  reset();
+  return { player, redraw: draw };
+}
+
+/* ---------- Grelha temporal (diagrama de Gantt) ----------
+   rows: nomes das linhas · scenarios: { chave: { name, cols: [{ v: [valor por linha], m: mensagem }], stats(colsFeitas) } }
+   valor: número (processo, cor), 'io', 'wait', 'sw', null, ou { p, t } */
+function makeGrid(o){
+  const sel = o.select ? $(o.select) : null, log = $(o.log);
+  let k = 0;
+  const scn = () => o.scenarios[sel ? sel.value : Object.keys(o.scenarios)[0]];
+  function cell(v, hide){
+    if (hide || v === undefined) return '<td class="hide"></td>';
+    if (v === null) return '<td></td>';
+    if (v === 'io') return '<td class="io">E/S</td>';
+    if (v === 'wait') return '<td class="wait">…</td>';
+    if (v === 'sw') return '<td class="sw">↔</td>';
+    const p = typeof v === 'object' ? v : { p: v, t: '' };
+    return `<td style="background:${COL(p.p)}">${p.t ?? ''}</td>`;
+  }
+  function draw(){
+    const S = scn(), rows = S.rows || o.rows;
+    let h = '<table>' + rows.map((r, i) => `<tr><td class="lbl">${r}</td>${S.cols.map((c, t) => cell(c.v[i], t >= k)).join('')}</tr>`).join('');
+    h += `<tr class="axis"><td class="lbl"></td>${S.cols.map((_, t) => `<td>${t + 1}</td>`).join('')}</tr></table>`;
+    $(o.grid).innerHTML = h;
+    if (o.stats) $(o.stats).innerHTML = S.stats ? S.stats(S.cols.slice(0, k), k, S.cols.length) : '';
+  }
+  function reset(){ k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ const S = scn(); if (k >= S.cols.length) return false; k++; draw(); if (S.cols[k - 1].m) logTo(log, [S.cols[k - 1].m], 't=' + k); if (k >= S.cols.length && S.end) logTo(log, [S.end]); return k < S.cols.length; }
+  if (sel) { sel.innerHTML = Object.entries(o.scenarios).map(([v, s]) => `<option value="${v}">${s.name}</option>`).join(''); sel.onchange = () => { player.stop(); reset(); }; }
+  const player = makePlayer(o.sec, { step, reset, pos: () => k });
+  reset();
+  return { player };
+}
+
+/* ---------- Jogo de classificação ---------- */
+function makeCards(o){
+  let order, ans;
+  function draw(){
+    const n = Object.keys(ans).length, ok = Object.keys(ans).filter(i => ans[i] === o.items[i].c).length, N = o.items.length;
+    $(o.score).textContent = n ? `Acertaste ${ok} de ${n}${n < N ? ` (faltam ${N - n})` : ok === n ? '. Muito bem!' : '. Lê as explicações e experimenta de novo.'}` : (o.intro || `Responde aos ${N} casos.`);
+    $(o.box).innerHTML = order.map(i => {
+      const it = o.items[i], a = ans[i], done = a !== undefined, opts = it.opts || o.opts;
+      return `<div class="scard${done ? (a === it.c ? ' ok' : ' no') : ''}"><h4><b>${it.ic}</b>${it.n}</h4>${it.q ? `<p style="font-size:.85rem;margin:0 0 .5rem">${it.q}</p>` : ''}<div class="opts">${opts.map(c => `<button data-i="${i}" data-c="${c}" ${done ? 'disabled' : ''} class="${done ? (c === it.c ? 'right' : c === a ? 'wrong' : '') : ''}">${c}</button>`).join('')}</div>${done ? `<p class="fb"><b>${a === it.c ? 'Certo!' : `Ainda não: é «${it.c}».`}</b> ${it.e}</p>` : ''}</div>`;
+    }).join('');
+  }
+  $(o.box).addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; ans[+b.dataset.i] = b.dataset.c; draw(); });
+  function reset(){ order = shuffle(o.items.map((_, i) => i)); ans = {}; draw(); }
+  $(o.again).onclick = reset;
+  reset();
+}
+
+/* ---------- Teste com opções baralhadas ---------- */
+function makeQuiz(Q){
+  const ans = {};
+  let ord = Q.map(x => shuffle(x.o.map((_, j) => j)));
+  function draw(){
+    const n = Object.keys(ans).length, right = Object.keys(ans).filter(i => ans[i] === Q[i].c).length;
+    $('#quiz').innerHTML = (n ? `<p class="score">Acertaste ${right} de ${Q.length}${n < Q.length ? ` (respondeste a ${n})` : ''}.</p>` : '')
+      + Q.map((x, i) => `<fieldset class="q"><legend>${i + 1}. ${x.q}</legend>${ord[i].map(j => `<label class="${i in ans ? (j === x.c ? 'right' : j === ans[i] ? 'wrong' : '') : ''}"><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? ' checked' : ''}${i in ans ? ' disabled' : ''}><span>${x.o[j]}</span></label>`).join('')}${i in ans ? `<p class="fb"><b>${ans[i] === x.c ? 'Certo!' : 'Ainda não.'}</b> ${x.e}</p>` : ''}</fieldset>`).join('')
+      + (n === Q.length ? '<button class="btn" id="qz-again">Responder de novo</button>' : '');
+    const again = $('#qz-again'); if (again) again.onclick = () => { Object.keys(ans).forEach(k => delete ans[k]); ord = Q.map(x => shuffle(x.o.map((_, j) => j))); draw(); };
+  }
+  $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
+  draw();
+}
+
+/* ===== 1. Monotarefa e multitarefa ===== */
+(() => {
+  const PR = [['Word', [['C', 2], ['E', 3], ['C', 2]]], ['Música', [['C', 1], ['E', 2], ['C', 1], ['E', 2], ['C', 1]]], ['Transferência', [['C', 2], ['E', 4], ['C', 1]]]];
+  const AR = { Word: 'o', 'Música': 'a', 'Transferência': 'a' };
+  const o_ = p => AR[p.n] + ' ' + p.n, O_ = p => AR[p.n].toUpperCase() + ' ' + p.n, d_ = p => 'd' + AR[p.n] + ' ' + p.n;
+  function sim(mode){
+    const ps = PR.map(([n, b], i) => ({ n, i, b: b.map(x => x.slice()), k: 0, st: 'new', ioLeft: 0 }));
+    const cols = []; let run = null, t = 0, cur = 0;
+    while (ps.some(p => p.st !== 'done') && t < 60) {
+      const row = [null, null, null, null], ev = [];
+      if (mode === 'mono') {
+        const p = ps[cur]; if (p.st === 'new') { p.st = 'run'; ev.push(`O SO carrega ${AR[p.n]} <b>${p.n}</b>. Os outros programas têm de esperar que ele termine.`); }
+        const bb = p.b[p.k];
+        if (bb[0] === 'C') { row[0] = { p: p.i, t: p.n[0] }; row[p.i + 1] = { p: p.i, t: '▶' }; }
+        else { row[p.i + 1] = 'io'; if (bb[1] === p.b[p.k][1] && !p.ioStarted) { ev.push(`${O_(p)} pede dados ao disco ou à rede. O processador fica <b>parado</b> à espera.`); p.ioStarted = true; } }
+        bb[1]--;
+        if (bb[1] === 0) { p.k++; p.ioStarted = false; if (p.k >= p.b.length) { p.st = 'done'; ev.push(`${O_(p)} terminou.`); cur++; } }
+        ps.forEach(q => { if (q.st === 'new' && q !== p) row[q.i + 1] = null; });
+      } else {
+        ps.forEach(p => { if (p.st === 'new') { p.st = 'ready'; } });
+        if (!run || run.st !== 'run') { const nx = ps.find(p => p.st === 'ready'); if (nx) { nx.st = 'run'; run = nx; ev.push(`O processador passa para ${AR[nx.n]} <b>${nx.n}</b>.`); } else { run = null; ev.push('Todos os programas estão à espera de E/S: o processador fica parado por um instante.'); } }
+        ps.forEach(p => { if (p.st === 'ready') row[p.i + 1] = 'wait'; if (p.st === 'io') row[p.i + 1] = 'io'; });
+        if (run) { row[0] = { p: run.i, t: run.n[0] }; row[run.i + 1] = { p: run.i, t: '▶' }; }
+        const endIO = [];
+        ps.forEach(p => { if (p.st === 'io') { p.b[p.k][1]--; if (p.b[p.k][1] === 0) { p.k++; endIO.push(p); } } });
+        if (run) { const bb = run.b[run.k]; bb[1]--; if (bb[1] === 0) { run.k++; if (run.k >= run.b.length) { run.st = 'done'; ev.push(`${O_(run)} terminou.`); } else { run.st = 'io'; ev.push(`${O_(run)} pede E/S e fica à espera. Em vez de ficar parado, o processador vai passar a outro programa.`); } run = null; } }
+        endIO.forEach(p => { if (p.k >= p.b.length) p.st = 'done'; else { p.st = 'ready'; ev.push(`A E/S ${d_(p)} terminou: está pront${AR[p.n]} para continuar.`); } });
+      }
+      cols.push({ v: row, m: ev.join(' ') || null }); t++;
+    }
+    return cols;
+  }
+  const stats = (c, k, n) => { const busy = c.filter(x => x.v[0]).length; return `<div class="stat">Tempo<b>${k} de ${n}</b></div><div class="stat">Processador ocupado<b>${k ? Math.round(busy / k * 100) + '%' : '–'}</b></div>`; };
+  makeGrid({ sec: 'mono', grid: '#mo-grid', log: '#mo-log', select: '#mo-ex', stats: '#mo-stats', rows: ['Processador', 'Word', 'Música', 'Transferência'],
+    scenarios: {
+      mono: { name: 'Monotarefa (como o MS-DOS)', cols: sim('mono'), stats, end: 'Repara em quanto tempo o processador esteve parado à espera do disco e da rede.' },
+      multi: { name: 'Multitarefa', cols: sim('multi'), stats, end: 'Os três programas acabaram muito mais cedo, porque o processador aproveitou as esperas de uns para trabalhar nos outros.' }
+    } });
+})();
+
+/* ===== 2. Cooperativa ou preemptiva ===== */
+(() => {
+  const W = { p: 0, t: 'W' }, M = { p: 1, t: 'M' }, E = { p: 2, t: '∞' };
+  const row = (cpu, st) => [cpu, ...st];
+  const R = (x, i) => x === i ? { p: i, t: '▶' } : null;
+  function mk(seq){
+    return seq.map(([cur, msg], t) => {
+      const errOn = t >= 6;
+      const st = [0, 1, 2].map(i => i === cur ? R(cur, i) : (i === 2 && !errOn ? null : 'wait'));
+      return { v: row(cur === null ? null : [W, M, E][cur], st), m: msg || null };
+    });
+  }
+  const coop = mk([[0, 'O Word usa o processador e, ao fim de um bocado, <b>cede a vez</b> voluntariamente.'], [0], [1, 'A Música recebe o processador e também cede a vez quando termina o seu bocado.'], [1], [0], [0], [2, 'Abres um programa com um erro: entra num <b>ciclo infinito</b> e nunca cede a vez.'], [2, 'Na multitarefa cooperativa, o SO não lhe consegue tirar o processador…'], [2], [2, 'O Word e a Música estão prontos, mas nunca mais recebem o processador. O sistema parece <b>congelado</b>.'], [2], [2], [2], [2, 'Só resta reiniciar o computador e perder o trabalho que não estava guardado.']]);
+  const pre = mk([[0, 'O Word usa o processador durante o seu quantum.'], [0], [1, 'O relógio interrompe: acaba o quantum do Word e o SO dá o processador à Música.'], [1], [0], [0], [2, 'Abres o programa com o erro: entra num ciclo infinito.'], [2], [1, 'Acaba o quantum do programa com erro. O <b>relógio</b> interrompe e o SO tira-lhe o processador, quer ele queira quer não.'], [1], [0, 'O Word continua a funcionar normalmente.'], [0], [2, 'O programa com erro também recebe a sua vez, mas não consegue bloquear os outros.'], [2, 'Abres o Gestor de Tarefas e terminas o programa com erro. O resto do sistema nunca deixou de responder.']]);
+  const stats = c => { const w = c.filter(x => x.v[1] && x.v[1] !== 'wait').length, m = c.filter(x => x.v[2] && x.v[2] !== 'wait').length; return `<div class="stat">Vezes que o Word avançou<b>${w}</b></div><div class="stat">Vezes que a Música avançou<b>${m}</b></div>`; };
+  makeGrid({ sec: 'coop', grid: '#co-grid', log: '#co-log', select: '#co-ex', stats: '#co-stats', rows: ['Processador', 'Word', 'Música', 'Programa com erro'],
+    scenarios: { coop: { name: 'Cooperativa (Windows 3.1, Mac OS 9)', cols: coop, stats }, pre: { name: 'Preemptiva (sistemas atuais)', cols: pre, stats } } });
+})();
+
+/* ===== 3. Mudança de contexto ===== */
+makeFlow({ sec: 'contexto', stage: '#cx-stage', log: '#cx-log', select: '#cx-ex', ratio: '1000/430',
+  nodes: {
+    cpu: { x: 37, y: 5, w: 26, h: 34, ic: '🧠', t: 'Registos do processador', s: '—' },
+    pcb1: { x: 3, y: 58, w: 27, h: 36, ic: '📋', t: 'PCB do P1 (Word)', s: 'estado: pronto' },
+    pcb2: { x: 70, y: 58, w: 27, h: 36, ic: '📋', t: 'PCB do P2 (Música)', s: 'estado: pronto<br>PC=0x7700 · SP=0xB000 · AX=42' },
+    sch: { x: 38, y: 62, w: 24, h: 30, ic: '⚙️', t: 'Escalonador do SO' },
+    clk: { x: 3, y: 8, w: 18, h: 28, ic: '⏱️', t: 'Relógio' }
+  },
+  edges: [['cpu', 'pcb1'], ['cpu', 'pcb2'], ['cpu', 'sch'], ['clk', 'cpu'], ['sch', 'pcb1'], ['sch', 'pcb2']],
+  scenarios: {
+    um: { name: 'Do Word (P1) para a Música (P2) e de volta', start: 'cpu', tok: 'P1', steps: [
+      { at: 'cpu', on: ['cpu'], tok: 'P1', sub: { cpu: 'P1 a executar<br>PC=0x1A40 · SP=0x9F00 · AX=7', pcb1: 'estado: em execução' }, msg: 'O Word (P1) está a usar o processador. Os registos têm os valores dele.' },
+      { at: 'clk', on: ['clk'], tok: '⏱', msg: 'Acaba o quantum: o relógio gera uma interrupção e o controlo passa para o SO.' },
+      { at: 'pcb1', on: ['pcb1'], tok: 'guardar', sub: { pcb1: 'estado: pronto<br>PC=0x1A40 · SP=0x9F00 · AX=7', cpu: '(a trocar…)' }, msg: 'O SO <b>guarda</b> os registos do Word no PCB dele. Assim sabe exatamente onde ele ia.' },
+      { at: 'sch', on: ['sch'], tok: '?', msg: 'O escalonador escolhe o próximo processo: a Música (P2).' },
+      { at: 'cpu', on: ['cpu', 'pcb2'], tok: 'P2', sub: { cpu: 'P2 a executar<br>PC=0x7700 · SP=0xB000 · AX=42', pcb2: 'estado: em execução' }, msg: 'O SO <b>repõe</b> nos registos os valores guardados no PCB da Música. Ela continua exatamente onde tinha parado.' },
+      { at: 'clk', on: ['clk'], tok: '⏱', msg: 'Passa o quantum da Música: nova interrupção do relógio.' },
+      { at: 'pcb2', on: ['pcb2'], tok: 'guardar', sub: { pcb2: 'estado: pronto<br>PC=0x7712 · SP=0xB000 · AX=43', cpu: '(a trocar…)' }, msg: 'Guarda o contexto da Música. Repara que o PC avançou: ela executou algumas instruções.' },
+      { at: 'cpu', good: ['cpu', 'pcb1'], tokc: 'good', tok: 'P1', sub: { cpu: 'P1 a executar<br>PC=0x1A40 · SP=0x9F00 · AX=7', pcb1: 'estado: em execução' }, msg: 'Repõe o contexto do Word, que retoma na instrução 0x1A40, como se nunca tivesse parado. Isto acontece centenas de vezes por segundo!' }] },
+    io: { name: 'Mudança provocada por um pedido de E/S', start: 'cpu', steps: [
+      { at: 'cpu', on: ['cpu'], tok: 'P1', sub: { cpu: 'P1 a executar<br>PC=0x1A40 · SP=0x9F00 · AX=7', pcb1: 'estado: em execução' }, msg: 'O Word está a executar.' },
+      { at: 'cpu', on: ['cpu'], tok: 'read()', msg: 'O Word pede para ler um ficheiro do disco (chamada ao sistema). Não vale a pena ficar com o processador enquanto espera.' },
+      { at: 'pcb1', on: ['pcb1'], tok: 'guardar', sub: { pcb1: 'estado: bloqueado (à espera do disco)<br>PC=0x1A44 · SP=0x9F00 · AX=7', cpu: '(a trocar…)' }, msg: 'O SO guarda o contexto do Word e marca-o como <b>bloqueado</b>.' },
+      { at: 'sch', on: ['sch'], tok: '?', msg: 'O escalonador escolhe outro processo pronto: a Música.' },
+      { at: 'cpu', good: ['cpu', 'pcb2'], tokc: 'good', tok: 'P2', sub: { cpu: 'P2 a executar<br>PC=0x7700 · SP=0xB000 · AX=42', pcb2: 'estado: em execução' }, msg: 'A Música usa o processador enquanto o disco trabalha para o Word. Nenhum tempo é desperdiçado.' }] }
+  } });
+
+/* ===== 4. Vários núcleos ===== */
+(() => {
+  const N = 4, L = 4;
+  function sim(cores, single){
+    const rem = Array(N).fill(L), cols = []; let t = 0, rr = 0;
+    while (rem.some(r => r > 0) && t < 40) {
+      const v = Array(cores).fill(null), used = new Set();
+      if (single) { const i = rem.findIndex(r => r > 0); v[0] = { p: i, t: 'T' + (i + 1) }; rem[i]--; }
+      else for (let c = 0; c < cores; c++) { for (let j = 0; j < N; j++) { const i = (rr + j) % N; if (rem[i] > 0 && !used.has(i)) { used.add(i); v[c] = { p: i, t: 'T' + (i + 1) }; rem[i]--; break; } } }
+      if (!single) rr = (rr + cores) % N;
+      cols.push({ v, m: t === 0 ? (cores === 1 ? 'Com um só núcleo, as tarefas alternam: um bocadinho de cada de cada vez. Parecem simultâneas, mas não são.' : single ? 'O programa não está dividido em threads: só consegue usar <b>um</b> núcleo. Os outros três ficam parados!' : `Com ${cores} núcleos, correm ${cores} tarefas <b>ao mesmo tempo</b>.`) : null });
+      t++;
+    }
+    return cols;
+  }
+  const stats = (c, k, n) => { const cores = c.length ? c[0].v.length : 0, busy = c.reduce((a, x) => a + x.v.filter(Boolean).length, 0); return `<div class="stat">Tempo total<b>${k} de ${n}</b></div><div class="stat">Núcleos ocupados<b>${k ? Math.round(busy / (k * cores) * 100) + '%' : '–'}</b></div>`; };
+  const rows = n => Array.from({ length: n }, (_, i) => 'Núcleo ' + (i + 1));
+  makeGrid({ sec: 'nucleos', grid: '#nu-grid', log: '#nu-log', select: '#nu-ex', stats: '#nu-stats',
+    scenarios: {
+      c1: { name: '1 núcleo: concorrência', rows: rows(1), cols: sim(1), stats, end: '16 unidades de tempo: as 4 tarefas partilharam o mesmo núcleo.' },
+      c2: { name: '2 núcleos', rows: rows(2), cols: sim(2), stats, end: 'Metade do tempo: duas tarefas de cada vez.' },
+      c4: { name: '4 núcleos: paralelismo', rows: rows(4), cols: sim(4), stats, end: 'Quatro vezes mais rápido: cada tarefa no seu núcleo.' },
+      s4: { name: '4 núcleos, mas um programa sem threads', rows: rows(4), cols: sim(4, true), stats, end: 'Ter mais núcleos não ajuda se o programa não estiver preparado para os usar.' }
+    } });
+})();
+
+makeQuiz([
+  { q: 'O que é um SO multitarefa?', o: ['Um SO que executa vários programas, alternando entre eles muito depressa', 'Um SO com vários utilizadores', 'Um SO que só corre num computador com vários ecrãs', 'Um SO que executa um programa de cada vez'], c: 0, e: 'A alternância é tão rápida que os programas parecem correr todos ao mesmo tempo.' },
+  { q: 'Porque é que a multitarefa aproveita melhor o processador?', o: ['Porque, quando um programa espera pelo disco, outro usa o processador', 'Porque o processador fica mais rápido', 'Porque usa menos memória', 'Porque desliga os programas que não estão a ser usados'], c: 0, e: 'Na monotarefa, o processador fica parado durante as esperas de E/S.' },
+  { q: 'Na multitarefa preemptiva, quem decide quando um programa larga o processador?', o: ['O SO, com a ajuda do relógio', 'O próprio programa', 'O utilizador', 'O antivírus'], c: 0, e: 'É por isso que um programa com erros não consegue bloquear o sistema todo.' },
+  { q: 'O que se guarda numa mudança de contexto?', o: ['Os registos do processador do processo que sai', 'Os ficheiros do processo', 'O ecrã do computador', 'A palavra-passe do utilizador'], c: 0, e: 'Ficam guardados no PCB do processo, para ele continuar exatamente onde ia.' },
+  { q: 'Qual a diferença entre concorrência e paralelismo?', o: ['No paralelismo, as tarefas correm mesmo ao mesmo tempo em núcleos diferentes', 'São a mesma coisa', 'A concorrência precisa de vários computadores', 'O paralelismo só existe nos telemóveis'], c: 0, e: 'Com um só núcleo há concorrência (alternância); com vários há paralelismo.' },
+  { q: 'Um programa sem threads num processador com 8 núcleos…', o: ['usa apenas um núcleo', 'usa os 8 núcleos automaticamente', 'não consegue correr', 'fica 8 vezes mais rápido'], c: 0, e: 'Para aproveitar vários núcleos, o programa tem de estar dividido em partes que possam correr em paralelo.' }
+]);
+
+</script>
+</body>
+</html>
