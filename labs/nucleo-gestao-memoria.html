@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O núcleo do SO e a gestão de memória · Laboratório animado</title>
+<style>
+:root{
+  --head:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,Menlo,monospace;
+  --bg:#EEF1F7; --card:#FFFFFF; --ink:#172033; --muted:#5A6577; --line:#D8DEE9; --soft:#F5F7FB;
+  --accent:#2F5BD3; --on-accent:#FFFFFF; --good:#1E8A5A; --good-soft:#E3F4EB; --bad:#C8402B; --bad-soft:#FCE8E4; --warn-soft:#FFF4D6;
+  --p1:#2F6FED; --p2:#E0533D; --p3:#1E9E6A; --p4:#C98A00; --p5:#8B5CF6; --p6:#0E9AA7;
+  --arrow:#9AA6B8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F141C; --card:#171E29; --ink:#E3E8F0; --muted:#97A3B6; --line:#2A3443; --soft:#1D2531;
+    --accent:#7FA2FF; --on-accent:#0F141C; --good:#5CCB92; --good-soft:rgba(92,203,146,.14); --bad:#F07C68; --bad-soft:rgba(240,124,104,.15); --warn-soft:rgba(255,196,64,.14);
+    --p1:#5B8EFF; --p2:#F07560; --p3:#3DC08A; --p4:#E5AA2B; --p5:#A585FF; --p6:#2CC0CC;
+    --arrow:#5E6B7E;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 1.5rem 0;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:.9rem;max-width:80rem;margin:0 auto}
+.chipico{width:44px;height:44px;flex:none}
+.brand h1{font:700 1.45rem/1.15 var(--head);margin:0;letter-spacing:.01em}
+.brand p{margin:.1rem 0 0;color:var(--muted);font-size:.9rem}
+.tabs{display:flex;gap:.25rem;max-width:80rem;margin:.8rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.6rem .9rem .7rem;border-bottom:3px solid transparent;font:600 .95rem var(--ui);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button span{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--soft);font-size:.78rem;margin-right:.4rem;color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button[aria-selected="true"] span{background:var(--accent);color:var(--on-accent)}
+
+main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
+.intro{margin:0 0 1.2rem;max-width:52rem}
+.intro h2{font:700 1.35rem/1.25 var(--head);margin:0 0 .35rem}
+.intro p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.2rem;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{font:700 1rem var(--head);margin:0 0 .6rem;letter-spacing:.01em}
+.side .card+.card{margin-top:1rem}
+.side ul{margin:.2rem 0 0;padding-left:1.1rem}
+.side li{margin:.35rem 0;font-size:.93rem}
+.side p{font-size:.93rem;margin:.3rem 0}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:600 .9rem var(--ui);padding:.5rem .95rem;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.speed{display:flex;align-items:center;gap:.4rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.speed input{accent-color:var(--accent);width:7rem}
+.clock{font:600 .9rem var(--mono);background:var(--soft);border-radius:6px;padding:.3rem .6rem}
+
+.log,.side .log{list-style:none;margin:0;padding:0;max-height:16rem;overflow:auto;font-size:.88rem}
+.log li{padding:.45rem 0;border-bottom:1px solid var(--line);display:flex;gap:.6rem}
+.log li:first-child{font-weight:600}
+.log time{font:600 .8rem var(--mono);color:var(--muted);flex:none;min-width:2.6rem;padding-top:.1rem}
+.log .empty{color:var(--muted);font-style:italic}
+
+.pchip{display:inline-flex;align-items:center;justify-content:center;min-width:2.1rem;height:1.6rem;padding:0 .45rem;border-radius:999px;color:#fff;font:700 .78rem var(--mono)}
+
+/* 1. Estados */
+.stage{position:relative;width:100%;aspect-ratio:2/1;background:var(--soft);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.sbox{fill:var(--card);stroke:var(--line);stroke-width:2}
+.sbox.exec{stroke:var(--accent);stroke-width:3}
+.stitle{font:700 22px var(--head);fill:var(--ink)}
+.ssub{font:500 15px var(--ui);fill:var(--muted)}
+.arr{fill:none;stroke:var(--arrow);stroke-width:3;transition:stroke .25s}
+.arr.on{stroke:var(--accent);stroke-width:5}
+.alab{font:600 15px var(--ui);fill:var(--muted)}
+.alab.on{fill:var(--accent)}
+.tok{position:absolute;width:4.4%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 clamp(.6rem,1.4vw,.9rem) var(--mono);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),opacity .4s,transform .3s}
+.tok.out{opacity:0;transform:scale(.4)}
+.tok.run{transform:scale(1.2);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--c)}
+.ptable{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.9rem}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:.8rem;padding:.3rem .4rem;border-bottom:1px solid var(--line)}
+.ptable td{padding:.45rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.ph{display:inline-block;padding:.15rem .5rem;border-radius:5px;font:600 .78rem var(--mono);margin:.1rem .2rem .1rem 0;background:var(--soft);border:1px solid var(--line)}
+.ph.cur{background:var(--warn-soft);border-color:var(--p4)}
+.ph.done{opacity:.4;text-decoration:line-through}
+.stlab{font-size:.82rem;font-weight:600}
+
+/* 2. Escalonamento */
+.cfg{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem}
+.cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.82rem;font-weight:600;color:var(--muted)}
+.cfg select,.cfg input{padding:.45rem .55rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.ptab input{width:4.2rem;padding:.3rem .4rem;border:1px solid var(--line);border-radius:6px;background:var(--soft);text-align:center}
+.ptab td,.ptab th{padding:.3rem .4rem}
+.ptab .rm{border:0;background:none;color:var(--bad);cursor:pointer;font-size:1.1rem}
+.cpu-row{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:1rem;align-items:center;margin:1.2rem 0}
+.cpu{border:3px solid var(--accent);border-radius:12px;height:6.2rem;display:grid;place-items:center;text-align:center;background:var(--card);position:relative}
+.cpu small{position:absolute;top:.35rem;left:0;right:0;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.cpu .big{font:700 1.6rem var(--mono);margin-top:.6rem}
+.queue{border:2px dashed var(--line);border-radius:12px;min-height:6.2rem;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:relative}
+.queue::before{content:"Fila dos prontos";position:absolute;top:.35rem;left:.7rem;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.queue .pchip{margin-top:1rem;height:2.2rem;min-width:2.8rem;font-size:.9rem;animation:pop .3s}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:grid;gap:2px;min-width:30rem}
+.gcell{height:2.6rem;background:var(--soft);border-radius:3px;display:flex;align-items:center;padding-left:.3rem;color:#fff;font:700 .78rem var(--mono);transition:background .2s}
+.gaxis{display:grid;gap:2px;min-width:30rem;font:500 .7rem var(--mono);color:var(--muted)}
+.gaxis span{text-align:left}
+.results{margin-top:1.2rem;overflow-x:auto}
+.results table{border-collapse:collapse;width:100%;font-size:.9rem}
+.results th,.results td{padding:.4rem .6rem;border-bottom:1px solid var(--line);text-align:center}
+.results th{font-size:.8rem;color:var(--muted)}
+.results tfoot td{font-weight:700}
+.best{background:var(--good-soft);font-weight:700}
+
+.alg{padding:.7rem .8rem;border-radius:9px;margin:0 -.4rem .3rem;cursor:pointer;transition:background .2s}
+.alg:hover{background:var(--soft)}
+.alg.on{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--p4)}
+.alg h4{margin:0 0 .3rem;font:700 .98rem var(--head);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .5rem}
+.alg h4 span{font:500 .8rem var(--ui);color:var(--muted)}
+.alg.on h4::after{content:"em uso";margin-left:auto;font:700 .7rem var(--ui);background:var(--p4);color:#fff;padding:.1rem .45rem;border-radius:999px}
+.alg p{margin:.2rem 0;font-size:.88rem}
+.alg .pc{color:var(--muted)}
+.alg:not(.on) .pc{display:none}
+/* 3. Condição de corrida */
+.race{display:grid;grid-template-columns:1fr 12rem 1fr;gap:1rem;align-items:start}
+.proc{border:2px solid var(--line);border-radius:12px;padding:.8rem;background:var(--card)}
+.proc h4{margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem;font:700 1rem var(--head)}
+.proc .st{margin-left:auto;font:600 .75rem var(--ui);padding:.15rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.proc .st.blk{background:var(--bad-soft);color:var(--bad)}
+.proc .st.end{background:var(--good-soft);color:var(--good)}
+.code{list-style:none;margin:0;padding:0;font:500 .86rem/1.5 var(--mono)}
+.code li{display:flex;gap:.5rem;padding:.3rem .45rem;border-radius:6px;align-items:center}
+.code li .pc{width:1rem;flex:none;color:var(--accent);font-weight:700}
+.code li.next{background:var(--warn-soft)}
+.code li.ran{color:var(--muted)}
+.code li.lk{color:var(--p5);font-weight:700}
+.reg{margin-top:.7rem;font:600 .9rem var(--mono);background:var(--soft);padding:.4rem .6rem;border-radius:7px}
+.mem{border:3px solid var(--ink);border-radius:12px;text-align:center;padding:.8rem .5rem;background:var(--card)}
+.mem small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.06em}
+.mem .val{font:700 2.6rem/1.2 var(--mono);transition:transform .3s}
+.mem .val.bump{transform:scale(1.3)}
+.mutex{margin-top:.8rem;padding:.4rem;border-radius:8px;font:600 .82rem var(--ui);background:var(--soft)}
+.mutex.held{background:var(--warn-soft)}
+.verdict{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.verdict.bad{background:var(--bad-soft)}
+.verdict.good{background:var(--good-soft)}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mode button{border:0;background:transparent;padding:.45rem .8rem;font:600 .86rem var(--ui);cursor:pointer;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.bars{margin-top:.8rem}
+.bar{display:grid;grid-template-columns:7rem 1fr 3.5rem;gap:.5rem;align-items:center;margin:.35rem 0;font-size:.88rem}
+.bar i{display:block;height:1.1rem;border-radius:4px;background:var(--accent);transition:width .6s}
+.bar i.bad{background:var(--bad)}
+
+/* 4. Impasse */
+#dl-svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.node-p{stroke-width:4}
+.node-r{fill:var(--card);stroke:var(--ink);stroke-width:3}
+.ntext{font:700 22px var(--head);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.rtext{font:700 18px var(--head);fill:var(--ink);text-anchor:middle}
+.edge{stroke-width:4;fill:none;transition:opacity .3s}
+.edge.req{stroke:var(--muted);stroke-dasharray:10 7}
+.edge.own{stroke:var(--ink)}
+.edge.cyc{stroke:var(--bad)!important}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin-top:.6rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.cond{list-style:none;padding:0;margin:0}
+.cond li{display:flex;gap:.5rem;align-items:flex-start;padding:.35rem 0;font-size:.9rem}
+.cond li i{flex:none;width:1.2rem;height:1.2rem;border-radius:50%;border:2px solid var(--line);margin-top:.15rem}
+.cond li.on i{background:var(--bad);border-color:var(--bad)}
+
+/* 5. Testa-te */
+.quiz{max-width:46rem}
+.q{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:1rem 1.1rem;margin:0 0 1rem}
+.q legend{font:700 1rem var(--head);padding:0 .3rem;margin-left:-.3rem}
+.q label{display:flex;gap:.6rem;padding:.45rem .5rem;border-radius:7px;cursor:pointer;align-items:flex-start}
+.q label:hover{background:var(--soft)}
+.q label.right{background:var(--good-soft)}
+.q label.wrong{background:var(--bad-soft)}
+.q input{accent-color:var(--accent);margin-top:.3rem}
+.q .fb{margin:.6rem 0 0;font-size:.92rem}
+.score{font:700 1.1rem var(--head);margin:.5rem 0 1rem}
+
+
+/* Núcleo */
+.ksvg .layer{stroke:none}
+.kbox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s}
+.kbox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.kbox.bad{stroke:var(--bad);stroke-width:4;fill:var(--bad-soft)}
+.ktxt{font:600 17px var(--ui);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.klab{font:700 15px var(--head);letter-spacing:.06em;fill:var(--muted)}
+.kline{stroke:var(--bad);stroke-width:3;stroke-dasharray:10 8}
+.mode-ind{display:inline-flex;align-items:center;gap:.5rem;font:700 .85rem var(--ui);padding:.35rem .8rem;border-radius:999px;background:var(--soft)}
+.mode-ind i{width:.7rem;height:.7rem;border-radius:50%;background:var(--good)}
+.mode-ind.k i{background:var(--bad)}
+.pkt{position:absolute;width:3.4%;aspect-ratio:1;border-radius:8px;background:var(--accent);box-shadow:0 4px 10px rgba(0,0,0,.3);transition:left .6s cubic-bezier(.5,0,.3,1),top .6s cubic-bezier(.5,0,.3,1),background .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.pkt.k{background:var(--bad)}
+.kstage{position:relative;width:100%;aspect-ratio:1000/520;background:var(--soft);border-radius:10px;overflow:hidden}
+.kstage svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Memória contígua */
+.membar{position:relative;height:5.5rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px);margin-top:.4rem}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:700 .85rem var(--mono);border-right:2px solid var(--card);transition:left .6s cubic-bezier(.5,0,.3,1),width .6s cubic-bezier(.5,0,.3,1),box-shadow .2s;overflow:hidden;white-space:nowrap;cursor:pointer}
+.seg small{font:500 .72rem var(--mono);opacity:.9}
+.seg.os{background:#4B5568;cursor:default}
+.seg.hole{background:transparent;color:var(--muted);cursor:default}
+.seg.fit{box-shadow:inset 0 0 0 4px var(--good)}
+.seg.nofit{box-shadow:inset 0 0 0 4px var(--bad)}
+.seg.pick{box-shadow:inset 0 0 0 6px var(--good);background:var(--good-soft)}
+.seg.new{animation:pop .5s}
+.addr{position:relative;height:1.3rem;font:500 .7rem var(--mono);color:var(--muted)}
+.addr span{position:absolute;transform:translateX(-50%)}
+.reqs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;min-height:2.2rem}
+.reqs .op{font:600 .8rem var(--ui);padding:.3rem .6rem;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.reqs .op.cur{background:var(--warn-soft);border-color:var(--p4)}
+.reqs .op.ok{opacity:.5}
+.reqs .op.fail{background:var(--bad-soft);border-color:var(--bad)}
+.stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.9rem}
+.stat{background:var(--soft);border-radius:8px;padding:.45rem .8rem;font-size:.85rem}
+.stat b{font:700 1.05rem var(--mono);display:block}
+.manual{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.9rem}
+.manual input{width:5.5rem;padding:.45rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);text-align:center}
+
+/* Paginação */
+.pg{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1.2rem;align-items:start}
+.pg h4{margin:0 0 .5rem;font:700 .9rem var(--head);color:var(--muted);letter-spacing:.03em}
+.cells{display:flex;flex-direction:column;gap:3px}
+.cell{display:flex;justify-content:space-between;align-items:center;padding:.45rem .7rem;border-radius:6px;background:var(--soft);font:600 .82rem var(--mono);border:2px solid transparent;transition:border-color .3s,background .3s;position:relative}
+.cell small{font:500 .7rem var(--mono);color:var(--muted)}
+.cell.mine{background:color-mix(in srgb,var(--p1) 18%,var(--card))}
+.cell.other{background:color-mix(in srgb,var(--muted) 18%,var(--card))}
+.cell.on{border-color:var(--accent);background:var(--warn-soft)}
+.cell.miss{border-color:var(--bad);background:var(--bad-soft)}
+.cell .mark{position:absolute;top:2px;bottom:2px;width:3px;background:var(--bad);border-radius:2px}
+.ptbl{width:100%;border-collapse:collapse;font:600 .85rem var(--mono)}
+.ptbl th{font:600 .72rem var(--ui);color:var(--muted);padding:.3rem;border-bottom:1px solid var(--line)}
+.ptbl td{text-align:center;padding:.42rem .3rem;border-bottom:1px solid var(--line);transition:background .3s}
+.ptbl tr.on td{background:var(--warn-soft)}
+.ptbl tr.miss td{background:var(--bad-soft)}
+.calc{margin-top:1rem;font:500 .95rem/1.7 var(--mono);background:var(--soft);border-radius:10px;padding:.8rem 1rem;min-height:5rem}
+.calc div{animation:pop .3s}
+.calc .res{font-weight:700;color:var(--accent)}
+.calc .err{font-weight:700;color:var(--bad)}
+
+/* Substituição de páginas */
+.refgrid{overflow-x:auto}
+.refgrid table{border-collapse:separate;border-spacing:3px;font:600 .9rem var(--mono)}
+.refgrid th{min-width:2.4rem;height:2.4rem;background:var(--soft);border-radius:6px}
+.refgrid th.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.refgrid td{height:2.4rem;text-align:center;border-radius:6px;background:var(--card);border:1px solid var(--line);transition:background .3s}
+.refgrid td.lbl{border:0;background:none;font:600 .72rem var(--ui);color:var(--muted);text-align:right;padding-right:.4rem;white-space:nowrap}
+.refgrid td.in{background:var(--bad-soft);border-color:var(--bad)}
+.refgrid td.hitc{background:var(--good-soft);border-color:var(--good)}
+.refgrid td.res{border:0;font:700 .8rem var(--ui)}
+.refgrid td.res.f{color:var(--bad)}
+.refgrid td.res.h{color:var(--good)}
+.refgrid td.hide{visibility:hidden}
+
+@media (max-width:960px){
+  .pg{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .race{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+}
+.credit{max-width:80rem;margin:0 auto;padding:1.2rem 1.5rem 2rem;border-top:1px solid var(--line);text-align:center;font-size:.85rem;color:var(--muted)}
+body.instant *,body.instant *::before,body.instant *::after{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="chipico" viewBox="0 0 44 44" aria-hidden="true"><rect x="5" y="8" width="34" height="28" rx="4" fill="var(--accent)"/><g fill="var(--card)"><rect x="10" y="13" width="5" height="18" rx="1"/><rect x="17.5" y="13" width="5" height="18" rx="1"/><rect x="25" y="13" width="5" height="18" rx="1"/></g><g stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"><path d="M12 36v5M18 36v5M24 36v5M30 36v5"/></g></svg>
+    <div><h1>O núcleo do SO e a gestão de memória</h1><p>Laboratório animado · Sistemas Operativos</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Temas">
+    <button role="tab" aria-selected="true" data-tab="nucleo"><span>1</span>O núcleo e as chamadas ao sistema</button>
+    <button role="tab" aria-selected="false" data-tab="contigua"><span>2</span>Atribuição de memória</button>
+    <button role="tab" aria-selected="false" data-tab="paginas"><span>3</span>Paginação</button>
+    <button role="tab" aria-selected="false" data-tab="virtual"><span>4</span>Memória virtual</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+  </nav>
+</header>
+<main>
+
+<!-- 1. NÚCLEO -->
+<section id="nucleo" role="tabpanel">
+  <div class="intro"><h2>O núcleo: o coração do sistema operativo</h2>
+  <p>Os programas não podem mexer diretamente no hardware. Quando precisam do disco, da memória ou da impressora, pedem ao <b>núcleo</b> (kernel) através de uma <b>chamada ao sistema</b>. Escolhe um pedido e acompanha o caminho que ele faz.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Pedido<select id="k-scn">
+          <option value="save">O editor de texto guarda um ficheiro</option>
+          <option value="mem">O jogo pede mais memória</option>
+          <option value="proc">O navegador abre um separador novo (cria um processo)</option>
+          <option value="print">O navegador imprime uma página</option>
+          <option value="key">Escreves uma letra no editor (o pedido vem do hardware)</option>
+          <option value="net">O navegador descarrega uma página da Internet</option>
+          <option value="bad">O jogo tenta escrever diretamente no disco</option>
+        </select></label>
+        <span class="mode-ind" id="k-mode"><i></i><span>Modo utilizador</span></span>
+      </div>
+      <div class="kstage" id="k-stage"><svg viewBox="0 0 1000 520" class="ksvg" id="k-svg" aria-label="Camadas do sistema: aplicações, núcleo e hardware"></svg></div>
+      <div class="controls" data-ctl="nucleo"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="k-log"><li class="empty">Escolhe um pedido e carrega em Reproduzir.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Núcleo</b> (kernel): a parte do SO que está sempre em memória e controla o hardware. Gere os processos, a memória, os ficheiros e os dispositivos.</li>
+        <li><b>Modo utilizador</b>: onde correm os programas; não podem aceder diretamente ao hardware.</li>
+        <li><b>Modo núcleo</b>: onde corre o núcleo; tem acesso total. O processador sabe sempre em que modo está.</li>
+        <li><b>Chamada ao sistema</b>: o pedido que um programa faz ao núcleo, por exemplo <code>write()</code> ou <code>fork()</code>.</li>
+        <li><b>Interrupção</b>: o aviso que um dispositivo envia ao processador quando termina uma tarefa.</li>
+        <li><b>Controlador</b> (driver): o código do núcleo que sabe falar com um dispositivo específico.</li></ul>
+        <p>Um núcleo <b>monolítico</b> (Linux, por exemplo) tem todas estas partes juntas. Um <b>micronúcleo</b> mantém só o essencial e põe o resto em processos separados, o que o torna mais seguro mas mais lento.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. ATRIBUIÇÃO CONTÍGUA -->
+<section id="contigua" role="tabpanel" hidden>
+  <div class="intro"><h2>Onde cabe o próximo programa?</h2>
+  <p>Cada programa precisa de um bloco seguido de memória. À medida que os programas entram e saem, a memória fica cheia de <b>buracos</b>. O gestor de memória tem de escolher em que buraco colocar cada programa novo. A memória tem 1000 KB e o núcleo ocupa os primeiros 200 KB.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Exemplo<select id="m-ex"><option value="0">Exemplo 1</option><option value="1">Exemplo 2: muitos programas pequenos</option><option value="2">Exemplo 3: um programa grande que não cabe</option></select></label><label>Estratégia<select id="m-alg">
+        <option value="first">Primeiro ajuste (first fit)</option>
+        <option value="best">Melhor ajuste (best fit)</option>
+        <option value="worst">Pior ajuste (worst fit)</option></select></label></div>
+      <div style="font-size:.82rem;font-weight:600;color:var(--muted)">Acontecimentos</div>
+      <div class="reqs" id="m-reqs"></div>
+      <div class="membar" id="m-bar"></div>
+      <div class="addr" id="m-addr"></div>
+      <div class="stats" id="m-stats"></div>
+      <div class="controls" data-ctl="contigua"><button class="btn ghost" id="m-cmp" type="button">Comparar as 3 estratégias</button><button class="btn ghost" id="m-compact" type="button">Compactar a memória</button></div>
+      <div class="manual"><span>Experimenta tu: novo programa com</span><input id="m-size" type="number" min="10" max="800" value="120" aria-label="Tamanho em KB"><span>KB</span><button class="btn" id="m-req">Pedir memória</button><span style="color:var(--muted)">ou clica num programa para o terminar.</span></div>
+      <div class="results" id="m-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="m-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>As estratégias</h3><div class="algs" id="m-algs">
+        <div class="alg" data-alg="first"><h4>Primeiro ajuste <span>first fit</span></h4><p>Percorre a memória desde o início e usa o <b>primeiro buraco</b> onde o programa cabe.</p><p class="pc"><b>Vantagem:</b> é o mais rápido, porque para logo que encontra lugar. <b>Desvantagem:</b> o início da memória enche-se de pequenos buracos.</p></div>
+        <div class="alg" data-alg="best"><h4>Melhor ajuste <span>best fit</span></h4><p>Procura em todos os buracos e usa o <b>mais pequeno</b> onde o programa cabe.</p><p class="pc"><b>Vantagem:</b> guarda os buracos grandes para programas grandes. <b>Desvantagem:</b> tem de ver todos os buracos e deixa sobras minúsculas, quase inúteis.</p></div>
+        <div class="alg" data-alg="worst"><h4>Pior ajuste <span>worst fit</span></h4><p>Procura em todos os buracos e usa o <b>maior</b>.</p><p class="pc"><b>Vantagem:</b> a sobra que fica é grande e ainda pode servir a outro programa. <b>Desvantagem:</b> gasta depressa os buracos grandes, e um programa grande pode deixar de caber.</p></div>
+      </div></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Fragmentação externa</b>: há memória livre suficiente, mas está espalhada por buracos pequenos, e nenhum chega para o programa.</li>
+        <li><b>Compactação</b>: juntar todos os programas no início da memória para os buracos se unirem num só. Funciona, mas obriga a parar e a copiar muita memória.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. PAGINAÇÃO -->
+<section id="paginas" role="tabpanel" hidden>
+  <div class="intro"><h2>Paginação: o programa aos bocados</h2>
+  <p>Para acabar com a fragmentação externa, a memória é dividida em <b>molduras</b> (frames) do mesmo tamanho e cada programa em <b>páginas</b> desse tamanho. As páginas podem ficar em quaisquer molduras livres, mesmo afastadas. Para saber onde está cada uma, o SO usa uma <b>tabela de páginas</b>. Podes mudar o tamanho das páginas.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="pg">
+        <div><h4>Memória lógica do programa</h4><div class="cells" id="pg-log"></div></div>
+        <div><h4>Tabela de páginas</h4><table class="ptbl"><thead><tr><th>Página</th><th>Moldura</th><th>Na memória?</th></tr></thead><tbody id="pg-tbl"></tbody></table></div>
+        <div><h4>Memória física (RAM)</h4><div class="cells" id="pg-phy"></div></div>
+      </div>
+      <div class="manual"><label style="display:flex;align-items:center;gap:.4rem">Tamanho da página<select id="pg-size" style="padding:.4rem;border:1px solid var(--line);border-radius:7px;background:var(--soft)"><option>512</option><option selected>1024</option><option>2048</option><option>4096</option></select></label><span>Endereço lógico:</span><input id="pg-addr" type="number" min="0" max="99999" value="2500" aria-label="Endereço lógico"><button class="btn" id="pg-go">Traduzir</button><button class="btn ghost" id="pg-rnd">Ao acaso</button></div>
+      <div class="manual" style="border:0;padding-top:0;margin-top:.5rem"><span>Exemplos:</span><span id="pg-ex" style="display:flex;flex-wrap:wrap;gap:.35rem"></span></div>
+      <div class="calc" id="pg-calc"><span style="color:var(--muted)">Escreve um endereço e carrega em Traduzir.</span></div>
+      <div class="controls" data-ctl="paginas"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>Como se traduz um endereço</h3><ul>
+        <li><b>1.</b> Divide-se o endereço pelo tamanho da página: o resultado inteiro é o <b>número da página</b> e o resto é o <b>deslocamento</b> dentro dela.</li>
+        <li><b>2.</b> Procura-se a página na tabela de páginas para saber em que <b>moldura</b> está.</li>
+        <li><b>3.</b> Endereço físico = moldura × tamanho da página + deslocamento.</li></ul>
+        <p>Esta tradução é feita pelo hardware (a <b>MMU</b>) em cada acesso à memória, por isso tem de ser muito rápida.</p></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Página</b>: pedaço de tamanho fixo do programa.</li>
+        <li><b>Moldura</b> (frame): pedaço da RAM com o mesmo tamanho de uma página.</li>
+        <li><b>Fragmentação interna</b>: a última página de um programa raramente fica cheia; o espaço que sobra dentro dela perde-se.</li>
+        <li><b>Falta de página</b>: a página pedida não está na RAM, está no disco. O SO tem de a ir buscar (vê o separador seguinte).</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. MEMÓRIA VIRTUAL -->
+<section id="virtual" role="tabpanel" hidden>
+  <div class="intro"><h2>Memória virtual: quando a RAM não chega</h2>
+  <p>Com a <b>memória virtual</b>, só as páginas em uso ficam na RAM; as outras ficam no disco. Quando uma página pedida não está na RAM, há uma <b>falta de página</b>: o SO vai buscá-la ao disco, o que é muito lento. Se não houver moldura livre, tem de escolher uma página para tirar da RAM. Qual? Depende do algoritmo.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Exemplo<select id="v-ex"><option value="7 0 1 2 0 3 0 4 2 3 0 3 2">Exemplo dos manuais</option><option value="1 2 3 1 2 3 4 1 2 3 1 2 5 1 2 3">Um programa com um ciclo</option><option value="1 2 3 4 5 1 2 3 4 5 1 2 3 4 5">Ler um ficheiro maior do que a RAM, várias vezes</option><option value="1 2 1 3 1 4 1 5 1 6 1 7 1 2">Uma página usada sempre (o menu do jogo)</option><option value="1 2 3 4 1 2 5 1 2 3 4 5">Anomalia de Belady</option></select></label>
+        <label>Algoritmo<select id="v-alg"><option value="fifo">FIFO: sai a que entrou primeiro</option><option value="lru">LRU: sai a usada há mais tempo</option><option value="opt">Ótimo: sai a que vai demorar mais a ser usada</option></select></label>
+        <label>Molduras na RAM<input id="v-frames" type="number" min="1" max="6" value="3" style="width:5rem"></label>
+        <label style="flex:1;min-width:14rem">Sequência de páginas pedidas<input id="v-refs" type="text" value="7 0 1 2 0 3 0 4 2 3 0 3 2"></label>
+      </div>
+      <div class="refgrid"><table id="v-grid"></table></div>
+      <div class="stats" id="v-stats"></div>
+      <div class="controls" data-ctl="virtual"><button class="btn ghost" id="v-cmp" type="button">Comparar os 3 algoritmos</button><button class="btn ghost" id="v-belady" type="button">Exemplo: anomalia de Belady</button></div>
+      <div class="results" id="v-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="v-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>Os algoritmos</h3><div class="algs" id="v-algs">
+        <div class="alg" data-alg="fifo"><h4>FIFO <span>primeira a entrar, primeira a sair</span></h4><p>Tira da RAM a página que lá está <b>há mais tempo</b>, como uma fila.</p><p class="pc"><b>Vantagem:</b> é muito simples. <b>Desvantagem:</b> pode tirar uma página muito usada só por ser antiga. E pode acontecer a anomalia de Belady: mais molduras a darem mais faltas.</p></div>
+        <div class="alg" data-alg="lru"><h4>LRU <span>usada há mais tempo</span></h4><p>Tira a página que <b>não é usada há mais tempo</b>. A ideia: o que não foi usado recentemente provavelmente não vai ser usado em breve.</p><p class="pc"><b>Vantagem:</b> dá bons resultados na prática. <b>Desvantagem:</b> é preciso registar quando cada página foi usada, o que custa tempo.</p></div>
+        <div class="alg" data-alg="opt"><h4>Ótimo <span>o melhor possível</span></h4><p>Tira a página que <b>vai demorar mais tempo a ser pedida</b> de novo.</p><p class="pc"><b>Vantagem:</b> dá o menor número possível de faltas. <b>Desvantagem:</b> é impossível na realidade, porque o SO não sabe o futuro. Serve só para comparar os outros algoritmos.</p></div>
+      </div></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Falta de página</b> (page fault): a página pedida não está na RAM.</li>
+        <li><b>Taxa de faltas</b>: faltas ÷ número de pedidos. Quanto menor, melhor.</li>
+        <li><b>Thrashing</b>: quando há tão poucas molduras que o sistema passa mais tempo a trocar páginas com o disco do que a trabalhar.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TESTA-TE -->
+<section id="teste" role="tabpanel" hidden>
+  <div class="intro"><h2>Testa-te</h2><p>Responde às perguntas e vê logo se acertaste.</p></div>
+  <div class="quiz" id="quiz"></div>
+</section>
+</main>
+<footer class="credit">© 2026 | Nuno Gonçalves - Equipa de Apoio Técnico</footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = i => `var(--p${(i % 6) + 1})`;
+const fmt = x => x.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+
+const players = [];
+/* Comandos: anterior, reproduzir, seguinte, recomeçar e velocidade.
+   «Anterior» repõe o início e repete, sem animação, todos os passos menos o último. */
+function makePlayer(name, { step, reset, pos, rewind, back }){
+  const box = document.querySelector(`[data-ctl="${name}"]`);
+  box.insertAdjacentHTML('beforeend', `<button class="btn ghost" data-a="back" title="Voltar ao passo anterior">⏮ Anterior</button><button class="btn" data-a="play">▶ Reproduzir</button><button class="btn ghost" data-a="step" title="Avançar um passo">Seguinte ⏭</button><button class="btn ghost" data-a="reset">↺ Recomeçar</button><label class="speed">Velocidade<input type="range" min="1" max="5" value="3" aria-label="Velocidade"></label>`);
+  const play = box.querySelector('[data-a=play]'), sp = box.querySelector('input[type=range]'), backBtn = box.querySelector('[data-a=back]');
+  let timer = null, finished = false;
+  const ms = () => [2200, 2200 * .7, 2200 * .5, 2200 * .32, 2200 * .18][sp.value - 1];
+  const sync = () => { backBtn.disabled = !(pos && pos() > 0); };
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = '▶ Reproduzir'; };
+  const tick = () => { const more = step(); finished = !more; if (!more) stop(); sync(); };
+  const start = () => { play.textContent = '⏸ Pausa'; tick(); if (!finished) timer = setInterval(tick, ms()); else stop(); };
+  play.onclick = () => { if (timer) return stop(); if (finished) { reset(); finished = false; } start(); };
+  sp.oninput = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, ms()); } };
+  box.querySelector('[data-a=step]').onclick = () => { stop(); tick(); };
+  box.querySelector('[data-a=reset]').onclick = () => { stop(); finished = false; reset(); sync(); };
+  backBtn.onclick = () => {
+    stop(); if (!(pos && pos() > 0)) return;
+    document.body.classList.add('instant'); window.FAST = true;
+    try {
+      if (back) back();
+      else { const target = pos() - 1; (rewind || reset)(); let g = 0; while (pos() < target && g++ < 3000) step(); }
+    } finally {
+      window.FAST = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('instant')));
+    }
+    finished = false; sync();
+  };
+  const p = { stop, ms, sync, setFinished: v => finished = v, start: () => { stop(); finished = false; start(); } };
+  players.push(p); setTimeout(sync);
+  return p;
+}
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(() => players.forEach(p => p.sync())), true));
+function logTo(el, msgs, t){
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  msgs.slice().reverse().forEach(m => el.insertAdjacentHTML('afterbegin', `<li>${t != null ? `<time>${t}</time>` : ''}<span>${m}</span></li>`));
+}
+function algCards(boxSel, select, onPick){
+  const mark = () => document.querySelectorAll(boxSel + ' .alg').forEach(el => el.classList.toggle('on', el.dataset.alg === select.value));
+  $(boxSel).addEventListener('click', e => { const el = e.target.closest('.alg'); if (!el || el.dataset.alg === select.value) return; select.value = el.dataset.alg; select.onchange(); });
+  mark(); return mark;
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  players.forEach(p => p.stop());
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+/* ================= 1. NÚCLEO ================= */
+(() => {
+  const BX = {
+    editor: { x: 160, y: 85, w: 220, t: 'Editor de texto' }, nav: { x: 500, y: 85, w: 220, t: 'Navegador' }, jogo: { x: 840, y: 85, w: 220, t: 'Jogo' },
+    proc: { x: 135, y: 262, w: 210, t: 'Gestão de processos' }, mem: { x: 380, y: 262, w: 210, t: 'Gestão de memória' }, fs: { x: 625, y: 262, w: 210, t: 'Sistema de ficheiros' }, drv: { x: 868, y: 262, w: 210, t: 'Controladores' },
+    cpu: { x: 135, y: 440, w: 210, t: 'Processador' }, ram: { x: 380, y: 440, w: 210, t: 'RAM' }, disco: { x: 625, y: 440, w: 210, t: 'Disco' }, impr: { x: 868, y: 440, w: 210, t: 'Impressora' }
+  };
+  const pos = id => id.startsWith('g-') ? { x: BX[id.slice(2)].x, y: 172 } : { x: BX[id].x, y: BX[id].y - 40 };
+  const SC = {
+    save: [
+      ['editor', 'u', 'Carregas em Guardar. O editor não pode escrever no disco sozinho: faz a chamada ao sistema <code>write()</code>.'],
+      ['g-editor', 'k', 'A chamada ao sistema faz o processador passar para o <b>modo núcleo</b>. O controlo passa do editor para o núcleo.'],
+      ['fs', 'k', 'O <b>sistema de ficheiros</b> verifica se tens permissão e decide em que blocos do disco guardar os dados.'],
+      ['drv', 'k', 'O <b>controlador do disco</b> traduz o pedido em comandos que o disco entende.'],
+      ['disco', 'k', 'O <b>disco</b> grava os dados. Entretanto, o processador pode executar outros processos.'],
+      ['drv', 'k', 'O disco envia uma <b>interrupção</b> ao processador a avisar que terminou.'],
+      ['g-editor', 'u', 'O núcleo devolve o resultado e o processador regressa ao <b>modo utilizador</b>.'],
+      ['editor', 'u', 'O editor mostra «Ficheiro guardado». Tudo isto demorou milésimos de segundo.']],
+    mem: [
+      ['jogo', 'u', 'O jogo precisa de mais memória para carregar um nível novo e faz uma chamada ao sistema (por exemplo, <code>mmap()</code>).'],
+      ['g-jogo', 'k', 'O processador passa para o <b>modo núcleo</b>.'],
+      ['mem', 'k', 'A <b>gestão de memória</b> procura memória livre e reserva-a para o jogo, sem tocar na memória dos outros programas.'],
+      ['ram', 'k', 'Essa zona da <b>RAM</b> fica marcada como pertencente ao jogo.'],
+      ['mem', 'k', 'A gestão de memória atualiza a tabela de páginas do jogo, para ele conseguir encontrar a memória nova.'],
+      ['g-jogo', 'u', 'O núcleo devolve o controlo e o processador regressa ao <b>modo utilizador</b>.'],
+      ['jogo', 'u', 'O jogo já pode usar a memória nova.']],
+    proc: [
+      ['nav', 'u', 'Abres um separador novo. Para o isolar dos outros, o navegador pede ao SO um processo novo: chamada ao sistema <code>fork()</code> no Linux ou <code>CreateProcess()</code> no Windows.'],
+      ['g-nav', 'k', 'O processador passa para o <b>modo núcleo</b>.'],
+      ['proc', 'k', 'A <b>gestão de processos</b> cria o processo e o seu bloco de controlo (PCB), com o identificador, o estado e os registos.'],
+      ['mem', 'k', 'A <b>gestão de memória</b> reserva memória para o processo novo.'],
+      ['ram', 'k', 'O código e os dados do processo são colocados na RAM.'],
+      ['proc', 'k', 'O processo novo entra na fila dos prontos.'],
+      ['cpu', 'k', 'O <b>escalonador</b> dá-lhe o processador quando chegar a sua vez.'],
+      ['g-nav', 'u', 'O processador regressa ao <b>modo utilizador</b>.'],
+      ['nav', 'u', 'O separador novo começa a carregar a página.']],
+    print: [
+      ['nav', 'u', 'Carregas em Imprimir. O navegador pede ao SO para enviar o documento para a impressora.'],
+      ['g-nav', 'k', 'O processador passa para o <b>modo núcleo</b>.'],
+      ['fs', 'k', 'O documento é guardado numa fila de impressão no disco (<b>spool</b>). Assim, o navegador não fica parado à espera da impressora.'],
+      ['drv', 'k', 'O <b>controlador da impressora</b> converte o documento para a linguagem que a impressora entende.'],
+      ['impr', 'k', 'A <b>impressora</b> imprime as páginas.'],
+      ['drv', 'k', 'A impressora envia uma <b>interrupção</b>: terminou.'],
+      ['g-nav', 'u', 'O processador regressa ao <b>modo utilizador</b>.'],
+      ['nav', 'u', 'O navegador mostra que a impressão terminou.']],
+    key: [
+      ['impr', 'k', 'Carregas na tecla «A». O teclado envia uma <b>interrupção</b> à CPU, que pára o que estava a fazer e passa para o <b>modo núcleo</b>. Desta vez, o pedido começa no hardware!'],
+      ['drv', 'k', 'O <b>controlador do teclado</b> lê o código da tecla carregada.'],
+      ['proc', 'k', 'O núcleo vê que a janela ativa é a do editor e entrega-lhe a tecla. O editor estava <b>Bloqueado</b> à espera de teclas: passa para <b>Pronto</b>.'],
+      ['g-editor', 'u', 'Quando o editor volta a usar o processador, a sua chamada ao sistema <code>read()</code> devolve a tecla. Regressa ao modo utilizador.'],
+      ['editor', 'u', 'O editor mostra a letra «A» no ecrã.']],
+    net: [
+      ['nav', 'u', 'Escreves um endereço no navegador. O navegador pede ao SO para enviar o pedido pela rede: chamada ao sistema <code>send()</code>.'],
+      ['g-nav', 'k', 'O processador passa para o <b>modo núcleo</b>.'],
+      ['drv', 'k', 'O <b>controlador da placa de rede</b> prepara o pedido em pacotes.'],
+      ['impr', 'k', 'A <b>placa de rede</b> envia os pacotes pela Internet. O navegador fica Bloqueado à espera da resposta.'],
+      ['impr', 'k', 'Chega a resposta do servidor. A placa de rede envia uma <b>interrupção</b>.'],
+      ['mem', 'k', 'A <b>gestão de memória</b> e o controlador copiam os dados recebidos para a memória do navegador.'],
+      ['g-nav', 'u', 'O processador regressa ao <b>modo utilizador</b>.'],
+      ['nav', 'u', 'O navegador mostra a página.']],
+    bad: [
+      ['jogo', 'u', 'O jogo tenta escrever diretamente no disco, sem pedir ao núcleo.'],
+      ['g-jogo', 'k', '<b>Proibido!</b> Em modo utilizador, o processador bloqueia as instruções que acedem ao hardware. Gera-se uma <b>exceção</b> e o controlo passa para o núcleo.', 'bad'],
+      ['proc', 'k', 'O núcleo termina o jogo com um erro de proteção. O disco e os outros programas ficam protegidos.'],
+      ['jogo', 'u', 'O jogo fecha. É por isto que um programa com erros não consegue estragar o sistema todo.', 'bad']]
+  };
+  let h = `<rect x="0" y="0" width="1000" height="168" fill="var(--card)" opacity=".55"/><rect x="0" y="176" width="1000" height="172" fill="var(--warn-soft)"/><rect x="0" y="356" width="1000" height="164" fill="var(--card)" opacity=".35"/>
+    <text class="klab" x="14" y="24">MODO UTILIZADOR · PROGRAMAS</text><text class="klab" x="14" y="200">MODO NÚCLEO · NÚCLEO (KERNEL)</text><text class="klab" x="14" y="380">HARDWARE</text>
+    <line class="kline" x1="0" y1="172" x2="1000" y2="172"/><text class="klab" x="986" y="164" text-anchor="end" style="fill:var(--bad)">FRONTEIRA PROTEGIDA</text>`;
+  Object.entries(BX).forEach(([k, b]) => { h += `<rect class="kbox" id="kb-${k}" x="${b.x - b.w / 2}" y="${b.y - 38}" width="${b.w}" height="76" rx="12"/><text class="ktxt" id="kt-${k}" x="${b.x}" y="${b.y}">${b.t}</text>`; });
+  $('#k-svg').innerHTML = h;
+  const stage = $('#k-stage'), pkt = document.createElement('div'); pkt.className = 'pkt'; pkt.textContent = '✉'; stage.append(pkt);
+  const log = $('#k-log'), sel = $('#k-scn');
+  let i = 0;
+  function place(id){ const p = pos(id); pkt.style.left = (p.x - 17) / 10 + '%'; pkt.style.top = (p.y - 17) / 5.2 + '%'; }
+  function setMode(m){ const el = $('#k-mode'); el.classList.toggle('k', m === 'k'); el.querySelector('span').textContent = m === 'k' ? 'Modo núcleo' : 'Modo utilizador'; pkt.classList.toggle('k', m === 'k'); }
+  const HW4 = { key: 'Teclado', net: 'Placa de rede' };
+  function reset(){ i = 0; const S = SC[sel.value]; $('#kt-impr').textContent = HW4[sel.value] || 'Impressora'; place(S[0][0]); pkt.style.opacity = .35; setMode('u'); document.querySelectorAll('.kbox').forEach(b => b.classList.remove('on', 'bad')); log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Passo.</li>'; }
+  function step(){
+    const S = SC[sel.value]; if (i >= S.length) return false;
+    const [at, m, txt, flag] = S[i];
+    pkt.style.opacity = 1; place(at); setMode(m);
+    document.querySelectorAll('.kbox').forEach(b => b.classList.remove('on', 'bad'));
+    const box = $('#kb-' + at.replace('g-', ''));
+    if (box) box.classList.add(flag === 'bad' ? 'bad' : 'on');
+    logTo(log, [txt], i + 1 + '.');
+    i++;
+    if (i >= S.length) { logTo(log, ['Fim. Escolhe outro pedido para comparar.']); return false; }
+    return true;
+  }
+  sel.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('nucleo', { step, reset, pos: () => i });
+  reset();
+})();
+
+/* ================= 2. ATRIBUIÇÃO CONTÍGUA ================= */
+(() => {
+  const OS = { s: 0, z: 200, n: 'Núcleo', os: true };
+  const EXS = [
+    { init: [OS, { s: 200, z: 100, n: 'A' }, { s: 300, z: 250, n: null }, { s: 550, z: 100, n: 'B' }, { s: 650, z: 110, n: null }, { s: 760, z: 140, n: 'C' }, { s: 900, z: 100, n: null }],
+      ops: [['alloc', 'D', 100], ['alloc', 'E', 240], ['free', 'A'], ['alloc', 'F', 90], ['alloc', 'G', 150]] },
+    { init: [OS, { s: 200, z: 60, n: 'A' }, { s: 260, z: 40, n: null }, { s: 300, z: 80, n: 'B' }, { s: 380, z: 70, n: null }, { s: 450, z: 30, n: 'C' }, { s: 480, z: 80, n: null }, { s: 560, z: 40, n: 'D' }, { s: 600, z: 400, n: null }],
+      ops: [['alloc', 'E', 70], ['alloc', 'F', 35], ['alloc', 'G', 330], ['free', 'B'], ['alloc', 'H', 140], ['alloc', 'I', 60]] },
+    { init: [OS, { s: 200, z: 150, n: 'A' }, { s: 350, z: 150, n: null }, { s: 500, z: 100, n: 'B' }, { s: 600, z: 150, n: null }, { s: 750, z: 150, n: 'C' }, { s: 900, z: 100, n: null }],
+      ops: [['alloc', 'D', 90], ['alloc', 'E', 120], ['alloc', 'F', 180], ['free', 'B'], ['alloc', 'G', 200]] }
+  ];
+  let INIT = EXS[0].init, OPS = EXS[0].ops;
+  const NAMES = { first: 'Primeiro ajuste', best: 'Melhor ajuste', worst: 'Pior ajuste' };
+  const alg = $('#m-alg'), bar = $('#m-bar'), log = $('#m-log');
+  let B, oi, phase, pick, status, colorOf, nextName, busy = false, sc = 0;
+  const cIdx = n => { if (!(n in colorOf)) colorOf[n] = Object.keys(colorOf).length; return colorOf[n]; };
+  const holes = blocks => blocks.filter(b => b.n === null);
+  function merge(bs){ for (let i = 0; i < bs.length - 1;) { if (bs[i].n === null && bs[i + 1].n === null) { bs[i].z += bs[i + 1].z; bs.splice(i + 1, 1); } else i++; } }
+  function choose(bs, size, a){
+    const fit = holes(bs).filter(h => h.z >= size);
+    if (!fit.length) return null;
+    if (a === 'first') return fit[0];
+    if (a === 'best') return fit.reduce((m, h) => h.z < m.z ? h : m);
+    return fit.reduce((m, h) => h.z > m.z ? h : m);
+  }
+  function place(bs, h, name, size){
+    const i = bs.indexOf(h);
+    if (h.z === size) { h.n = name; return h; }
+    const nb = { s: h.s, z: size, n: name };
+    h.s += size; h.z -= size; bs.splice(i, 0, nb); return nb;
+  }
+  const freeTotal = bs => holes(bs).reduce((a, h) => a + h.z, 0);
+  const biggest = bs => Math.max(0, ...holes(bs).map(h => h.z));
+  function reset(){
+    sc = 0;
+    INIT = EXS[+$('#m-ex').value].init; OPS = EXS[+$('#m-ex').value].ops;
+    B = INIT.map(b => ({ ...b })); oi = 0; phase = 0; pick = null; status = OPS.map(() => ''); colorOf = {}; busy = false;
+    const used = INIT.filter(b => b.n && !b.os).map(b => b.n).concat(OPS.map(o => o[1]));
+    used.forEach(cIdx);
+    nextName = String.fromCharCode(Math.max(...used.map(n => n.charCodeAt(0))) + 1);
+    bar.innerHTML = ''; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Passo.</li>'; $('#m-res').innerHTML = '';
+    render();
+  }
+  function render(marks = {}){
+    const keep = new Set();
+    B.forEach(b => {
+      const key = b.n ? 'n-' + b.n : 'h-' + b.s; keep.add(key);
+      let el = bar.querySelector(`[data-k="${key}"]`);
+      if (!el) { el = document.createElement('div'); el.dataset.k = key; if (b.n && !b.os && marks.newName === b.n) el.classList.add('new'); bar.append(el); }
+      el.className = 'seg' + (b.os ? ' os' : b.n ? '' : ' hole') + (marks[b.s] ? ' ' + marks[b.s] : '') + (el.classList.contains('new') ? ' new' : '');
+      el.style.left = b.s / 10 + '%'; el.style.width = b.z / 10 + '%';
+      if (b.n && !b.os) { el.style.background = COL(colorOf[b.n] ?? cIdx(b.n)); el.title = `Programa ${b.n}: ${b.z} KB. Clica para o terminar.`; }
+      else { el.style.background = ''; el.title = b.os ? 'Núcleo do SO' : `Buraco livre de ${b.z} KB`; }
+      el.innerHTML = b.z >= 60 ? `${b.n ? esc(b.n) : 'livre'}<small>${b.z} KB</small>` : (b.n ? esc(b.n) : '');
+    });
+    bar.querySelectorAll('.seg').forEach(el => { if (!keep.has(el.dataset.k)) el.remove(); });
+    const pts = [...new Set(B.map(b => b.s).concat([1000]))];
+    $('#m-addr').innerHTML = pts.map(p => `<span style="left:${p / 10}%">${p}</span>`).join('');
+    $('#m-reqs').innerHTML = OPS.map((o, j) => `<span class="op ${j === oi && oi < OPS.length ? 'cur' : ''} ${status[j]}">${o[0] === 'free' ? `${o[1]} termina` : `${o[1]} pede ${o[2]} KB`}${status[j] === 'fail' ? ' ✗' : status[j] === 'ok' ? ' ✓' : ''}</span>`).join('');
+    const hs = holes(B);
+    $('#m-stats').innerHTML = `<div class="stat">Memória livre<b>${freeTotal(B)} KB</b></div><div class="stat">Maior buraco<b>${biggest(B)} KB</b></div><div class="stat">Número de buracos<b>${hs.length}</b></div>`;
+  }
+  function explain(name, size){
+    const fits = holes(B).filter(h => h.z >= size), h = choose(B, size, alg.value);
+    const marks = {}; holes(B).forEach(x => marks[x.s] = x.z >= size ? 'fit' : 'nofit');
+    if (!h) {
+      const free = freeTotal(B);
+      return { h: null, marks, msg: free >= size
+        ? `<b>${name}</b> precisa de ${size} KB e nenhum buraco chega (o maior tem ${biggest(B)} KB), apesar de haver <b>${free} KB livres</b> no total. Isto é <b>fragmentação externa</b>! Experimenta «Compactar a memória».`
+        : `<b>${name}</b> precisa de ${size} KB, mas só há ${free} KB livres. Não há memória suficiente: o programa tem de esperar que outro termine.` };
+    }
+    marks[h.s] = 'pick';
+    const list = fits.map(x => x.z + ' KB').join(', ');
+    const why = alg.value === 'first' ? `percorre a memória desde o início e o primeiro buraco onde cabe começa em ${h.s} KB (${h.z} KB)`
+      : alg.value === 'best' ? `dos buracos onde cabe (${list}), escolhe o mais pequeno: ${h.z} KB`
+      : `dos buracos onde cabe (${list}), escolhe o maior: ${h.z} KB`;
+    return { h, marks, msg: `<b>${name}</b> precisa de ${size} KB. O ${NAMES[alg.value].toLowerCase()} ${why}. A verde, os buracos onde cabe; a vermelho, os que são pequenos demais.` };
+  }
+  function step(){
+    if (busy) return true;
+    if (oi >= OPS.length) return false;
+    sc++;
+    const op = OPS[oi];
+    if (op[0] === 'free') {
+      const b = B.find(x => x.n === op[1]);
+      if (b) { b.n = null; merge(B); }
+      logTo(log, [`<b>${op[1]}</b> terminou: os seus ${b ? b.z : ''} KB ficam livres. Se houver buracos vizinhos, juntam-se num só.`]);
+      status[oi] = 'ok'; oi++; render();
+    } else if (phase === 0) {
+      const r = explain(op[1], op[2]); logTo(log, [r.msg]);
+      if (!r.h) { status[oi] = 'fail'; oi++; render(r.marks); }
+      else { pick = r.h; phase = 1; render(r.marks); }
+    } else {
+      const nb = place(B, pick, op[1], op[2]); phase = 0;
+      logTo(log, [`<b>${op[1]}</b> fica a ocupar ${op[2]} KB a partir do endereço ${nb.s} KB.`]);
+      status[oi] = 'ok'; oi++; render({ newName: op[1] });
+    }
+    if (oi >= OPS.length && phase === 0) { logTo(log, ['Fim dos acontecimentos. Compara com as outras estratégias.']); return false; }
+    return true;
+  }
+  function manual(size){
+    if (busy) return;
+    if (!(size >= 10 && size <= 800)) { logTo(log, ['Indica um tamanho entre 10 e 800 KB.']); return; }
+    player.stop();
+    const name = nextName; nextName = String.fromCharCode(nextName.charCodeAt(0) + 1); if (nextName > 'Z') nextName = 'H';
+    const r = explain(name, size); logTo(log, [r.msg]); render(r.marks);
+    if (!r.h) return;
+    busy = true;
+    setTimeout(() => { place(B, r.h, name, size); busy = false; logTo(log, [`<b>${name}</b> foi colocado na memória.`]); render({ newName: name }); }, 1100);
+  }
+  $('#m-req').onclick = () => manual(parseInt($('#m-size').value, 10));
+  bar.addEventListener('click', e => {
+    const el = e.target.closest('.seg'); if (!el || busy || !el.dataset.k.startsWith('n-')) return;
+    const n = el.dataset.k.slice(2), b = B.find(x => x.n === n); if (!b || b.os) return;
+    player.stop(); b.n = null; merge(B); logTo(log, [`Terminaste <b>${esc(n)}</b>: ${b.z} KB ficam livres.`]); render();
+  });
+  $('#m-compact').onclick = () => {
+    if (busy) return; player.stop();
+    let at = 0; const procs = B.filter(b => b.n !== null); procs.forEach(b => { b.s = at; at += b.z; });
+    B = procs.concat(at < 1000 ? [{ s: at, z: 1000 - at, n: null }] : []);
+    logTo(log, [`<b>Compactação</b>: os programas foram copiados para o início da memória. Agora há um único buraco de ${1000 - at} KB. Durante a cópia, os programas ficaram parados.`]);
+    render();
+  };
+  $('#m-cmp').onclick = () => {
+    const rows = Object.keys(NAMES).map(a => {
+      const bs = INIT.map(b => ({ ...b }));
+      return { a, r: OPS.map(op => {
+        if (op[0] === 'free') { bs.find(x => x.n === op[1]).n = null; merge(bs); return '—'; }
+        const h = choose(bs, op[2], a);
+        if (!h) return freeTotal(bs) >= op[2] ? '<span style="color:var(--bad)">✗ fragmentação</span>' : '<span style="color:var(--bad)">✗ sem memória</span>';
+        return `✓ em ${place(bs, h, op[1], op[2]).s}`;
+      }) };
+    });
+    $('#m-res').innerHTML = `<h3>Comparação</h3><table><thead><tr><th>Estratégia</th>${OPS.map(o => `<th>${o[0] === 'free' ? o[1] + ' termina' : o[1] + ' (' + o[2] + ' KB)'}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr><td>${NAMES[r.a]}</td>${r.r.map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">Nenhuma estratégia é sempre a melhor: depende da ordem e do tamanho dos pedidos.</p>`;
+  };
+  const mark = algCards('#m-algs', alg);
+  alg.onchange = () => { mark(); player.stop(); reset(); };
+  $('#m-ex').onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('contigua', { step, reset, pos: () => sc });
+  reset();
+})();
+
+/* ================= 3. PAGINAÇÃO ================= */
+(() => {
+  let PS = 1024; const NP = 5, NF = 8;
+  let table, frames, steps, si;
+  const log = { el: $('#pg-calc') };
+  function exChips(){
+    const ex = [[0, 'o primeiro byte'], [PS - 1, 'o último da página 0'], [PS, 'o primeiro da página 1'], [2 * PS + Math.round(PS * .44), 'a meio da página 2'], [3 * PS + 28, 'uma página que está no disco'], [NP * PS + 80, 'fora do programa']];
+    $('#pg-ex').innerHTML = ex.map(([a, t]) => `<button class="btn ghost" style="padding:.3rem .6rem;font-size:.8rem" data-a="${a}" title="${t}">${a} <span style="font-weight:400;color:var(--muted)">(${t})</span></button>`).join('');
+  }
+  $('#pg-ex').addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; $('#pg-addr').value = b.dataset.a; go(); });
+  $('#pg-size').onchange = () => { PS = +$('#pg-size').value; $('#pg-addr').value = 2 * PS + Math.round(PS * .44); player.stop(); reset(); };
+  function reset(){
+    exChips();
+    table = [5, 2, 7, null, 0];
+    frames = Array.from({ length: NF }, (_, f) => { const p = table.indexOf(f); return p >= 0 ? { mine: p } : (f === 1 || f === 3) ? { other: true } : null; });
+    steps = []; si = 0; draw();
+    $('#pg-calc').innerHTML = '<span style="color:var(--muted)">Escreve um endereço e carrega em Traduzir.</span>';
+  }
+  function draw(hl = {}){
+    $('#pg-log').innerHTML = Array.from({ length: NP }, (_, p) => `<div class="cell mine${hl.page === p ? (table[p] === null && hl.miss ? ' miss' : ' on') : ''}"><span>Página ${p}</span><small>${p * PS}–${(p + 1) * PS - 1}</small>${hl.page === p && hl.off != null ? `<i class="mark" style="left:${hl.off / PS * 100}%"></i>` : ''}</div>`).join('');
+    $('#pg-tbl').innerHTML = table.map((f, p) => `<tr class="${hl.row === p ? (f === null ? 'miss' : 'on') : ''}"><td>${p}</td><td>${f === null ? '—' : f}</td><td>${f === null ? 'não (disco)' : 'sim'}</td></tr>`).join('');
+    $('#pg-phy').innerHTML = frames.map((x, f) => `<div class="cell ${x ? (x.other ? 'other' : 'mine') : ''}${hl.frame === f ? ' on' : ''}"><span>Moldura ${f}${x ? (x.other ? ' · outro programa' : ` · página ${x.mine}`) : ' · livre'}</span><small>${f * PS}–${(f + 1) * PS - 1}</small>${hl.frame === f && hl.off != null ? `<i class="mark" style="left:${hl.off / PS * 100}%"></i>` : ''}</div>`).join('');
+  }
+  function plan(addr){
+    const out = [];
+    if (!(addr >= 0) || addr >= NP * PS) {
+      out.push(() => { draw(); return `<div>O programa só tem ${NP} páginas: endereços de 0 a ${NP * PS - 1}.</div><div class="err">O endereço ${addr} está fora do programa: erro de segmentação. O SO termina o programa.</div>`; });
+      return out;
+    }
+    const p = Math.floor(addr / PS), off = addr % PS;
+    table0 = table.slice(); frames0 = frames.map(x => x && { ...x });
+    let txt = '';
+    out.push(() => { txt = `<div>Página = ⌊${addr} ÷ ${PS}⌋ = <b>${p}</b></div><div>Deslocamento = ${addr} − ${p} × ${PS} = <b>${off}</b></div>`; draw({ page: p, off }); return txt; });
+    out.push(() => {
+      if (table[p] === null) { txt += `<div class="err">A página ${p} não está na RAM: falta de página!</div>`; draw({ page: p, off, row: p, miss: true }); return txt; }
+      txt += `<div>Tabela de páginas: a página ${p} está na <b>moldura ${table[p]}</b>.</div>`; draw({ page: p, off, row: p }); return txt;
+    });
+    if (table[p] === null) out.push(() => {
+      const f = frames.findIndex(x => x === null);
+      table[p] = f; frames[f] = { mine: p };
+      txt += `<div>O SO vai buscar a página ${p} ao disco e coloca-a na moldura livre ${f}. Depois atualiza a tabela.</div>`; draw({ page: p, off, row: p, frame: f }); return txt;
+    });
+    out.push(() => {
+      const f = table[p];
+      txt += `<div class="res">Endereço físico = ${f} × ${PS} + ${off} = ${f * PS + off}</div>`; draw({ page: p, off, row: p, frame: f }); return txt;
+    });
+    return out;
+  }
+  function step(){ if (si >= steps.length) return false; $('#pg-calc').innerHTML = steps[si](); si++; return si < steps.length; }
+  let lastAddr = null;
+  function go(){ const a = parseInt($('#pg-addr').value, 10); lastAddr = isNaN(a) ? -1 : a; steps = plan(lastAddr); si = 0; $('#pg-calc').innerHTML = ''; player.start(); }
+  function rewind(){ table = table0.slice(); frames = frames0.map(x => x && { ...x }); steps = plan(lastAddr); si = 0; $('#pg-calc').innerHTML = ''; draw(); }
+  let table0, frames0;
+  $('#pg-go').onclick = go;
+  $('#pg-addr').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  $('#pg-rnd').onclick = () => { $('#pg-addr').value = Math.floor(Math.random() * NP * PS); go(); };
+  const player = makePlayer('paginas', { step: () => { if (!steps.length) { go(); return true; } return step(); }, reset, rewind, pos: () => si });
+  reset();
+})();
+
+/* ================= 4. MEMÓRIA VIRTUAL ================= */
+(() => {
+  const NAMES = { fifo: 'FIFO', lru: 'LRU', opt: 'Ótimo' };
+  const alg = $('#v-alg'), log = $('#v-log');
+  let R, F, S, k;
+  function parse(){ return ($('#v-refs').value.match(/\d+/g) || []).map(Number).filter(x => x < 100).slice(0, 30); }
+  function sim(refs, F, a){
+    const slots = Array(F).fill(null), loadT = Array(F).fill(-1), lastU = {}, out = [];
+    refs.forEach((pg, t) => {
+      const at = slots.indexOf(pg);
+      if (at >= 0) { lastU[pg] = t; out.push({ pg, hit: true, slot: at, slots: slots.slice() }); return; }
+      let v = slots.indexOf(null), victim = null, why = '';
+      if (v < 0) {
+        if (a === 'fifo') { v = loadT.indexOf(Math.min(...loadT)); why = 'é a que entrou há mais tempo'; }
+        else if (a === 'lru') { v = slots.reduce((b, p, i) => lastU[p] < lastU[slots[b]] ? i : b, 0); why = 'é a que não é usada há mais tempo'; }
+        else {
+          const next = slots.map(p => { const n = refs.indexOf(p, t + 1); return n < 0 ? Infinity : n; });
+          v = next.indexOf(Math.max(...next));
+          why = next[v] === Infinity ? 'não volta a ser pedida' : `só volta a ser pedida mais tarde (no pedido ${next[v] + 1})`;
+        }
+        victim = slots[v];
+      }
+      slots[v] = pg; loadT[v] = t; lastU[pg] = t;
+      out.push({ pg, hit: false, slot: v, victim, why, slots: slots.slice() });
+    });
+    return out;
+  }
+  const faults = s => s.filter(x => !x.hit).length;
+  function reset(){
+    R = parse(); F = Math.min(6, Math.max(1, parseInt($('#v-frames').value, 10) || 3)); $('#v-frames').value = F;
+    S = sim(R, F, alg.value); k = 0;
+    log.innerHTML = `<li class="empty">${NAMES[alg.value]} com ${F} ${F === 1 ? 'moldura' : 'molduras'}. Carrega em Reproduzir ou em Passo.</li>`;
+    draw();
+  }
+  function draw(){
+    let h = `<tr><td class="lbl">Pedido</td>${R.map((p, t) => `<th class="${t === k - 1 ? 'cur' : ''}">${p}</th>`).join('')}</tr>`;
+    for (let f = 0; f < F; f++) h += `<tr><td class="lbl">Moldura ${f}</td>${S.map((s, t) => { const v = s.slots[f]; const cls = t >= k ? 'hide' : (s.slot === f ? (s.hit ? 'hitc' : 'in') : ''); return `<td class="${cls}">${v === null ? '' : v}</td>`; }).join('')}</tr>`;
+    h += `<tr><td class="lbl">Resultado</td>${S.map((s, t) => `<td class="res ${t >= k ? 'hide' : s.hit ? 'h' : 'f'}">${s.hit ? '✓' : 'F'}</td>`).join('')}</tr>`;
+    $('#v-grid').innerHTML = h;
+    const done = S.slice(0, k), fl = faults(done);
+    $('#v-stats').innerHTML = `<div class="stat">Faltas de página<b>${fl}</b></div><div class="stat">Acertos<b>${done.length - fl}</b></div><div class="stat">Taxa de faltas<b>${done.length ? fmt(fl / done.length * 100) + '%' : '–'}</b></div>`;
+  }
+  function step(){
+    if (k >= S.length) return false;
+    const s = S[k];
+    const m = s.hit ? `Página <b>${s.pg}</b>: já está na RAM, na moldura ${s.slot}. <b>Acerto!</b>`
+      : s.victim === null ? `Página <b>${s.pg}</b>: não está na RAM, <b>falta de página</b>. Há uma moldura livre, por isso entra na moldura ${s.slot}.`
+      : `Página <b>${s.pg}</b>: <b>falta de página</b> e a RAM está cheia. O ${NAMES[alg.value]} tira a página <b>${s.victim}</b>, porque ${s.why}. A página ${s.pg} entra na moldura ${s.slot}.`;
+    k++; logTo(log, [m], k + '.'); draw();
+    if (k >= S.length) { logTo(log, [`Fim: ${faults(S)} faltas de página em ${S.length} pedidos.`]); return false; }
+    return true;
+  }
+  function compare(note){
+    const cols = [1, 2, 3, 4, 5, 6];
+    const rows = Object.keys(NAMES).map(a => ({ a, f: cols.map(c => faults(sim(R, c, a))) }));
+    $('#v-res').innerHTML = `<h3>Faltas de página com esta sequência</h3><table><thead><tr><th>Algoritmo</th>${cols.map(c => `<th>${c} ${c === 1 ? 'moldura' : 'molduras'}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr><td>${NAMES[r.a]}</td>${r.f.map((x, i) => `<td class="${x === Math.min(...rows.map(y => y.f[i])) ? 'best' : ''}${cols[i] === F ? '' : ''}">${x}</td>`).join('')}</tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">${note || 'A verde, o menor número de faltas. Repara que, com mais molduras, há normalmente menos faltas.'}</p>`;
+  }
+  $('#v-cmp').onclick = () => { R = parse(); compare(); };
+  $('#v-belady').onclick = () => {
+    $('#v-refs').value = '1 2 3 4 1 2 5 1 2 3 4 5'; alg.value = 'fifo'; $('#v-frames').value = 3; alg.onchange();
+    const f3 = faults(sim(R, 3, 'fifo')), f4 = faults(sim(R, 4, 'fifo'));
+    compare(`<b>Anomalia de Belady:</b> com FIFO, 3 molduras dão ${f3} faltas e 4 molduras dão ${f4}. Mais memória, mais faltas! Com LRU e com o Ótimo isto nunca acontece. Experimenta mudar para 4 molduras e ver passo a passo.`);
+  };
+  const mark = algCards('#v-algs', alg);
+  alg.onchange = () => { mark(); player.stop(); reset(); };
+  $('#v-ex').onchange = () => { $('#v-refs').value = $('#v-ex').value; player.stop(); reset(); $('#v-res').innerHTML = ''; };
+  ['#v-frames', '#v-refs'].forEach(s => $(s).addEventListener('change', () => { player.stop(); reset(); $('#v-res').innerHTML = ''; }));
+  const player = makePlayer('virtual', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 5. TESTA-TE ================= */
+(() => {
+  const Q = [
+    { q: 'O que é uma chamada ao sistema?', o: ['Um telefonema para o apoio técnico', 'Um pedido que um programa faz ao núcleo', 'Uma mensagem de erro', 'Um programa que corre no arranque'], c: 1, e: 'É a forma de um programa pedir ao núcleo um serviço que não pode fazer sozinho, como ler um ficheiro ou criar um processo.' },
+    { q: 'Um programa em modo utilizador tenta aceder diretamente ao disco. O que acontece?', o: ['Consegue, mas fica mais lento', 'O processador gera uma exceção e o núcleo intervém', 'O disco formata-se', 'O programa passa para modo núcleo sozinho'], c: 1, e: 'O processador bloqueia a instrução e passa o controlo ao núcleo, que normalmente termina o programa. É assim que o SO se protege.' },
+    { q: 'Há 300 KB livres em três buracos de 100 KB, e um programa de 200 KB não cabe. Como se chama este problema?', o: ['Fragmentação interna', 'Falta de página', 'Fragmentação externa', 'Impasse'], c: 2, e: 'A memória livre chega, mas está dividida em buracos pequenos. A compactação ou a paginação resolvem o problema.' },
+    { q: 'Com páginas de 1024 bytes, o endereço lógico 3100 fica em que página, e com que deslocamento?', o: ['Página 3, deslocamento 28', 'Página 2, deslocamento 1052', 'Página 3, deslocamento 100', 'Página 31, deslocamento 0'], c: 0, e: '3100 ÷ 1024 = 3 (parte inteira); 3100 − 3 × 1024 = 28.' },
+    { q: 'O que é uma falta de página?', o: ['A página pedida não está na RAM', 'A RAM avariou', 'O programa tem páginas a menos', 'A tabela de páginas está vazia'], c: 0, e: 'A página está no disco. O SO tem de a ir buscar e, se a RAM estiver cheia, tirar outra página para lhe dar lugar.' },
+    { q: 'Que algoritmo de substituição dá sempre o menor número de faltas, mas não se pode usar na prática?', o: ['FIFO', 'LRU', 'Ótimo', 'Round Robin'], c: 2, e: 'O Ótimo precisa de saber o futuro (que páginas vão ser pedidas). Serve de referência para avaliar os outros.' }
+  ];
+  const ans = {};
+  /* Baralha a ordem das opções de cada pergunta (de novo em cada tentativa) */
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let ord = Q.map(x => shuffle(x.o.map((_, j) => j)));
+  function draw(){
+    const n = Object.keys(ans).length, right = Object.keys(ans).filter(i => ans[i] === Q[i].c).length;
+    $('#quiz').innerHTML = (n ? `<p class="score">Acertaste ${right} de ${Q.length}${n < Q.length ? ` (respondeste a ${n})` : ''}.</p>` : '')
+      + Q.map((x, i) => `<fieldset class="q"><legend>${i + 1}. ${x.q}</legend>${ord[i].map(j => `<label class="${i in ans ? (j === x.c ? 'right' : j === ans[i] ? 'wrong' : '') : ''}"><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? ' checked' : ''}${i in ans ? ' disabled' : ''}><span>${x.o[j]}</span></label>`).join('')}${i in ans ? `<p class="fb"><b>${ans[i] === x.c ? 'Certo!' : 'Ainda não.'}</b> ${x.e}</p>` : ''}</fieldset>`).join('')
+      + (n === Q.length ? '<button class="btn" id="qz-again">Responder de novo</button>' : '');
+    const again = $('#qz-again'); if (again) again.onclick = () => { Object.keys(ans).forEach(k => delete ans[k]); ord = Q.map(x => shuffle(x.o.map((_, j) => j))); draw(); };
+  }
+  $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
