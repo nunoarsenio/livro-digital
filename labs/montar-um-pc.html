@@ -616,7 +616,15 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
 @keyframes cpush{0%{transform:scale(1.3);opacity:.2}72%{transform:scale(1);opacity:.38}100%{transform:scale(1);opacity:.38}}
 .iso .cpuguide{animation:cpuguide 2s ease-out forwards}
 @keyframes cpuguide{0%,60%{opacity:.85}100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.iso .cpudrop,.iso .cpush,.iso .cpuguide{animation:none}}
+.iso .cooldrop{animation:cooldrop 1.6s cubic-bezier(.5,.05,.3,1) forwards}
+@keyframes cooldrop{0%{transform:translateY(-128px)}78%{transform:translateY(0)}86%{transform:translateY(-4px)}100%{transform:translateY(0)}}
+.iso .coolsh{animation:coolsh 1.6s cubic-bezier(.5,.05,.3,1) forwards;transform-box:fill-box;transform-origin:center}
+@keyframes coolsh{0%{transform:scale(1.35);opacity:.14}78%{transform:scale(1);opacity:.34}100%{transform:scale(1);opacity:.34}}
+.iso .pasteIn{animation:pasteIn .8s cubic-bezier(.3,1.4,.5,1) forwards;transform-box:fill-box;transform-origin:center}
+@keyframes pasteIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.iso .bfan{transform-box:fill-box;transform-origin:center}
+.iso .bfan.run{animation:fan 1s linear infinite}
+@media (prefers-reduced-motion:reduce){.iso .cpudrop,.iso .cpush,.iso .cpuguide,.iso .cooldrop,.iso .coolsh,.iso .pasteIn{animation:none}}
 .mb .hl{fill:none;stroke:#ffd84d;stroke-width:4;opacity:0;transition:opacity .3s;pointer-events:none}
 .mb .hl.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.45}}
@@ -1969,8 +1977,38 @@ pcDraw();
         extra += `<path d="M${a[0]} ${a[1] + 18} L${b2[0]} ${b2[1] - 10}" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 6" fill="none"><animate attributeName="stroke-dashoffset" values="26;0" dur=".8s" repeatCount="indefinite"/></path><path d="M${b2[0] - 6} ${b2[1] - 16} l6 8 l6 -8" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }
     }
     /* etiquetas próprias do grande plano */
+    /* ---- pasta térmica ---- */
+    if (st.paste || st.coolerAnim || st.coolerDown) {
+      const p = P3(so.x + so.w / 2, so.y + so.h / 2, 21);
+      if (!st.coolerDown) extra += `<g class="${st.paste ? 'pasteIn' : ''}"><ellipse cx="${p[0]}" cy="${p[1] - 3}" rx="11" ry="7" fill="#eef2f6" stroke="#cbd5e1"/><ellipse cx="${p[0] - 3}" cy="${p[1] - 5}" rx="4" ry="2.4" fill="#fff" opacity=".8"/></g>`;
+    }
+    /* ---- cooler em 3D ---- */
+    if (st.coolerAnim || st.coolerDown) {
+      const ZB = 22, ZT = 150, cx2 = so.x + so.w / 2, cy2 = so.y + so.h / 2, W2 = so.w + 30, D2 = so.h + 30;
+      const x0 = cx2 - W2 / 2, y0 = cy2 - D2 / 2;
+      const put = [];
+      put.push(ISO.box(x0 + 12, y0 + 12, W2 - 24, D2 - 24, 7, '#7d8794', { z: ZB, topFill: '#99a3b0' }));
+      for (let i = 0; i < 17; i++) { const fx = x0 + 10 + i * ((W2 - 20) / 17);
+        put.push(ISO.box(fx, y0 + 8, 4.2, D2 - 16, 42, '#aeb6c1', { z: ZB + 7, topFill: '#dfe4ea' })); }
+      [[x0 + 2, y0 + 2], [x0 + W2 - 12, y0 + 2], [x0 + 2, y0 + D2 - 12], [x0 + W2 - 12, y0 + D2 - 12]].forEach(([fx, fy]) =>
+        put.push(ISO.box(fx, fy, 10, 10, ZB + 6, '#5b6472', { topFill: '#8e98a5' })));
+      put.sort((a, b2) => a.d - b2.d);
+      let cool = put.map(o => o.svg).join('');
+      /* ventoinha no topo */
+      const fr = (so.w + 6) / 2;
+      cool += `<g transform="${ISO.plane(ZB + 50)}"><g transform="translate(${cx2} ${cy2})"><circle r="${fr}" fill="#11151a" stroke="#39414c" stroke-width="2"/><g class="bfan${st.coolerDown ? ' run' : ''}">${Array.from({ length: 9 }, (_, i) => `<path d="M${fr * .2} ${-fr * .06} C ${fr * .52} ${-fr * .1}, ${fr * .84} ${-fr * .36}, ${fr * .7} ${-fr * .78} C ${fr * .5} ${-fr * .92}, ${fr * .26} ${-fr * .64}, ${fr * .12} ${-fr * .24} Z" fill="${i % 2 ? '#78828f' : '#6b7686'}" stroke="#2b3038" stroke-width=".4" transform="rotate(${i * 40})"/>`).join('')}</g><circle r="${fr * .24}" fill="#1b2027" stroke="#49525d"/><circle r="${fr * .17}" fill="#8e98a5"/></g></g>`;
+      const dz = st.coolerAnim ? -(ZT - ZB) : 0;
+      const sh2 = P3(cx2, cy2, 6);
+      extra += `<ellipse class="${st.coolerAnim ? 'coolsh' : ''}" cx="${sh2[0]}" cy="${sh2[1]}" rx="${(so.w + 40) * .62}" ry="${(so.h + 40) * .36}" fill="#000" opacity="${st.coolerAnim ? .18 : .34}"/>`;
+      extra += `<g class="${st.coolerAnim ? 'cooldrop' : ''}" transform="translate(0 ${st.coolerAnim ? dz : 0})">${cool}</g>`;
+      if (st.coolerDown && st.cfan) { const cf = R('cpufan'), a = P3(cx2 + so.w / 2 + 6, cy2 - 10, ZB + 20), c = P3(cf.x + cf.w / 2, cf.y + cf.h / 2, 12);
+        extra += `<path d="M${a[0]} ${a[1]} C ${a[0] + 60} ${a[1] - 30}, ${c[0] - 30} ${c[1] + 40}, ${c[0]} ${c[1]}" stroke="#6b7280" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/><path d="M${a[0]} ${a[1]} C ${a[0] + 60} ${a[1] - 30}, ${c[0] - 30} ${c[1] + 40}, ${c[0]} ${c[1]}" stroke="#f3f5f8" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="${c[0]}" cy="${c[1]}" r="5" fill="#e8ecf1" stroke="#9aa3ae"/>`; }
+    }
     let lbl = '';
-    const L = [[so.x + so.w + 8, so.y + so.h * .72, 'alavanca de retenção', 1, 40], [so.x + so.w * .5, so.y + so.h - 6, 'contactos do socket (LGA)', 1, 150], [so.x + 6, so.y + 6, 'moldura metálica (ILM)', -1, -70], [so.x + 14, so.y + so.h - 14, 'triângulo de referência', -1, 40]];
+    const L = st.coolerAnim || st.coolerDown
+      ? [[so.x + so.w * .5, so.y - 10, 'alhetas de alumínio', -1, -60], [so.x + so.w + 6, so.y + so.h * .4, 'ventoinha do cooler', 1, -30], [so.x + 4, so.y + so.h - 8, 'parafusos de fixação', -1, 60]]
+      : st.paste ? [[so.x + so.w * .5, so.y + so.h * .5, 'pasta térmica: uma gota central', 1, -90], [so.x + 6, so.y + 6, 'tampa do processador (IHS)', -1, -60]]
+      : [[so.x + so.w + 8, so.y + so.h * .72, 'alavanca de retenção', 1, 40], [so.x + so.w * .5, so.y + so.h - 6, 'contactos do socket (LGA)', 1, 150], [so.x + 6, so.y + 6, 'moldura metálica (ILM)', -1, -70], [so.x + 14, so.y + so.h - 14, 'triângulo de referência', -1, 40]];
     L.forEach(([x, y, t, side, dy]) => { const q = P3(x, y, 10), dx = side * 190, w = t.length * 6.6 + 16;
       const ex = q[0] + dx, ey = q[1] + dy;
       lbl += `<g class="cl"><polyline points="${q[0]},${q[1]} ${q[0] + dx * .45},${q[1] + dy * .7} ${ex},${ey}"/><circle cx="${q[0]}" cy="${q[1]}" r="3.5"/><rect x="${side > 0 ? ex + 4 : ex - w - 4}" y="${ey - 11}" width="${w}" height="21" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="${ex + (side > 0 ? 12 : -12)}" y="${ey + 4}" text-anchor="${side > 0 ? 'start' : 'end'}">${t}</text></g>`; });
@@ -1978,6 +2016,7 @@ pcDraw();
     /* enquadramento: a câmara aproxima-se do socket */
     const corners = [[so.x - 44, so.y - 44], [so.x + so.w + 70, so.y - 44], [so.x + so.w + 70, so.y + so.h + 44], [so.x - 44, so.y + so.h + 44]];
     let ps = corners.map(([x, y]) => P3(x, y, 0)).concat(corners.map(([x, y]) => P3(x, y, 150)));
+    if (st.coolerAnim) ps = ps.concat([P3(so.x - 20, so.y - 20, 200), P3(so.x + so.w + 20, so.y + so.h + 20, 200)]);
     if (st.openILM) {                       /* a moldura levantada tem de caber no enquadramento */
       const d2 = so.w + 4, fx2 = so.x - 2 - d2 * Math.cos(52 * Math.PI / 180), fz2 = 10 + d2 * Math.sin(52 * Math.PI / 180);
       ps = ps.concat([P3(fx2, so.y - 2, fz2), P3(fx2, so.y + so.h + 2, fz2), P3(so.x + so.w + 62, so.y - 10, 46)]);
@@ -2009,7 +2048,10 @@ pcDraw();
     ['Bancada', '1 min', 'Assentar o processador', { zoom: 1, openILM: 1, cpuAnim: 1 }, 'O processador <b>desce a direito</b> e entra sozinho, guiado pelas duas chaves laterais. Repara nas guias vermelhas: os quatro cantos descem ao mesmo tempo, sem inclinar. Se não assentar, levanta-o e verifica a orientação em vez de forçar.', 'socket'],
     ['Bancada', '1 min', 'Fechar o socket', { zoom: 1, openILM: 1, cpuDown: 1, closeAnim: 1 }, 'Baixa a <b>moldura de retenção</b> sobre as bordas do processador e prende a <b>alavanca no gancho</b>. Sente-se alguma resistência: é normal, é a força que garante o contacto nos 1700 pontos. A tampa de proteção salta sozinha.', 'socket'],
     ['Bancada', '0 min', 'Processador instalado', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
-    ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
+    ['Bancada', '1 min', 'Aplicar a pasta térmica', { zoom: 1, cpuDown: 1, paste: 1 }, 'Uma <b>gota central do tamanho de uma ervilha</b>, no meio da tampa do processador. A pressão do cooler espalha-a sozinha. Pasta a mais escorre para os lados; a menos deixa bolhas de ar.', 'socket'],
+    ['Bancada', '2 min', 'Baixar o cooler', { zoom: 1, cpuDown: 1, coolerAnim: 1 }, 'O cooler desce <b>a direito</b> sobre o processador, sem o arrastar: arrastá-lo espalha mal a pasta e deixa zonas sem contacto. As quatro patas vão aos furos da placa.', 'socket'],
+    ['Bancada', '3 min', 'Apertar em cruz e ligar a ventoinha', { zoom: 1, cpuDown: 1, coolerDown: 1, cfan: 1 }, 'Aperta os parafusos <b>em cruz</b>, um pouco de cada vez, para a pressão ficar uniforme. Depois liga a ficha ao conector <b>CPU_FAN</b>: sem ela, muitas placas recusam arrancar e o processador sobreaquece.', 'socket'],
+    ['Bancada', '0 min', 'Cooler instalado', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
     ['Bancada', '5 min', 'Montar o cooler e ligar a ventoinha', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1 }, 'Assenta o cooler a direito, sem o arrastar, e aperta os parafusos <b>em cruz</b>, um pouco de cada vez. Liga a ficha da ventoinha ao <b>CPU_FAN</b>: muitas placas recusam arrancar sem ela.', 'socket'],
     ['Bancada', '2 min', 'Instalar a memória', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1, ram: 1 }, 'Abre as patilhas, alinha o <b>entalhe</b> e carrega nas duas pontas até ouvires o clique dos dois lados. Com dois módulos, usa as ranhuras que o manual indica para ativares o <b>dual channel</b>.', 'ram'],
     ['Bancada', '3 min', 'Instalar o SSD M.2', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1, ram: 1, ssd: 1 }, 'Retira o dissipador do M.2, encaixa o SSD a cerca de 30° e baixa-o até ao suporte. Aperta o parafuso ou fecha o trinco, e não te esqueças de tirar a película da almofada térmica.', 'm2'],
@@ -2036,7 +2078,7 @@ pcDraw();
     $('#bd-vwrap').style.display = bare ? '' : 'none';
     $('#bd-rot').style.display = v3 || st.zoom ? '' : 'none';
     let h = '';
-    $('#bd-replay').hidden = !(st.cpuAnim || st.closeAnim);
+    $('#bd-replay').hidden = !(st.cpuAnim || st.closeAnim || st.coolerAnim);
     if (st.zoom) { closeup(st, true); h = null; }
     else if (st.iso) h = ISOC.draw(st.iso);
     else if (v3) { svg.classList.add('iso'); svg.classList.remove('nolbl'); ISO.render(svg, 'i3-'); h = null; }
