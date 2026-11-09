@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrada e saída de dados · Laboratório animado</title>
+<style>
+:root{
+  --head:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,Menlo,monospace;
+  --bg:#EEF1F7; --card:#FFFFFF; --ink:#172033; --muted:#5A6577; --line:#D8DEE9; --soft:#F5F7FB;
+  --accent:#2F5BD3; --on-accent:#FFFFFF; --good:#1E8A5A; --good-soft:#E3F4EB; --bad:#C8402B; --bad-soft:#FCE8E4; --warn-soft:#FFF4D6;
+  --p1:#2F6FED; --p2:#E0533D; --p3:#1E9E6A; --p4:#C98A00; --p5:#8B5CF6; --p6:#0E9AA7;
+  --arrow:#9AA6B8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F141C; --card:#171E29; --ink:#E3E8F0; --muted:#97A3B6; --line:#2A3443; --soft:#1D2531;
+    --accent:#7FA2FF; --on-accent:#0F141C; --good:#5CCB92; --good-soft:rgba(92,203,146,.14); --bad:#F07C68; --bad-soft:rgba(240,124,104,.15); --warn-soft:rgba(255,196,64,.14);
+    --p1:#5B8EFF; --p2:#F07560; --p3:#3DC08A; --p4:#E5AA2B; --p5:#A585FF; --p6:#2CC0CC;
+    --arrow:#5E6B7E;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 1.5rem 0;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:.9rem;max-width:80rem;margin:0 auto}
+.chipico{width:44px;height:44px;flex:none}
+.brand h1{font:700 1.45rem/1.15 var(--head);margin:0;letter-spacing:.01em}
+.brand p{margin:.1rem 0 0;color:var(--muted);font-size:.9rem}
+.tabs{display:flex;gap:.25rem;max-width:80rem;margin:.8rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.6rem .9rem .7rem;border-bottom:3px solid transparent;font:600 .95rem var(--ui);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button span{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--soft);font-size:.78rem;margin-right:.4rem;color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button[aria-selected="true"] span{background:var(--accent);color:var(--on-accent)}
+
+main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
+.intro{margin:0 0 1.2rem;max-width:52rem}
+.intro h2{font:700 1.35rem/1.25 var(--head);margin:0 0 .35rem}
+.intro p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.2rem;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{font:700 1rem var(--head);margin:0 0 .6rem;letter-spacing:.01em}
+.side .card+.card{margin-top:1rem}
+.side ul{margin:.2rem 0 0;padding-left:1.1rem}
+.side li{margin:.35rem 0;font-size:.93rem}
+.side p{font-size:.93rem;margin:.3rem 0}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:600 .9rem var(--ui);padding:.5rem .95rem;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.speed{display:flex;align-items:center;gap:.4rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.speed input{accent-color:var(--accent);width:7rem}
+.clock{font:600 .9rem var(--mono);background:var(--soft);border-radius:6px;padding:.3rem .6rem}
+
+.log,.side .log{list-style:none;margin:0;padding:0;max-height:16rem;overflow:auto;font-size:.88rem}
+.log li{padding:.45rem 0;border-bottom:1px solid var(--line);display:flex;gap:.6rem}
+.log li:first-child{font-weight:600}
+.log time{font:600 .8rem var(--mono);color:var(--muted);flex:none;min-width:2.6rem;padding-top:.1rem}
+.log .empty{color:var(--muted);font-style:italic}
+
+.pchip{display:inline-flex;align-items:center;justify-content:center;min-width:2.1rem;height:1.6rem;padding:0 .45rem;border-radius:999px;color:#fff;font:700 .78rem var(--mono)}
+
+/* 1. Estados */
+.stage{position:relative;width:100%;aspect-ratio:2/1;background:var(--soft);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.sbox{fill:var(--card);stroke:var(--line);stroke-width:2}
+.sbox.exec{stroke:var(--accent);stroke-width:3}
+.stitle{font:700 22px var(--head);fill:var(--ink)}
+.ssub{font:500 15px var(--ui);fill:var(--muted)}
+.arr{fill:none;stroke:var(--arrow);stroke-width:3;transition:stroke .25s}
+.arr.on{stroke:var(--accent);stroke-width:5}
+.alab{font:600 15px var(--ui);fill:var(--muted)}
+.alab.on{fill:var(--accent)}
+.tok{position:absolute;width:4.4%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 clamp(.6rem,1.4vw,.9rem) var(--mono);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),opacity .4s,transform .3s}
+.tok.out{opacity:0;transform:scale(.4)}
+.tok.run{transform:scale(1.2);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--c)}
+.ptable{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.9rem}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:.8rem;padding:.3rem .4rem;border-bottom:1px solid var(--line)}
+.ptable td{padding:.45rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.ph{display:inline-block;padding:.15rem .5rem;border-radius:5px;font:600 .78rem var(--mono);margin:.1rem .2rem .1rem 0;background:var(--soft);border:1px solid var(--line)}
+.ph.cur{background:var(--warn-soft);border-color:var(--p4)}
+.ph.done{opacity:.4;text-decoration:line-through}
+.stlab{font-size:.82rem;font-weight:600}
+
+/* 2. Escalonamento */
+.cfg{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem}
+.cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.82rem;font-weight:600;color:var(--muted)}
+.cfg select,.cfg input{padding:.45rem .55rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.ptab input{width:4.2rem;padding:.3rem .4rem;border:1px solid var(--line);border-radius:6px;background:var(--soft);text-align:center}
+.ptab td,.ptab th{padding:.3rem .4rem}
+.ptab .rm{border:0;background:none;color:var(--bad);cursor:pointer;font-size:1.1rem}
+.cpu-row{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:1rem;align-items:center;margin:1.2rem 0}
+.cpu{border:3px solid var(--accent);border-radius:12px;height:6.2rem;display:grid;place-items:center;text-align:center;background:var(--card);position:relative}
+.cpu small{position:absolute;top:.35rem;left:0;right:0;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.cpu .big{font:700 1.6rem var(--mono);margin-top:.6rem}
+.queue{border:2px dashed var(--line);border-radius:12px;min-height:6.2rem;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:relative}
+.queue::before{content:"Fila dos prontos";position:absolute;top:.35rem;left:.7rem;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.queue .pchip{margin-top:1rem;height:2.2rem;min-width:2.8rem;font-size:.9rem;animation:pop .3s}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:grid;gap:2px;min-width:30rem}
+.gcell{height:2.6rem;background:var(--soft);border-radius:3px;display:flex;align-items:center;padding-left:.3rem;color:#fff;font:700 .78rem var(--mono);transition:background .2s}
+.gaxis{display:grid;gap:2px;min-width:30rem;font:500 .7rem var(--mono);color:var(--muted)}
+.gaxis span{text-align:left}
+.results{margin-top:1.2rem;overflow-x:auto}
+.results table{border-collapse:collapse;width:100%;font-size:.9rem}
+.results th,.results td{padding:.4rem .6rem;border-bottom:1px solid var(--line);text-align:center}
+.results th{font-size:.8rem;color:var(--muted)}
+.results tfoot td{font-weight:700}
+.best{background:var(--good-soft);font-weight:700}
+
+.alg{padding:.7rem .8rem;border-radius:9px;margin:0 -.4rem .3rem;cursor:pointer;transition:background .2s}
+.alg:hover{background:var(--soft)}
+.alg.on{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--p4)}
+.alg h4{margin:0 0 .3rem;font:700 .98rem var(--head);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .5rem}
+.alg h4 span{font:500 .8rem var(--ui);color:var(--muted)}
+.alg.on h4::after{content:"em uso";margin-left:auto;font:700 .7rem var(--ui);background:var(--p4);color:#fff;padding:.1rem .45rem;border-radius:999px}
+.alg p{margin:.2rem 0;font-size:.88rem}
+.alg .pc{color:var(--muted)}
+.alg:not(.on) .pc{display:none}
+/* 3. Condição de corrida */
+.race{display:grid;grid-template-columns:1fr 12rem 1fr;gap:1rem;align-items:start}
+.proc{border:2px solid var(--line);border-radius:12px;padding:.8rem;background:var(--card)}
+.proc h4{margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem;font:700 1rem var(--head)}
+.proc .st{margin-left:auto;font:600 .75rem var(--ui);padding:.15rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.proc .st.blk{background:var(--bad-soft);color:var(--bad)}
+.proc .st.end{background:var(--good-soft);color:var(--good)}
+.code{list-style:none;margin:0;padding:0;font:500 .86rem/1.5 var(--mono)}
+.code li{display:flex;gap:.5rem;padding:.3rem .45rem;border-radius:6px;align-items:center}
+.code li .pc{width:1rem;flex:none;color:var(--accent);font-weight:700}
+.code li.next{background:var(--warn-soft)}
+.code li.ran{color:var(--muted)}
+.code li.lk{color:var(--p5);font-weight:700}
+.reg{margin-top:.7rem;font:600 .9rem var(--mono);background:var(--soft);padding:.4rem .6rem;border-radius:7px}
+.mem{border:3px solid var(--ink);border-radius:12px;text-align:center;padding:.8rem .5rem;background:var(--card)}
+.mem small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.06em}
+.mem .val{font:700 2.6rem/1.2 var(--mono);transition:transform .3s}
+.mem .val.bump{transform:scale(1.3)}
+.mutex{margin-top:.8rem;padding:.4rem;border-radius:8px;font:600 .82rem var(--ui);background:var(--soft)}
+.mutex.held{background:var(--warn-soft)}
+.verdict{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.verdict.bad{background:var(--bad-soft)}
+.verdict.good{background:var(--good-soft)}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mode button{border:0;background:transparent;padding:.45rem .8rem;font:600 .86rem var(--ui);cursor:pointer;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.bars{margin-top:.8rem}
+.bar{display:grid;grid-template-columns:7rem 1fr 3.5rem;gap:.5rem;align-items:center;margin:.35rem 0;font-size:.88rem}
+.bar i{display:block;height:1.1rem;border-radius:4px;background:var(--accent);transition:width .6s}
+.bar i.bad{background:var(--bad)}
+
+/* 4. Impasse */
+#dl-svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.node-p{stroke-width:4}
+.node-r{fill:var(--card);stroke:var(--ink);stroke-width:3}
+.ntext{font:700 22px var(--head);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.rtext{font:700 18px var(--head);fill:var(--ink);text-anchor:middle}
+.edge{stroke-width:4;fill:none;transition:opacity .3s}
+.edge.req{stroke:var(--muted);stroke-dasharray:10 7}
+.edge.own{stroke:var(--ink)}
+.edge.cyc{stroke:var(--bad)!important}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin-top:.6rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.cond{list-style:none;padding:0;margin:0}
+.cond li{display:flex;gap:.5rem;align-items:flex-start;padding:.35rem 0;font-size:.9rem}
+.cond li i{flex:none;width:1.2rem;height:1.2rem;border-radius:50%;border:2px solid var(--line);margin-top:.15rem}
+.cond li.on i{background:var(--bad);border-color:var(--bad)}
+
+/* 5. Testa-te */
+.quiz{max-width:46rem}
+.q{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:1rem 1.1rem;margin:0 0 1rem}
+.q legend{font:700 1rem var(--head);padding:0 .3rem;margin-left:-.3rem}
+.q label{display:flex;gap:.6rem;padding:.45rem .5rem;border-radius:7px;cursor:pointer;align-items:flex-start}
+.q label:hover{background:var(--soft)}
+.q label.right{background:var(--good-soft)}
+.q label.wrong{background:var(--bad-soft)}
+.q input{accent-color:var(--accent);margin-top:.3rem}
+.q .fb{margin:.6rem 0 0;font-size:.92rem}
+.score{font:700 1.1rem var(--head);margin:.5rem 0 1rem}
+
+
+/* Núcleo */
+.ksvg .layer{stroke:none}
+.kbox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s}
+.kbox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.kbox.bad{stroke:var(--bad);stroke-width:4;fill:var(--bad-soft)}
+.ktxt{font:600 17px var(--ui);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.klab{font:700 15px var(--head);letter-spacing:.06em;fill:var(--muted)}
+.kline{stroke:var(--bad);stroke-width:3;stroke-dasharray:10 8}
+.mode-ind{display:inline-flex;align-items:center;gap:.5rem;font:700 .85rem var(--ui);padding:.35rem .8rem;border-radius:999px;background:var(--soft)}
+.mode-ind i{width:.7rem;height:.7rem;border-radius:50%;background:var(--good)}
+.mode-ind.k i{background:var(--bad)}
+.pkt{position:absolute;width:3.4%;aspect-ratio:1;border-radius:8px;background:var(--accent);box-shadow:0 4px 10px rgba(0,0,0,.3);transition:left .6s cubic-bezier(.5,0,.3,1),top .6s cubic-bezier(.5,0,.3,1),background .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.pkt.k{background:var(--bad)}
+.kstage{position:relative;width:100%;aspect-ratio:1000/520;background:var(--soft);border-radius:10px;overflow:hidden}
+.kstage svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Memória contígua */
+.membar{position:relative;height:5.5rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px);margin-top:.4rem}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:700 .85rem var(--mono);border-right:2px solid var(--card);transition:left .6s cubic-bezier(.5,0,.3,1),width .6s cubic-bezier(.5,0,.3,1),box-shadow .2s;overflow:hidden;white-space:nowrap;cursor:pointer}
+.seg small{font:500 .72rem var(--mono);opacity:.9}
+.seg.os{background:#4B5568;cursor:default}
+.seg.hole{background:transparent;color:var(--muted);cursor:default}
+.seg.fit{box-shadow:inset 0 0 0 4px var(--good)}
+.seg.nofit{box-shadow:inset 0 0 0 4px var(--bad)}
+.seg.pick{box-shadow:inset 0 0 0 6px var(--good);background:var(--good-soft)}
+.seg.new{animation:pop .5s}
+.addr{position:relative;height:1.3rem;font:500 .7rem var(--mono);color:var(--muted)}
+.addr span{position:absolute;transform:translateX(-50%)}
+.reqs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;min-height:2.2rem}
+.reqs .op{font:600 .8rem var(--ui);padding:.3rem .6rem;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.reqs .op.cur{background:var(--warn-soft);border-color:var(--p4)}
+.reqs .op.ok{opacity:.5}
+.reqs .op.fail{background:var(--bad-soft);border-color:var(--bad)}
+.stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.9rem}
+.stat{background:var(--soft);border-radius:8px;padding:.45rem .8rem;font-size:.85rem}
+.stat b{font:700 1.05rem var(--mono);display:block}
+.manual{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.9rem}
+.manual input{width:5.5rem;padding:.45rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);text-align:center}
+
+/* Paginação */
+.pg{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1.2rem;align-items:start}
+.pg h4{margin:0 0 .5rem;font:700 .9rem var(--head);color:var(--muted);letter-spacing:.03em}
+.cells{display:flex;flex-direction:column;gap:3px}
+.cell{display:flex;justify-content:space-between;align-items:center;padding:.45rem .7rem;border-radius:6px;background:var(--soft);font:600 .82rem var(--mono);border:2px solid transparent;transition:border-color .3s,background .3s;position:relative}
+.cell small{font:500 .7rem var(--mono);color:var(--muted)}
+.cell.mine{background:color-mix(in srgb,var(--p1) 18%,var(--card))}
+.cell.other{background:color-mix(in srgb,var(--muted) 18%,var(--card))}
+.cell.on{border-color:var(--accent);background:var(--warn-soft)}
+.cell.miss{border-color:var(--bad);background:var(--bad-soft)}
+.cell .mark{position:absolute;top:2px;bottom:2px;width:3px;background:var(--bad);border-radius:2px}
+.ptbl{width:100%;border-collapse:collapse;font:600 .85rem var(--mono)}
+.ptbl th{font:600 .72rem var(--ui);color:var(--muted);padding:.3rem;border-bottom:1px solid var(--line)}
+.ptbl td{text-align:center;padding:.42rem .3rem;border-bottom:1px solid var(--line);transition:background .3s}
+.ptbl tr.on td{background:var(--warn-soft)}
+.ptbl tr.miss td{background:var(--bad-soft)}
+.calc{margin-top:1rem;font:500 .95rem/1.7 var(--mono);background:var(--soft);border-radius:10px;padding:.8rem 1rem;min-height:5rem}
+.calc div{animation:pop .3s}
+.calc .res{font-weight:700;color:var(--accent)}
+.calc .err{font-weight:700;color:var(--bad)}
+
+/* Substituição de páginas */
+.refgrid{overflow-x:auto}
+.refgrid table{border-collapse:separate;border-spacing:3px;font:600 .9rem var(--mono)}
+.refgrid th{min-width:2.4rem;height:2.4rem;background:var(--soft);border-radius:6px}
+.refgrid th.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.refgrid td{height:2.4rem;text-align:center;border-radius:6px;background:var(--card);border:1px solid var(--line);transition:background .3s}
+.refgrid td.lbl{border:0;background:none;font:600 .72rem var(--ui);color:var(--muted);text-align:right;padding-right:.4rem;white-space:nowrap}
+.refgrid td.in{background:var(--bad-soft);border-color:var(--bad)}
+.refgrid td.hitc{background:var(--good-soft);border-color:var(--good)}
+.refgrid td.res{border:0;font:700 .8rem var(--ui)}
+.refgrid td.res.f{color:var(--bad)}
+.refgrid td.res.h{color:var(--good)}
+.refgrid td.hide{visibility:hidden}
+
+
+/* E/S: técnicas */
+.iostage{position:relative;width:100%;aspect-ratio:1000/430;background:var(--soft);border-radius:10px;overflow:hidden}
+.iostage svg{position:absolute;inset:0;width:100%;height:100%}
+.iobox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s,opacity .3s}
+.iobox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.iobox.off{opacity:.3}
+.iot{font:700 19px var(--head);fill:var(--ink);text-anchor:middle}
+.ios{font:500 14px var(--ui);fill:var(--muted);text-anchor:middle}
+.bus{stroke:var(--muted);stroke-width:8;stroke-linecap:round}
+.byte{position:absolute;width:3%;aspect-ratio:1;border-radius:6px;background:var(--p2);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .35s ease-in-out,top .35s ease-in-out,opacity .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.cpubar{display:flex;gap:2px;height:1.7rem;margin-top:.4rem}
+.cpubar i{flex:1;border-radius:3px;background:var(--soft)}
+.cpubar i.u{background:var(--good)}
+.cpubar i.h{background:var(--p4)}
+.cpubar i.w{background:var(--bad)}
+.leg{display:flex;flex-wrap:wrap;gap:.9rem;font-size:.8rem;color:var(--muted);margin-top:.45rem}
+.leg span{display:inline-flex;align-items:center;gap:.35rem}
+.leg i{width:.9rem;height:.9rem;border-radius:3px;display:inline-block}
+
+/* Interrupção */
+.intg{display:grid;grid-template-columns:1fr 13rem 1fr;gap:1rem;align-items:start}
+.kbd{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:10px;background:var(--soft);font:600 .85rem var(--ui);transition:background .3s}
+.kbd.on{background:var(--bad-soft);box-shadow:inset 0 0 0 2px var(--bad)}
+.kbd kbd{font:700 1rem var(--mono);background:var(--card);border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:.2rem .55rem}
+.stack{border:2px solid var(--ink);border-radius:10px;padding:.5rem;min-height:5.5rem;margin-top:.8rem;background:var(--card)}
+.stack small,.vec small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.05em;margin-bottom:.35rem}
+.stack div{font:600 .8rem var(--mono);background:var(--warn-soft);border-radius:5px;padding:.25rem .45rem;margin-top:3px;animation:pop .3s}
+.vec{margin-top:.8rem}
+.vec table{width:100%;border-collapse:collapse;font:600 .8rem var(--mono)}
+.vec td{padding:.3rem .4rem;border-bottom:1px solid var(--line);transition:background .3s}
+.vec tr.on td{background:var(--warn-soft)}
+.bufbox{margin-top:.6rem;font:600 .85rem var(--mono);background:var(--soft);border-radius:7px;padding:.4rem .6rem}
+
+/* Buffer */
+.stream{display:grid;grid-template-columns:8rem 1fr 8rem;gap:1rem;align-items:center}
+.node{border:2px solid var(--line);border-radius:12px;background:var(--card);text-align:center;padding:.8rem .4rem;font:700 .9rem var(--head)}
+.node small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-top:.2rem}
+.node.stall{border-color:var(--bad);background:var(--bad-soft)}
+.node.play{border-color:var(--good);background:var(--good-soft)}
+.bufmeter{position:relative;height:3.4rem;border:2px dashed var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.bufmeter i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 35%,var(--card));transition:width .4s}
+.bufmeter span{position:absolute;inset:0;display:grid;place-items:center;font:700 .9rem var(--mono)}
+.vbar{position:relative;height:.7rem;border-radius:999px;background:var(--line);margin-top:1.2rem;overflow:hidden}
+.vbar .bf{position:absolute;left:0;top:0;bottom:0;background:var(--muted);opacity:.55;transition:width .4s}
+.vbar .pl{position:absolute;left:0;top:0;bottom:0;background:var(--bad);transition:width .4s}
+.screen{margin-top:1rem;aspect-ratio:16/6;border-radius:10px;background:#11161e;display:grid;place-items:center;color:#fff;font:700 1.1rem var(--head);position:relative;overflow:hidden}
+.screen .spin{width:2.6rem;height:2.6rem;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.screen .frame{font-size:2.6rem;animation:pop .4s}
+.chart{display:flex;align-items:flex-end;gap:2px;height:5rem;margin-top:1rem;border-bottom:1px solid var(--line)}
+.chart i{flex:1;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;opacity:.75}
+.chart i.st{background:var(--bad);opacity:1}
+
+/* Disco */
+.dsvg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.dpath{fill:none;stroke:var(--accent);stroke-width:3}
+.dret{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-dasharray:7 6}
+.dreq{fill:var(--card);stroke:var(--p2);stroke-width:3}
+.dreq.done{fill:var(--p2)}
+.dhead{fill:var(--accent)}
+.dax{font:500 13px var(--mono);fill:var(--muted)}
+.dlab{font:700 13px var(--mono);fill:var(--ink)}
+
+@media (max-width:960px){
+  .intg,.stream{grid-template-columns:1fr}
+  .pg{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .race{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+}
+.credit{max-width:80rem;margin:0 auto;padding:1.2rem 1.5rem 2rem;border-top:1px solid var(--line);text-align:center;font-size:.85rem;color:var(--muted)}
+body.instant *,body.instant *::before,body.instant *::after{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="chipico" viewBox="0 0 44 44" aria-hidden="true"><rect x="4" y="12" width="20" height="20" rx="4" fill="var(--accent)"/><path d="M24 18h8m0 0-3-3m3 3-3 3M32 28h-8m0 0 3-3m-3 3 3 3" stroke="var(--accent)" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="34" y="12" width="7" height="20" rx="2" fill="var(--accent)"/></svg>
+    <div><h1>Entrada e saída de dados</h1><p>Laboratório animado · Sistemas Operativos</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Temas">
+    <button role="tab" aria-selected="true" data-tab="tecnicas"><span>1</span>Formas de fazer E/S</button>
+    <button role="tab" aria-selected="false" data-tab="interr"><span>2</span>Interrupções</button>
+    <button role="tab" aria-selected="false" data-tab="buffer"><span>3</span>Buffers</button>
+    <button role="tab" aria-selected="false" data-tab="disco"><span>4</span>Escalonamento do disco</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+  </nav>
+</header>
+<main>
+
+<!-- 1. TÉCNICAS -->
+<section id="tecnicas" role="tabpanel">
+  <div class="intro"><h2>Como chegam os dados do disco à memória?</h2>
+  <p>Os dispositivos são muito mais lentos do que o processador. É preciso trazer 6 bytes de um dispositivo para a RAM. Compara as três formas de o fazer e repara no que o processador (CPU) faz enquanto espera. Muda também o dispositivo: com um dispositivo rápido, as conclusões mudam.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Técnica<select id="t-alg">
+        <option value="prog">E/S programada (espera ativa)</option>
+        <option value="int">E/S por interrupções</option>
+        <option value="dma">DMA (acesso direto à memória)</option></select></label>
+        <label>Dispositivo<select id="t-dev"><option value="3">Disco rígido (3 unidades por byte)</option><option value="6">Dispositivo lento, como um leitor de cartões (6 por byte)</option><option value="1">Dispositivo rápido, como um SSD (1 por byte)</option></select></label></div>
+      <div class="iostage" id="t-stage"><svg viewBox="0 0 1000 430" id="t-svg" aria-label="CPU, RAM, controlador DMA, controlador do disco e disco ligados pelo barramento"></svg></div>
+      <div style="margin-top:1rem;font-size:.85rem;font-weight:600">O que a CPU fez em cada unidade de tempo</div>
+      <div class="cpubar" id="t-bar"></div>
+      <div class="leg"><span><i style="background:var(--good)"></i>trabalho útil (outros programas)</span><span><i style="background:var(--p4)"></i>a tratar da E/S</span><span><i style="background:var(--bad)"></i>parada à espera do disco</span></div>
+      <div class="stats" id="t-stats"></div>
+      <div class="controls" data-ctl="tecnicas"><button class="btn ghost" id="t-cmp" type="button">Comparar as 3 técnicas</button></div>
+      <div class="results" id="t-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="t-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>As técnicas</h3><div class="algs" id="t-algs">
+        <div class="alg" data-alg="prog"><h4>E/S programada <span>espera ativa</span></h4><p>A CPU pergunta ao controlador, vezes sem conta, «já tens os dados?» (<b>polling</b>). Quando estão prontos, é ela que os copia byte a byte para a RAM.</p><p class="pc"><b>Vantagem:</b> é simples. <b>Desvantagem:</b> a CPU fica presa a esperar e não faz mais nada.</p></div>
+        <div class="alg" data-alg="int"><h4>E/S por interrupções</h4><p>A CPU pede os dados e vai trabalhar noutro programa. Quando um byte fica pronto, o controlador envia uma <b>interrupção</b> e a CPU pára um instante para o copiar.</p><p class="pc"><b>Vantagem:</b> a CPU não perde tempo à espera. <b>Desvantagem:</b> há uma interrupção por cada byte; com muitos dados, isso pesa.</p></div>
+        <div class="alg" data-alg="dma"><h4>DMA <span>acesso direto à memória</span></h4><p>A CPU diz ao <b>controlador DMA</b> o que copiar e para onde, e vai trabalhar. O DMA copia tudo sozinho para a RAM e só no fim envia <b>uma</b> interrupção.</p><p class="pc"><b>Vantagem:</b> a CPU quase não é incomodada; ideal para muitos dados (discos, placas de rede, gráficas). <b>Desvantagem:</b> precisa de hardware próprio.</p></div>
+      </div></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Periférico</b>: dispositivo de entrada (teclado, rato), de saída (monitor, impressora) ou de entrada e saída (disco, placa de rede).</li>
+        <li><b>Controlador</b>: o circuito que comanda o dispositivo. Tem registos de <b>estado</b>, de <b>comando</b> e de <b>dados</b>.</li>
+        <li><b>Driver</b>: o programa do SO que sabe falar com um controlador.</li>
+        <li><b>Barramento</b>: as ligações por onde os dados circulam entre a CPU, a RAM e os controladores.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. INTERRUPÇÕES -->
+<section id="interr" role="tabpanel" hidden>
+  <div class="intro"><h2>O que acontece numa interrupção</h2>
+  <p>Uma <b>interrupção</b> é um sinal que um dispositivo envia à CPU a dizer «preciso de atenção». A CPU pára o que está a fazer, trata do assunto e depois continua exatamente onde estava, sem o programa dar por nada.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Quem interrompe<select id="i-dev">
+        <option value="kbd">Teclado: carregaste numa tecla</option>
+        <option value="disk">Disco: terminou uma leitura</option>
+        <option value="clk">Relógio: passou mais um instante</option>
+        <option value="mouse">Rato: mexeste o rato</option>
+        <option value="net">Placa de rede: chegou um pacote da Internet</option></select></label></div>
+      <div class="intg">
+        <div class="proc" id="i-prog"></div>
+        <div>
+          <div class="kbd" id="i-dev-box"></div>
+          <div class="stack" id="i-stack"><small>PILHA (contexto guardado)</small></div>
+          <div class="vec"><small>TABELA DE VETORES DE INTERRUPÇÃO</small><table id="i-vec"></table></div>
+        </div>
+        <div class="proc" id="i-rot"></div>
+      </div>
+      <div class="controls" data-ctl="interr"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="i-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Pedido de interrupção</b> (IRQ): o sinal elétrico que o dispositivo envia. Cada dispositivo tem o seu número.</li>
+        <li><b>Contexto</b>: o estado do programa interrompido (o contador de programa e os registos). Tem de ser guardado para depois continuar.</li>
+        <li><b>Tabela de vetores</b>: diz, para cada número de interrupção, onde está a rotina que a trata.</li>
+        <li><b>Rotina de tratamento</b> (ISR): o código do núcleo que trata a interrupção. Deve ser curta e rápida.</li>
+        <li>A interrupção do <b>relógio</b> é a que permite ao SO tirar a CPU a um processo quando acaba o seu quantum.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. BUFFERS -->
+<section id="buffer" role="tabpanel" hidden>
+  <div class="intro"><h2>Buffers: porque é que o vídeo «está a carregar»</h2>
+  <p>Um <b>buffer</b> (memória intermédia) guarda dados temporariamente entre quem os produz e quem os consome, quando trabalham a velocidades diferentes. Num vídeo, a rede entrega os dados aos solavancos, mas o leitor precisa de 1 segundo de vídeo por cada segundo. Experimenta vários tamanhos de buffer.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Rede<select id="b-net"><option value="unst">Instável (às vezes rápida, às vezes lenta)</option><option value="ok">Estável e rápida</option><option value="slow">Sempre um pouco lenta</option><option value="train">No comboio: rápida, mas com túneis</option><option value="lunch">Wi-Fi da escola ao almoço (muita gente)</option></select></label>
+        <label>Tamanho do buffer<select id="b-size"><option value="0">Sem buffer</option><option value="3">3 segundos</option><option value="8" selected>8 segundos</option><option value="20">20 segundos</option></select></label>
+      </div>
+      <div class="stream">
+        <div class="node">Rede<small id="b-rate">–</small></div>
+        <div><div class="bufmeter"><i id="b-fill" style="width:0"></i><span id="b-lvl">buffer vazio</span></div></div>
+        <div class="node" id="b-player">Leitor<small id="b-pst">parado</small></div>
+      </div>
+      <div class="screen" id="b-screen">▶</div>
+      <div class="vbar"><i class="bf" id="b-bf" style="width:0"></i><i class="pl" id="b-pl" style="width:0"></i></div>
+      <div class="chart" id="b-chart" aria-label="Nível do buffer ao longo do tempo"></div>
+      <div class="leg"><span><i style="background:var(--accent);opacity:.75"></i>dados no buffer</span><span><i style="background:var(--bad)"></i>o vídeo parou («a carregar…»)</span></div>
+      <div class="stats" id="b-stats"></div>
+      <div class="controls" data-ctl="buffer"><button class="btn ghost" id="b-cmp" type="button">Comparar tamanhos de buffer</button></div>
+      <div class="results" id="b-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="b-log"><li class="empty">Carrega em Reproduzir.</li></ul></div>
+      <div class="card"><h3>Buffers no sistema operativo</h3><ul>
+        <li><b>Teclado</b>: as teclas ficam num buffer até o programa as ler. Por isso não se perdem se o programa estiver ocupado.</li>
+        <li><b>Impressora</b>: os documentos ficam numa fila no disco (<b>spool</b>) e o programa pode continuar a trabalhar.</li>
+        <li><b>Disco</b>: o SO guarda em memória os blocos usados há pouco (<b>cache</b>), para não ter de os ler outra vez.</li>
+        <li><b>Duplo buffer</b>: enquanto um buffer está a ser enchido, o outro está a ser lido. É assim que os jogos desenham o ecrã sem tremer.</li></ul>
+        <p>Um buffer maior aguenta melhor as falhas da rede, mas gasta mais memória e o vídeo demora mais a começar.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. DISCO -->
+<section id="disco" role="tabpanel" hidden>
+  <div class="intro"><h2>Para onde vai a cabeça do disco?</h2>
+  <p>Num disco rígido, a cabeça de leitura tem de se deslocar até ao cilindro (pista) certo, e esse movimento é lento. Quando há vários pedidos à espera, o SO escolhe a ordem de atendimento para a cabeça andar o menos possível. Os cilindros vão de 0 a 199.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Exemplo<select id="d-ex"><option value="0">Exemplo dos manuais</option><option value="1">Pedidos concentrados perto da cabeça</option><option value="2">Pedidos alternados entre as pontas</option><option value="3">Um pedido muito longe (míngua no SSTF)</option></select></label>
+        <label>Algoritmo<select id="d-alg"><option value="fcfs">FCFS: pela ordem de chegada</option><option value="sstf">SSTF: o mais próximo primeiro</option><option value="scan">SCAN: elevador</option><option value="cscan">C-SCAN: elevador circular</option></select></label>
+        <label>A cabeça começa em<input id="d-start" type="number" min="0" max="199" value="53" style="width:5.5rem"></label>
+        <label id="d-dirw">Sentido inicial<select id="d-dir"><option value="down">a descer (para 0)</option><option value="up">a subir (para 199)</option></select></label>
+        <label style="flex:1;min-width:13rem">Pedidos (cilindros)<input id="d-reqs" type="text" value="98 183 37 122 14 124 65 67"></label>
+      </div>
+      <svg class="dsvg" id="d-svg" viewBox="0 0 1000 440" aria-label="Movimento da cabeça do disco"></svg>
+      <div class="stats" id="d-stats"></div>
+      <div class="controls" data-ctl="disco"><button class="btn ghost" id="d-cmp" type="button">Comparar os 4 algoritmos</button></div>
+      <div class="results" id="d-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="d-log"><li class="empty">Carrega em Reproduzir ou em Passo.</li></ul></div>
+      <div class="card"><h3>Os algoritmos</h3><div class="algs" id="d-algs">
+        <div class="alg" data-alg="fcfs"><h4>FCFS <span>pela ordem de chegada</span></h4><p>Atende os pedidos pela ordem em que chegaram.</p><p class="pc"><b>Vantagem:</b> é justo e simples. <b>Desvantagem:</b> a cabeça anda para trás e para a frente, e o movimento total é grande.</p></div>
+        <div class="alg" data-alg="sstf"><h4>SSTF <span>o mais próximo primeiro</span></h4><p>Atende sempre o pedido mais perto da posição atual da cabeça.</p><p class="pc"><b>Vantagem:</b> reduz muito o movimento. <b>Desvantagem:</b> um pedido longe pode esperar indefinidamente se continuarem a chegar pedidos perto (míngua).</p></div>
+        <div class="alg" data-alg="scan"><h4>SCAN <span>algoritmo do elevador</span></h4><p>A cabeça vai num sentido até ao fim do disco, atendendo os pedidos pelo caminho, e depois inverte o sentido, como um elevador.</p><p class="pc"><b>Vantagem:</b> nenhum pedido fica esquecido. <b>Desvantagem:</b> os pedidos nas pontas esperam mais.</p></div>
+        <div class="alg" data-alg="cscan"><h4>C-SCAN <span>elevador circular</span></h4><p>Atende os pedidos só num sentido. Quando chega ao fim, volta ao início sem atender ninguém (linha tracejada) e recomeça.</p><p class="pc"><b>Vantagem:</b> o tempo de espera é mais uniforme para todos os pedidos. <b>Desvantagem:</b> o regresso ao início também gasta movimento.</p></div>
+      </div></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Tempo de procura</b> (seek time): o tempo que a cabeça demora a chegar ao cilindro certo. É a maior parte do tempo de acesso.</li>
+        <li>Nos <b>SSD</b> não há partes móveis, por isso estes algoritmos quase não fazem diferença.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TESTA-TE -->
+<section id="teste" role="tabpanel" hidden>
+  <div class="intro"><h2>Testa-te</h2><p>Responde às perguntas e vê logo se acertaste. As opções mudam de ordem cada vez que abres o teste.</p></div>
+  <div class="quiz" id="quiz"></div>
+</section>
+</main>
+<footer class="credit">© 2026 | Nuno Gonçalves - Equipa de Apoio Técnico</footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = i => `var(--p${(i % 6) + 1})`;
+const fmt = x => x.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+
+const players = [];
+/* Comandos: anterior, reproduzir, seguinte, recomeçar e velocidade.
+   «Anterior» repõe o início e repete, sem animação, todos os passos menos o último. */
+function makePlayer(name, { step, reset, pos, rewind, back }){
+  const box = document.querySelector(`[data-ctl="${name}"]`);
+  box.insertAdjacentHTML('beforeend', `<button class="btn ghost" data-a="back" title="Voltar ao passo anterior">⏮ Anterior</button><button class="btn" data-a="play">▶ Reproduzir</button><button class="btn ghost" data-a="step" title="Avançar um passo">Seguinte ⏭</button><button class="btn ghost" data-a="reset">↺ Recomeçar</button><label class="speed">Velocidade<input type="range" min="1" max="5" value="3" aria-label="Velocidade"></label>`);
+  const play = box.querySelector('[data-a=play]'), sp = box.querySelector('input[type=range]'), backBtn = box.querySelector('[data-a=back]');
+  let timer = null, finished = false;
+  const ms = () => [2200, 2200 * .7, 2200 * .5, 2200 * .32, 2200 * .18][sp.value - 1];
+  const sync = () => { backBtn.disabled = !(pos && pos() > 0); };
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = '▶ Reproduzir'; };
+  const tick = () => { const more = step(); finished = !more; if (!more) stop(); sync(); };
+  const start = () => { play.textContent = '⏸ Pausa'; tick(); if (!finished) timer = setInterval(tick, ms()); else stop(); };
+  play.onclick = () => { if (timer) return stop(); if (finished) { reset(); finished = false; } start(); };
+  sp.oninput = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, ms()); } };
+  box.querySelector('[data-a=step]').onclick = () => { stop(); tick(); };
+  box.querySelector('[data-a=reset]').onclick = () => { stop(); finished = false; reset(); sync(); };
+  backBtn.onclick = () => {
+    stop(); if (!(pos && pos() > 0)) return;
+    document.body.classList.add('instant'); window.FAST = true;
+    try {
+      if (back) back();
+      else { const target = pos() - 1; (rewind || reset)(); let g = 0; while (pos() < target && g++ < 3000) step(); }
+    } finally {
+      window.FAST = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('instant')));
+    }
+    finished = false; sync();
+  };
+  const p = { stop, ms, sync, setFinished: v => finished = v, start: () => { stop(); finished = false; start(); } };
+  players.push(p); setTimeout(sync);
+  return p;
+}
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(() => players.forEach(p => p.sync())), true));
+function logTo(el, msgs, t){
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  msgs.slice().reverse().forEach(m => el.insertAdjacentHTML('afterbegin', `<li>${t != null ? `<time>${t}</time>` : ''}<span>${m}</span></li>`));
+}
+function algCards(boxSel, select, onPick){
+  const mark = () => document.querySelectorAll(boxSel + ' .alg').forEach(el => el.classList.toggle('on', el.dataset.alg === select.value));
+  $(boxSel).addEventListener('click', e => { const el = e.target.closest('.alg'); if (!el || el.dataset.alg === select.value) return; select.value = el.dataset.alg; select.onchange(); });
+  mark(); return mark;
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  players.forEach(p => p.stop());
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+/* ================= 1. TÉCNICAS DE E/S ================= */
+(() => {
+  let D = 3; const N = 6;
+  const BX = {
+    cpu: { x: 40, y: 40, w: 230, h: 120, t: 'CPU' }, ram: { x: 40, y: 290, w: 230, h: 120, t: 'RAM' },
+    dma: { x: 390, y: 290, w: 220, h: 120, t: 'Controlador DMA' }, ctl: { x: 660, y: 40, w: 200, h: 120, t: 'Controlador' }, disk: { x: 880, y: 40, w: 100, h: 120, t: 'Disco' }
+  };
+  const C = k => ({ x: BX[k].x + BX[k].w / 2, y: BX[k].y + 48 });
+  let h = '<line class="bus" x1="60" y1="225" x2="960" y2="225"/><text class="ios" x="500" y="214">barramento</text>';
+  [['cpu', 160], ['ram', 290], ['dma', 290], ['ctl', 160]].forEach(([k, y]) => { const x = BX[k].x + BX[k].w / 2; h += `<line class="bus" x1="${x}" y1="${y}" x2="${x}" y2="225" style="stroke-width:6"/>`; });
+  h += '<line class="bus" x1="860" y1="100" x2="880" y2="100" style="stroke-width:6"/>';
+  Object.entries(BX).forEach(([k, b]) => { h += `<rect class="iobox" id="tb-${k}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12"/><text class="iot" x="${b.x + b.w / 2}" y="${b.y + 32}">${b.t}</text><text class="ios" id="ts-${k}" x="${b.x + b.w / 2}" y="${b.y + 58}"></text>`; });
+  for (let i = 0; i < N; i++) h += `<rect id="slot-${i}" x="${62 + i * 32}" y="${370}" width="28" height="28" rx="5" fill="var(--soft)" stroke="var(--line)"/>`;
+  $('#t-svg').innerHTML = h;
+  const stage = $('#t-stage'), alg = $('#t-alg'), log = $('#t-log');
+  const NAMES = { prog: 'E/S programada', int: 'E/S por interrupções', dma: 'DMA' };
+  function plan(a){
+    const T = [];
+    T.push({ c: 'h', ev: 'setup', msg: a === 'dma' ? 'A CPU programa o controlador DMA: «lê 6 bytes do disco e põe-nos na RAM a partir deste endereço». Depois vai trabalhar noutro programa.' : 'A CPU envia ao controlador do disco a ordem de leitura.' });
+    for (let k = 0; k < N; k++) {
+      for (let d = 0; d < D; d++) T.push({ c: a === 'prog' ? 'w' : 'u', ev: 'wait', k, d, msg: d === 0 ? (a === 'prog' ? `O disco está a preparar o byte ${k + 1}. A CPU fica a perguntar ao controlador, repetidamente, «já está pronto?»: espera ativa.` : `O disco está a preparar o byte ${k + 1}. Entretanto, a CPU executa outros programas.`) : null });
+      if (a === 'dma') T.push({ c: 'u', ev: 'dmacopy', k, msg: `O controlador DMA copia o byte ${k + 1} diretamente para a RAM, sem incomodar a CPU.` });
+      else T.push({ c: 'h', ev: 'copy', k, irq: a === 'int', msg: a === 'int' ? `O byte ${k + 1} está pronto: o controlador envia uma <b>interrupção</b>. A CPU pára o outro programa, copia o byte para a RAM e volta ao que estava a fazer.` : `O byte ${k + 1} está pronto. A CPU copia-o do controlador para a RAM.` });
+    }
+    if (a === 'dma') T.push({ c: 'h', ev: 'final', irq: true, msg: 'O DMA terminou e envia <b>uma única interrupção</b> à CPU: «os 6 bytes já estão na RAM».' });
+    return T;
+  }
+  let P, k, bytes, irqs;
+  const byteEls = [], timers = [];
+  const later = (f, ms) => window.FAST ? f() : timers.push(setTimeout(f, ms));
+  function at(el, p){ el.style.left = (p.x - 15) / 10 + '%'; el.style.top = (p.y - 15) / 4.3 + '%'; }
+  function moveVia(el, pts, total){
+    const seg = total / pts.length;
+    el.style.transitionDuration = seg + 'ms, ' + seg + 'ms, .3s';
+    pts.forEach((p, i) => later(() => at(el, p), i * seg));
+  }
+  function reset(){
+    timers.splice(0).forEach(clearTimeout);
+    D = +$('#t-dev').value;
+    P = plan(alg.value); k = 0; bytes = 0; irqs = 0;
+    byteEls.splice(0).forEach(e => e.remove());
+    for (let i = 0; i < N; i++) $('#slot-' + i).setAttribute('fill', 'var(--soft)');
+    $('#t-bar').innerHTML = P.map(() => '<i></i>').join('');
+    $('#tb-dma').classList.toggle('off', alg.value !== 'dma');
+    ['cpu', 'ctl', 'disk', 'dma', 'ram'].forEach(b => $('#tb-' + b).classList.remove('on'));
+    $('#ts-cpu').textContent = 'processador'; $('#ts-ctl').textContent = 'estado: livre'; $('#ts-disk').textContent = ''; $('#ts-ram').textContent = 'memória'; $('#ts-dma').textContent = alg.value === 'dma' ? 'à espera' : 'não usado';
+    log.innerHTML = `<li class="empty">${NAMES[alg.value]}. Carrega em Reproduzir ou em Passo.</li>`;
+    stats();
+  }
+  function stats(){
+    const done = P.slice(0, k), u = done.filter(x => x.c === 'u').length;
+    $('#t-stats').innerHTML = `<div class="stat">Bytes na RAM<b>${bytes} de ${N}</b></div><div class="stat">Interrupções<b>${irqs}</b></div><div class="stat">Tempo<b>${k}</b></div><div class="stat">CPU em trabalho útil<b>${k ? fmt(u / k * 100) + '%' : '–'}</b></div>`;
+  }
+  function step(){
+    if (k >= P.length) return false;
+    const e = P[k], ms = Math.min(900, player.ms() * .8);
+    const on = new Set();
+    if (e.c === 'w') { on.add('cpu'); on.add('ctl'); $('#ts-cpu').textContent = '«já está pronto?»'; }
+    else if (e.c === 'u') $('#ts-cpu').textContent = 'a executar outros programas';
+    else { on.add('cpu'); $('#ts-cpu').textContent = e.irq ? 'a tratar a interrupção' : 'a tratar da E/S'; }
+    if (e.ev === 'wait') { on.add('disk'); $('#ts-ctl').textContent = 'estado: ocupado'; $('#ts-disk').textContent = `byte ${e.k + 1}`; if (alg.value === 'dma') $('#ts-dma').textContent = 'à espera do disco'; }
+    if (e.ev === 'setup') { on.add(alg.value === 'dma' ? 'dma' : 'ctl'); $('#ts-ctl').textContent = 'estado: ocupado'; }
+    if (e.ev === 'copy' || e.ev === 'dmacopy') {
+      $('#ts-ctl').textContent = 'estado: pronto'; $('#ts-disk').textContent = '';
+      on.add('ctl'); on.add('ram'); if (e.ev === 'dmacopy') { on.add('dma'); $('#ts-dma').textContent = `a copiar o byte ${e.k + 1}`; }
+      const el = document.createElement('div'); el.className = 'byte'; el.textContent = e.k + 1; stage.append(el); byteEls.push(el);
+      el.style.transition = 'none'; at(el, C('ctl')); el.offsetWidth;
+      const slot = { x: 62 + e.k * 32 + 14, y: 384 };
+      const path = e.ev === 'copy' ? [{ x: 760, y: 225 }, { x: 155, y: 225 }, C('cpu'), { x: 155, y: 225 }, slot] : [{ x: 760, y: 225 }, { x: 500, y: 225 }, { x: 500, y: 330 }, { x: 500, y: 225 }, { x: 155, y: 225 }, slot];
+      moveVia(el, path, ms);
+      const kk = e.k; later(() => { $('#slot-' + kk).setAttribute('fill', 'var(--p2)'); el.style.opacity = 0; }, ms + 50);
+      bytes++;
+    }
+    if (e.ev === 'final') { on.add('dma'); $('#ts-dma').textContent = 'terminou'; }
+    if (e.irq) irqs++;
+    ['cpu', 'ctl', 'disk', 'dma', 'ram'].forEach(b => $('#tb-' + b).classList.toggle('on', on.has(b)));
+    $('#t-bar').children[k].className = e.c;
+    if (e.msg) logTo(log, [e.msg], 't=' + k);
+    k++; stats();
+    if (k >= P.length) {
+      const u = P.filter(x => x.c === 'u').length;
+      logTo(log, [`Transferência concluída em ${P.length} unidades de tempo. A CPU fez trabalho útil em ${u} delas (${fmt(u / P.length * 100)}%).`]);
+      return false;
+    }
+    return true;
+  }
+  $('#t-cmp').onclick = () => {
+    D = +$('#t-dev').value;
+    const rows = Object.keys(NAMES).map(a => { const p = plan(a); return { a, t: p.length, u: p.filter(x => x.c === 'u').length, w: p.filter(x => x.c === 'w').length, i: p.filter(x => x.irq).length }; });
+    $('#t-res').innerHTML = `<h3>Comparação (6 bytes, ${D} ${D === 1 ? 'unidade' : 'unidades'} por byte)</h3><table><thead><tr><th>Técnica</th><th>Tempo total</th><th>CPU em trabalho útil</th><th>CPU parada à espera</th><th>Interrupções</th></tr></thead><tbody>${rows.map(r => `<tr><td>${NAMES[r.a]}</td><td>${r.t}</td><td class="${r.a === 'dma' ? 'best' : ''}">${fmt(r.u / r.t * 100)}%</td><td>${r.w}</td><td>${r.i}</td></tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">${D === 1 ? 'Com um dispositivo rápido, a espera ativa desperdiça pouco, mas as interrupções passam a pesar: uma por cada byte. É por isso que os dispositivos rápidos e com muitos dados usam DMA.' : 'O tempo total é quase igual nas três, porque quem manda é a velocidade do dispositivo. O que muda é o que a CPU consegue fazer entretanto. Quanto mais lento o dispositivo, mais tempo a espera ativa desperdiça.'}</p>`;
+  };
+  const mark = algCards('#t-algs', alg);
+  alg.onchange = () => { mark(); player.stop(); reset(); };
+  $('#t-dev').onchange = () => { player.stop(); reset(); $('#t-res').innerHTML = ''; };
+  const player = makePlayer('tecnicas', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 2. INTERRUPÇÕES ================= */
+(() => {
+  const PROG = ['a ← 5', 'b ← a × 2', 'c ← b + 1', 'mostrar c', 'd ← c − 3', 'fim'];
+  const VEC = [[0, 'Relógio'], [1, 'Teclado'], [11, 'Placa de rede'], [12, 'Rato'], [14, 'Disco']];
+  const DEV = {
+    kbd: { irq: 1, name: 'Teclado', ev: 'Carregas na tecla <b>A</b>. O controlador do teclado envia um pedido de interrupção (<b>IRQ 1</b>) à CPU.',
+      rot: ['ler o código da tecla no controlador', 'guardar «A» no buffer do teclado', 'avisar o controlador: fim da interrupção'],
+      fx: ['O núcleo lê o código da tecla carregada.', 'O «A» fica guardado no <b>buffer do teclado</b>, à espera que um programa o leia.', 'A rotina avisa o controlador de que a interrupção foi tratada.'] },
+    disk: { irq: 14, name: 'Disco', ev: 'O disco acabou de ler os dados que o processo P3 tinha pedido e envia a <b>IRQ 14</b>.',
+      rot: ['ver qual pedido terminou', 'acordar P3: Bloqueado → Pronto', 'avisar o controlador: fim da interrupção'],
+      fx: ['O núcleo vê que o pedido terminado era do processo P3.', 'P3 estava <b>Bloqueado</b> à espera do disco; passa para <b>Pronto</b>.', 'A rotina avisa o controlador de que a interrupção foi tratada.'] },
+    clk: { irq: 0, name: 'Relógio', ev: 'O relógio do sistema envia a <b>IRQ 0</b>. Acontece muitas vezes por segundo.',
+      rot: ['atualizar a hora do sistema', 'descontar tempo ao quantum do processo', 'se o quantum acabou, chamar o escalonador', 'fim da interrupção'],
+      fx: ['O núcleo atualiza a hora do sistema.', 'O quantum do processo em execução fica mais curto.', 'Ainda não acabou: o mesmo processo continua. Se tivesse acabado, o escalonador escolheria outro processo.', 'A rotina termina.'] },
+    mouse: { irq: 12, name: 'Rato', ev: 'Mexes o rato. O controlador do rato envia a <b>IRQ 12</b>.',
+      rot: ['ler o movimento (x, y) e os botões', 'atualizar a posição do cursor no ecrã', 'avisar o controlador: fim da interrupção'],
+      fx: ['O núcleo lê quanto o rato se deslocou e se algum botão foi carregado.', 'O cursor passa para a nova posição: (120, 80).', 'A rotina avisa o controlador de que a interrupção foi tratada.'] },
+    net: { irq: 11, name: 'Placa de rede', ev: 'Chegou um pacote da Internet. A placa de rede envia a <b>IRQ 11</b>.',
+      rot: ['copiar o pacote da placa para a memória', 'entregar os dados ao navegador, que esperava por eles', 'avisar a placa: fim da interrupção'],
+      fx: ['O núcleo copia o pacote recebido para a memória. Se o pacote for grande, usa DMA.', 'O navegador estava <b>Bloqueado</b> à espera da página; passa para <b>Pronto</b>.', 'A rotina avisa a placa de rede de que a interrupção foi tratada.'] }
+  };
+  const sel = $('#i-dev'), log = $('#i-log');
+  let S, steps, si;
+  function build(){
+    const d = DEV[sel.value], st = [];
+    const ex = (i, msg) => st.push(() => { S.pc = i + 1; return msg || `A CPU executa a instrução ${i + 1}: <code>${PROG[i]}</code>.`; });
+    ex(0); ex(1);
+    st.push(() => { S.dev = true; return d.ev; });
+    ex(2, 'A CPU acaba primeiro a instrução que estava a executar (<code>c ← b + 1</code>). Nunca pára a meio de uma instrução.');
+    st.push(() => { S.stack = ['PC = 4 (próxima instrução)', 'registos: a=5, b=10, c=11']; S.kernel = true; return 'A CPU guarda o <b>contexto</b> na pilha: onde ia (o PC) e os valores dos registos. Passa para o modo núcleo.'; });
+    st.push(() => { S.vec = d.irq; return `A CPU consulta a <b>tabela de vetores</b> na entrada ${d.irq} e fica a saber onde está a rotina que trata o ${d.name.toLowerCase()}.`; });
+    d.rot.forEach((_, j) => st.push(() => { S.rpc = j; S.dev = false; if (sel.value === 'kbd' && j === 1) S.buf += 'A'; if ((sel.value === 'disk' || sel.value === 'net') && j === 1) S.p3 = 'Pronto'; if (sel.value === 'mouse' && j === 1) S.cur = '(120, 80)'; return `Rotina: ${d.fx[j]}`; }));
+    st.push(() => { S.rpc = d.rot.length; S.stack = []; S.vec = null; S.kernel = false; return 'A CPU recupera o contexto da pilha: os registos e o PC voltam aos valores de antes. Regressa ao modo utilizador.'; });
+    ex(3, 'O programa continua na instrução 4 (<code>mostrar c</code>), sem saber que foi interrompido.');
+    ex(4); ex(5, 'O programa termina. A interrupção demorou microssegundos e o programa nem deu por ela.');
+    return st;
+  }
+  function render(){
+    const d = DEV[sel.value];
+    $('#i-prog').style.borderColor = COL(0);
+    $('#i-prog').innerHTML = `<h4><span class="pchip" style="background:${COL(0)}">P1</span>Programa${S.kernel ? '<span class="st blk">interrompido</span>' : S.pc >= PROG.length ? '<span class="st end">terminou</span>' : '<span class="st">a executar</span>'}</h4><ol class="code">${PROG.map((l, j) => `<li class="${!S.kernel && j === S.pc ? 'next' : j < S.pc ? 'ran' : ''}"><span class="pc">${j === S.pc && !S.kernel ? '▶' : j < S.pc ? '✓' : ''}</span><span>${j + 1}. ${l}</span></li>`).join('')}</ol>`;
+    $('#i-rot').style.borderColor = 'var(--bad)';
+    $('#i-rot').innerHTML = `<h4>Rotina do ${d.name.toLowerCase()}${S.rpc >= 0 && S.rpc < d.rot.length ? '<span class="st blk">em execução</span>' : ''}</h4><ol class="code">${d.rot.map((l, j) => `<li class="${j === S.rpc ? 'next' : j < S.rpc ? 'ran' : ''}"><span class="pc">${j === S.rpc ? '▶' : j < S.rpc ? '✓' : ''}</span><span>${l}</span></li>`).join('')}</ol>${sel.value === 'kbd' ? `<div class="bufbox">buffer do teclado: «${S.buf}»</div>` : sel.value === 'disk' ? `<div class="bufbox">processo P3: ${S.p3}</div>` : sel.value === 'net' ? `<div class="bufbox">navegador: ${S.p3}</div>` : sel.value === 'mouse' ? `<div class="bufbox">cursor: ${S.cur}</div>` : ''}`;
+    const icon = '<kbd>' + ({ kbd: 'A', disk: '💽', clk: '⏱', mouse: '🖱', net: '🌐' })[sel.value] + '</kbd>';
+    $('#i-dev-box').className = 'kbd' + (S.dev ? ' on' : '');
+    $('#i-dev-box').innerHTML = `${icon}<span>${d.name} · IRQ ${d.irq}${S.dev ? '<br><b style="color:var(--bad)">pedido de interrupção!</b>' : ''}</span>`;
+    const sk = S.stack.join('|'), stk = $('#i-stack');
+    if (stk.dataset.k !== sk) { stk.dataset.k = sk; stk.innerHTML = '<small>PILHA (contexto guardado)</small>' + S.stack.map(x => `<div>${x}</div>`).join(''); }
+    $('#i-vec').innerHTML = VEC.map(([n, t]) => `<tr class="${S.vec === n ? 'on' : ''}"><td>${n}</td><td>${t}</td><td>→ rotina</td></tr>`).join('');
+  }
+  function reset(){ S = { pc: 0, rpc: -1, stack: [], vec: null, dev: false, kernel: false, buf: '', p3: 'Bloqueado', cur: '(100, 70)' }; steps = build(); si = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Passo.</li>'; render(); }
+  function step(){ if (si >= steps.length) return false; const m = steps[si](); si++; logTo(log, [m], si + '.'); render(); return si < steps.length; }
+  sel.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('interr', { step, reset, pos: () => si });
+  reset();
+})();
+
+/* ================= 3. BUFFERS ================= */
+(() => {
+  const L = 40, MAXT = 120;
+  const UNST = [2.2, 2.4, 1.8, 0.2, 0, 0, 0.4, 2.6, 2.2, 0.1, 0, 1.9, 2.3, 0.3, 0, 0, 2.5, 1.4, 0.6, 2.4];
+  const TRAIN = [2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const LUNCH = [1.3, 0.8, 1.2, 0.6, 1.4, 0.9, 1.1, 0.5, 1.5, 0.9, 1.2, 0.7];
+  const rate = (net, t) => net === 'ok' ? 1.6 : net === 'slow' ? 0.85 : net === 'train' ? TRAIN[t % TRAIN.length] : net === 'lunch' ? LUNCH[t % LUNCH.length] : UNST[t % UNST.length];
+  function sim(net, size){
+    let Dn = 0, Pl = 0, started = false, playing = false, out = [], stalls = 0, stallT = 0, startT = 0;
+    const cap = size === 0 ? 1 : size, th = size === 0 ? 1 : Math.min(2, size);
+    for (let t = 0; t < MAXT && Pl < L; t++) {
+      const r = rate(net, t);
+      const got = Math.max(0, Math.min(r, Pl + cap - Dn, L - Dn)); Dn += got;
+      const buf = Dn - Pl, need = Math.min(1, L - Pl);
+      let st;
+      if (!playing && buf >= Math.min(th, L - Pl) - 1e-9) playing = true;
+      if (playing && buf >= need - 1e-9) { Pl += need; st = 'play'; if (!started) { started = true; } }
+      else { if (playing) { playing = false; } st = started ? 'stall' : 'load'; if (st === 'stall' && (out.length && out[out.length - 1].st === 'play')) stalls++; if (st === 'stall') stallT++; else startT++; }
+      out.push({ t, r, got, D: Dn, P: Pl, buf: Dn - Pl, st });
+    }
+    return { out, stalls, stallT, startT, T: out.length };
+  }
+  const net = $('#b-net'), size = $('#b-size'), log = $('#b-log');
+  let R, k, sz;
+  const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function reset(){
+    sz = +size.value; R = sim(net.value, sz); k = 0;
+    $('#b-chart').innerHTML = R.out.map(() => '<i style="height:0"></i>').join('');
+    log.innerHTML = '<li class="empty">Carrega em Reproduzir.</li>'; $('#b-res').innerHTML = '';
+    draw(null);
+  }
+  function draw(s){
+    const cap = sz === 0 ? 1 : sz;
+    $('#b-rate').textContent = s ? `a entregar ${fmt(s.r)} s de vídeo por segundo` : '–';
+    $('#b-fill').style.width = s ? Math.min(100, s.buf / cap * 100) + '%' : '0';
+    $('#b-lvl').textContent = s ? `${fmt(s.buf)} s de vídeo${sz ? ` (cabem ${sz} s)` : ''}` : (sz ? `buffer vazio (cabem ${sz} s)` : 'sem buffer');
+    const pl = $('#b-player'); pl.className = 'node' + (s ? (s.st === 'play' ? ' play' : ' stall') : '');
+    $('#b-pst').textContent = s ? (s.st === 'play' ? 'a reproduzir' : s.st === 'load' ? 'a carregar…' : 'parado: a carregar…') : 'parado';
+    $('#b-screen').innerHTML = !s ? '▶' : s.st === 'play' ? `<span class="frame">▶ ${mmss(s.P)} / ${mmss(L)}</span>` : '<div class="spin"></div>';
+    $('#b-bf').style.width = s ? s.D / L * 100 + '%' : '0'; $('#b-pl').style.width = s ? s.P / L * 100 + '%' : '0';
+    const done = R.out.slice(0, k);
+    const stalls = done.filter((x, i) => x.st === 'stall' && i > 0 && done[i - 1].st === 'play').length;
+    $('#b-stats').innerHTML = `<div class="stat">Tempo<b>${k} s</b></div><div class="stat">Espera inicial<b>${done.filter(x => x.st === 'load').length} s</b></div><div class="stat">Paragens<b>${stalls}</b></div><div class="stat">Tempo parado<b>${done.filter(x => x.st === 'stall').length} s</b></div>`;
+  }
+  function step(){
+    if (k >= R.out.length) return false;
+    const s = R.out[k], prev = R.out[k - 1];
+    const bar = $('#b-chart').children[k], top = Math.max(sz, 3);
+    bar.style.height = s.st === 'stall' ? '100%' : Math.max(2, s.buf / top * 100) + '%'; if (s.st === 'stall') bar.className = 'st';
+    k++; draw(s);
+    if (!prev || prev.st !== s.st) {
+      logTo(log, [s.st === 'load' ? 'O vídeo ainda não começou: o leitor espera que o buffer tenha dados suficientes.'
+        : s.st === 'play' ? (prev ? `O buffer voltou a ter dados: o vídeo continua (${mmss(s.P)}).` : 'O buffer já tem dados suficientes: o vídeo começa.')
+        : `O buffer esvaziou-se porque a rede ficou lenta: o vídeo <b>parou</b> e aparece «a carregar…».`], k + ' s');
+    }
+    if (s.r === 0 && (!prev || prev.r !== 0) && s.st === 'play') logTo(log, ['A rede deixou de entregar dados, mas o vídeo continua a usar o que está no buffer.'], k + ' s');
+    if (k >= R.out.length) { logTo(log, [s.P >= L ? `Fim do vídeo em ${k} s. Paragens: ${R.stalls}.` : 'Tempo esgotado.']); return false; }
+    return true;
+  }
+  $('#b-cmp').onclick = () => {
+    const rows = [0, 3, 8, 20].map(z => ({ z, r: sim(net.value, z) }));
+    $('#b-res').innerHTML = `<h3>Com esta rede</h3><table><thead><tr><th>Buffer</th><th>Espera inicial</th><th>Paragens</th><th>Tempo parado</th><th>Tempo total para ver 40 s</th></tr></thead><tbody>${rows.map(x => `<tr><td>${x.z ? x.z + ' s' : 'sem buffer'}</td><td>${x.r.startT} s</td><td class="${x.r.stalls === Math.min(...rows.map(y => y.r.stalls)) ? 'best' : ''}">${x.r.stalls}</td><td>${x.r.stallT} s</td><td>${x.r.T} s</td></tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">${net.value === 'train' ? 'Os túneis cortam a rede durante 9 segundos seguidos. Só um buffer maior do que o corte evita as paragens.' : net.value === 'lunch' ? 'A rede está quase à velocidade do vídeo: um buffer pequeno chega para disfarçar as variações.' : net.value === 'slow' ? 'Se a rede for <b>sempre</b> mais lenta do que o vídeo, nenhum buffer evita as paragens: só as adia. O buffer ajuda quando a rede é rápida em média mas tem falhas.' : 'O buffer compensa as falhas da rede: enquanto ela está lenta, o vídeo usa os dados guardados.'}</p>`;
+  };
+  [net, size].forEach(e => e.onchange = () => { player.stop(); reset(); });
+  const player = makePlayer('buffer', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 4. ESCALONAMENTO DO DISCO ================= */
+(() => {
+  const MAXC = 199, NAMES = { fcfs: 'FCFS', sstf: 'SSTF', scan: 'SCAN', cscan: 'C-SCAN' };
+  const alg = $('#d-alg'), log = $('#d-log');
+  let stops, k, start, reqs;
+  function read(){
+    start = Math.min(MAXC, Math.max(0, parseInt($('#d-start').value, 10) || 0)); $('#d-start').value = start;
+    reqs = ($('#d-reqs').value.match(/\d+/g) || []).map(Number).filter(x => x <= MAXC).slice(0, 14);
+  }
+  function plan(a, st, rq, dir){
+    const out = [], left = rq.slice();
+    if (a === 'fcfs') rq.forEach(c => out.push({ c, why: 'é o próximo na ordem de chegada' }));
+    else if (a === 'sstf') { let h = st; while (left.length) { let b = 0; left.forEach((c, i) => { if (Math.abs(c - h) < Math.abs(left[b] - h)) b = i; }); const c = left.splice(b, 1)[0]; out.push({ c, why: `é o pedido mais próximo (a ${Math.abs(c - h)} cilindros)` }); h = c; } }
+    else {
+      const up = rq.filter(c => c >= st).sort((x, y) => x - y), dn = rq.filter(c => c < st).sort((x, y) => y - x);
+      const upW = up.length ? up : [], dnW = dn;
+      if (dir === 'up') {
+        up.forEach(c => out.push({ c, why: 'é o próximo pedido no sentido em que a cabeça vai (a subir)' }));
+        if (dn.length) {
+          out.push({ c: MAXC, end: true });
+          if (a === 'scan') dn.forEach(c => out.push({ c, why: 'é o próximo pedido no sentido de regresso (a descer)' }));
+          else { out.push({ c: 0, jump: true }); dn.slice().reverse().forEach(c => out.push({ c, why: 'é o próximo pedido, de novo a subir' })); }
+        }
+      } else {
+        const dd = rq.filter(c => c <= st).sort((x, y) => y - x), uu = rq.filter(c => c > st).sort((x, y) => x - y);
+        dd.forEach(c => out.push({ c, why: 'é o próximo pedido no sentido em que a cabeça vai (a descer)' }));
+        if (uu.length) {
+          out.push({ c: 0, end: true });
+          if (a === 'scan') uu.forEach(c => out.push({ c, why: 'é o próximo pedido no sentido de regresso (a subir)' }));
+          else { out.push({ c: MAXC, jump: true }); uu.slice().reverse().forEach(c => out.push({ c, why: 'é o próximo pedido, de novo a descer' })); }
+        }
+      }
+    }
+    let h = st; out.forEach(s => { s.from = h; s.d = Math.abs(s.c - h); h = s.c; });
+    return out;
+  }
+  const total = p => p.reduce((a, s) => a + s.d, 0);
+  const X = c => 60 + c / MAXC * 900;
+  let rowH;
+  function reset(){
+    read(); stops = plan(alg.value, start, reqs, $('#d-dir').value); k = 0;
+    $('#d-dirw').hidden = !(alg.value === 'scan' || alg.value === 'cscan');
+    rowH = Math.min(38, 360 / Math.max(1, stops.length));
+    log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Passo.</li>'; $('#d-res').innerHTML = '';
+    draw();
+  }
+  function draw(){
+    let h = '<line x1="60" y1="40" x2="960" y2="40" stroke="var(--line)" stroke-width="2"/>';
+    [0, 50, 100, 150, 199].forEach(c => { h += `<line x1="${X(c)}" y1="34" x2="${X(c)}" y2="46" stroke="var(--muted)"/><text class="dax" x="${X(c)}" y="26" text-anchor="middle">${c}</text>`; });
+    reqs.forEach(c => { h += `<line x1="${X(c)}" y1="46" x2="${X(c)}" y2="430" stroke="var(--line)" stroke-dasharray="2 5"/>`; });
+    const Y = i => 60 + i * rowH;
+    let x0 = X(start), y0 = Y(0);
+    h += `<circle cx="${x0}" cy="${y0}" r="6" fill="var(--card)" stroke="var(--accent)" stroke-width="3"/><text class="dax" x="${x0 + 10}" y="${y0 - 6}">início (${start})</text>`;
+    for (let i = 0; i < k; i++) {
+      const s = stops[i], x1 = X(s.c), y1 = Y(i + 1);
+      h += `<path class="${s.jump ? 'dret' : 'dpath'}" d="M${x0} ${y0} L${x1} ${y1}"/>`;
+      if (!s.end && !s.jump) h += `<circle class="dreq done" cx="${x1}" cy="${y1}" r="7"/><text class="dlab" x="${x1 + 10}" y="${y1 + 4}">${s.c}</text>`;
+      else h += `<text class="dax" x="${x1 + (s.c === 0 ? 8 : -8)}" y="${y1 + 4}" text-anchor="${s.c === 0 ? 'start' : 'end'}">${s.jump ? 'regresso' : 'fim'}</text>`;
+      x0 = x1; y0 = y1;
+    }
+    const servedSet = new Set(stops.slice(0, k).filter(s => !s.end && !s.jump).map(s => s.c));
+    reqs.forEach(c => { if (!servedSet.has(c)) h += `<circle class="dreq" cx="${X(c)}" cy="40" r="7"/>`; });
+    h += `<circle class="dhead" cx="${x0}" cy="${y0}" r="9"/>`;
+    $('#d-svg').innerHTML = h;
+    const mv = total(stops.slice(0, k)), served = stops.slice(0, k).filter(s => !s.end && !s.jump).length;
+    $('#d-stats').innerHTML = `<div class="stat">Movimento total<b>${mv} cilindros</b></div><div class="stat">Pedidos atendidos<b>${served} de ${reqs.length}</b></div><div class="stat">Posição da cabeça<b>${k ? stops[k - 1].c : start}</b></div>`;
+  }
+  function step(){
+    if (k >= stops.length) return false;
+    const s = stops[k]; k++; draw();
+    logTo(log, [s.end ? `A cabeça continua até ao fim do disco (cilindro ${s.c}): ${s.d} cilindros. Depois inverte o sentido.`
+      : s.jump ? `A cabeça regressa ao cilindro ${s.c} sem atender nenhum pedido: ${s.d} cilindros.`
+      : `A cabeça vai de ${s.from} para <b>${s.c}</b> (${s.d} cilindros): ${s.why}.`], k + '.');
+    if (k >= stops.length) { logTo(log, [`Todos os pedidos atendidos. Movimento total: <b>${total(stops)} cilindros</b>.`]); return false; }
+    return true;
+  }
+  $('#d-cmp').onclick = () => {
+    read(); const dir = $('#d-dir').value;
+    const rows = Object.keys(NAMES).map(a => ({ a, t: total(plan(a, start, reqs, dir)) })), best = Math.min(...rows.map(r => r.t));
+    $('#d-res').innerHTML = `<h3>Movimento total da cabeça</h3><table><thead><tr><th>Algoritmo</th><th>Cilindros percorridos</th></tr></thead><tbody>${rows.map(r => `<tr><td>${NAMES[r.a]}</td><td class="${r.t === best ? 'best' : ''}">${r.t}</td></tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">No C-SCAN, o total inclui o regresso ao início. Alguns manuais não o contam.</p>`;
+  };
+  const EX = [[53, '98 183 37 122 14 124 65 67'], [20, '22 25 30 31 35 28 190'], [100, '5 195 10 190 15 185'], [50, '199 52 48 54 46 56 44 58']];
+  $('#d-ex').onchange = () => { const e = EX[+$('#d-ex').value]; $('#d-start').value = e[0]; $('#d-reqs').value = e[1]; player.stop(); reset(); };
+  const mark = algCards('#d-algs', alg);
+  alg.onchange = () => { mark(); player.stop(); reset(); };
+  ['#d-start', '#d-reqs', '#d-dir'].forEach(s => $(s).addEventListener('change', () => { player.stop(); reset(); }));
+  const player = makePlayer('disco', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 5. TESTA-TE ================= */
+(() => {
+  const Q = [
+    { q: 'Na E/S programada, o que faz a CPU enquanto o dispositivo prepara os dados?', o: ['Executa outros programas', 'Pergunta repetidamente ao controlador se os dados já estão prontos', 'Desliga-se para poupar energia', 'Copia os dados com o DMA'], c: 1, e: 'É a espera ativa (polling): a CPU fica ocupada a perguntar e não faz mais nada.' },
+    { q: 'Que técnica transfere um bloco inteiro para a RAM e só no fim envia uma interrupção à CPU?', o: ['E/S programada', 'E/S por interrupções', 'DMA', 'Spooling'], c: 2, e: 'O controlador DMA copia os dados sozinho e só avisa a CPU quando termina.' },
+    { q: 'Quando chega uma interrupção, o que guarda a CPU antes de executar a rotina de tratamento?', o: ['O contexto: o contador de programa e os registos', 'O conteúdo do disco', 'A tabela de vetores', 'Nada, recomeça o programa do início'], c: 0, e: 'Guarda o contexto na pilha para, no fim, continuar exatamente onde estava.' },
+    { q: 'Para que serve o buffer do teclado?', o: ['Para o teclado escrever mais depressa', 'Para guardar as teclas até um programa as ler', 'Para corrigir erros ortográficos', 'Para desligar o teclado quando não está em uso'], c: 1, e: 'Assim as teclas não se perdem, mesmo que o programa esteja ocupado nesse momento.' },
+    { q: 'A cabeça do disco está no cilindro 50 e há pedidos para 10, 55 e 90. Qual atende primeiro o SSTF?', o: ['10', '55', '90', 'O que chegou primeiro'], c: 1, e: 'O SSTF atende sempre o pedido mais próximo: 55 está a apenas 5 cilindros.' },
+    { q: 'Que algoritmo de escalonamento do disco funciona como um elevador?', o: ['FCFS', 'SSTF', 'SCAN', 'Round Robin'], c: 2, e: 'No SCAN, a cabeça vai num sentido até ao fim, atendendo os pedidos, e depois volta para trás.' }
+  ];
+  const ans = {};
+  /* Baralha a ordem das opções de cada pergunta (de novo em cada tentativa) */
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let ord = Q.map(x => shuffle(x.o.map((_, j) => j)));
+  function draw(){
+    const n = Object.keys(ans).length, right = Object.keys(ans).filter(i => ans[i] === Q[i].c).length;
+    $('#quiz').innerHTML = (n ? `<p class="score">Acertaste ${right} de ${Q.length}${n < Q.length ? ` (respondeste a ${n})` : ''}.</p>` : '')
+      + Q.map((x, i) => `<fieldset class="q"><legend>${i + 1}. ${x.q}</legend>${ord[i].map(j => `<label class="${i in ans ? (j === x.c ? 'right' : j === ans[i] ? 'wrong' : '') : ''}"><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? ' checked' : ''}${i in ans ? ' disabled' : ''}><span>${x.o[j]}</span></label>`).join('')}${i in ans ? `<p class="fb"><b>${ans[i] === x.c ? 'Certo!' : 'Ainda não.'}</b> ${x.e}</p>` : ''}</fieldset>`).join('')
+      + (n === Q.length ? '<button class="btn" id="qz-again">Responder de novo</button>' : '');
+    const again = $('#qz-again'); if (again) again.onclick = () => { Object.keys(ans).forEach(k => delete ans[k]); ord = Q.map(x => shuffle(x.o.map((_, j) => j))); draw(); };
+  }
+  $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
