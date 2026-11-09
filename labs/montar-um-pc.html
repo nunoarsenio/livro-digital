@@ -1499,8 +1499,8 @@ const ISO = (() => {
     gold.forEach(([x, y]) => add(cyl(OX + x, OY + y, 6, 12, '#a07818', '#d4ad4a')));
     /* socket: base, moldura e alavanca */
     const so = R('socket');
-    [[so.x, so.y, so.w, 9], [so.x, so.y + so.h - 9, so.w, 9], [so.x, so.y, 9, so.h], [so.x + so.w - 9, so.y, 9, so.h]].forEach(([x, y, w, d]) => add(box(x, y, w, d, 7, '#b8c0ca', { z: 3, topFill: '#dfe4ea' })));
-    add(box(so.x + so.w + 6, so.y - 2, 6, so.h + 4, 9, '#cfd5dd'));
+    if (!window.ILM_OPEN) [[so.x, so.y, so.w, 9], [so.x, so.y + so.h - 9, so.w, 9], [so.x, so.y, 9, so.h], [so.x + so.w - 9, so.y, 9, so.h]].forEach(([x, y, w, d]) => add(box(x, y, w, d, 7, '#b8c0ca', { z: 3, topFill: '#dfe4ea' })));
+    if (!window.ILM_OPEN) add(box(so.x + so.w + 6, so.y - 2, 6, so.h + 4, 9, '#cfd5dd'));
     /* memória */
     const ra = R('ram'), ns = A ? 4 : 2;
     for (let i = 0; i < ns; i++) {
@@ -1882,8 +1882,31 @@ pcDraw();
   }
   function closeup(st, anim){
     svg.classList.add('iso', 'nolbl');
+    window.ILM_OPEN = !!st.openILM;
     ISO.render(svg, 'i3-');
-    const so = R('socket'), P3 = ISO.pr;
+    window.ILM_OPEN = 0;
+    const so = R('socket'), P3 = ISO.pr, Q = ISO.pts;
+    let pre = '';
+    if (st.openILM) {
+      /* moldura de retenção levantada: dobradiça na borda oposta à alavanca */
+      const A2 = 52 * Math.PI / 180, cosA = Math.cos(A2), sinA = Math.sin(A2), d = so.w + 4, z0 = 10;
+      const hx = so.x - 2, fx = hx - d * cosA, fz = z0 + d * sinA;
+      const y0 = so.y - 2, y1 = so.y + so.h + 2, t = 10;
+      const outer = [P3(hx, y0, z0), P3(hx, y1, z0), P3(fx, y1, fz), P3(fx, y0, fz)];
+      const ihx = hx - t * cosA, ihz = z0 + t * sinA, ifx = fx + t * cosA, ifz = fz - t * sinA;
+      const inner = [P3(ihx, y0 + t, ihz), P3(ihx, y1 - t, ihz), P3(ifx, y1 - t, ifz), P3(ifx, y0 + t, ifz)];
+      pre += `<path d="M ${Q(outer)} Z M ${Q(inner)} Z" fill="url(#i3-plate)" fill-rule="evenodd" stroke="#6b7682" stroke-width="1.2"/>`;
+      pre += `<path d="M ${Q(inner)} Z" fill="rgba(120,140,170,.12)"/>`;
+      /* dobradiça */
+      pre += `<path d="M ${Q([P3(hx - 5, y0, z0 - 4), P3(hx - 5, y1, z0 - 4), P3(hx + 4, y1, z0 + 5), P3(hx + 4, y0, z0 + 5)])} Z" fill="#aeb6c1" stroke="#6b7682" stroke-width="1"/>`;
+      /* alavanca aberta, levantada e afastada */
+      const lx = so.x + so.w + 8, ly0 = so.y - 2, ly1 = so.y + so.h + 2, lw = 7;
+      const bar = (p, q, w, col) => `<path d="M ${Q([P3(p[0], p[1] - w, p[2]), P3(q[0], q[1] - w, q[2]), P3(q[0], q[1] + w, q[2]), P3(p[0], p[1] + w, p[2])])} Z" fill="${col}" stroke="#6b7682" stroke-width="1"/>`;
+      pre += bar([lx, ly1 - 2, 4], [lx + 30, ly0 - 10, 46], lw, 'url(#i3-plate)');
+      pre += bar([lx + 30, ly0 - 10, 46], [lx + 54, ly0 - 4, 40], lw * .8, '#c3cad3');
+      const piv = P3(lx, ly1 - 2, 4), tip = P3(lx + 54, ly0 - 4, 40);
+      pre += `<circle cx="${piv[0]}" cy="${piv[1]}" r="5" fill="#8e98a5" stroke="#5b6472"/><circle cx="${tip[0]}" cy="${tip[1]}" r="4.5" fill="#dfe4ea" stroke="#6b7682"/>`;
+    }
     /* processador a pairar sobre o socket, ou já assente */
     const hov = st.cpuDown ? 12 : 120;
     let extra = '';
@@ -1893,7 +1916,6 @@ pcDraw();
       const cx0 = so.x + 20, cy0 = so.y + 20, cw = so.w - 40, cd = so.h - 40;
       const bx = ISO.box(cx0, cy0, cw, cd, 9, '#c8d0da', { z: hov, topFill: 'url(#i3-ihs2)' });
       extra += bx.svg;
-      const t = P3(cx0 + 6, cy0 + cd - 6, hov + 9);
       extra += `<polygon points="${ISO.pts([P3(cx0 + 4, cy0 + cd - 4, hov + 9.2), P3(cx0 + 22, cy0 + cd - 4, hov + 9.2), P3(cx0 + 4, cy0 + cd - 22, hov + 9.2)])}" fill="#f7dd94" stroke="#8a6a1a" stroke-width=".8"/>`;
       const lt = P3(cx0 + cw / 2, cy0 + cd / 2, hov + 9);
       extra += `<text x="${lt[0]}" y="${lt[1]}" text-anchor="middle" style="font:700 11px var(--head);fill:#56606e">CORE i5</text>`;
@@ -1905,7 +1927,7 @@ pcDraw();
     L.forEach(([x, y, t, side, dy]) => { const q = P3(x, y, 10), dx = side * 190, w = t.length * 6.6 + 16;
       const ex = q[0] + dx, ey = q[1] + dy;
       extra += `<g class="cl"><polyline points="${q[0]},${q[1]} ${q[0] + dx * .45},${q[1] + dy * .7} ${ex},${ey}"/><circle cx="${q[0]}" cy="${q[1]}" r="3.5"/><rect x="${side > 0 ? ex + 4 : ex - w - 4}" y="${ey - 11}" width="${w}" height="21" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="${ex + (side > 0 ? 12 : -12)}" y="${ey + 4}" text-anchor="${side > 0 ? 'start' : 'end'}">${t}</text></g>`; });
-    svg.insertAdjacentHTML('beforeend', `<defs><linearGradient id="i3-ihs2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#cfd7e1"/><stop offset=".72" stop-color="#eef2f6"/><stop offset="1" stop-color="#97a1ae"/></linearGradient></defs>` + extra);
+    svg.insertAdjacentHTML('beforeend', `<defs><linearGradient id="i3-ihs2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#cfd7e1"/><stop offset=".72" stop-color="#eef2f6"/><stop offset="1" stop-color="#97a1ae"/></linearGradient><linearGradient id="i3-plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".5" stop-color="#b9c1cb"/><stop offset="1" stop-color="#848e9b"/></linearGradient></defs>` + pre + extra);
     /* enquadramento: a câmara aproxima-se do socket */
     const corners = [[so.x - 44, so.y - 44], [so.x + so.w + 44, so.y - 44], [so.x + so.w + 44, so.y + so.h + 44], [so.x - 44, so.y + so.h + 44]];
     const ps = corners.map(([x, y]) => P3(x, y, 0)).concat(corners.map(([x, y]) => P3(x, y, 150)));
@@ -1931,7 +1953,8 @@ pcDraw();
     ['Preparação', '5 min', 'Preparar a bancada', { tools: 1 }, 'Mesa estável, boa luz e espaço livre. Liga a <b>pulseira antiestática</b> a uma parte metálica da caixa. Tem à mão uma chave Philips n.º 2 e um recipiente para os parafusos. Abre as caixas por ordem e confere as peças pela fatura.', ''],
     ['Bancada', '1 min', 'Pousar a motherboard', { board: 1 }, 'Antes de montar, conhece a placa. Em <b>3D</b> vês o relevo de cada componente e podes rodá-la; na vista <b>de cima</b> acompanhas a montagem peça a peça. A placa monta-se <b>fora da caixa</b>, sobre a própria caixa de cartão, que serve de superfície isolante.', ''],
     ['Bancada', '1 min', 'Aproximar o foco do socket', { zoom: 1 }, 'A câmara aproxima-se do <b>socket</b>, o encaixe do processador. Vês a <b>moldura metálica de retenção</b> (ILM), a <b>alavanca</b> que a prende e os milhares de <b>contactos dourados</b> no fundo. Repara no triângulo gravado num dos cantos.', 'socket'],
-    ['Bancada', '2 min', 'Pousar o processador no socket', { zoom: 1, cpuHover: 1 }, 'O processador desce <b>a direito</b> sobre o socket, com o <b>triângulo dourado</b> alinhado com o do canto. Pega-lhe sempre pelas bordas, nunca nos contactos nem na tampa.', 'socket'],
+    ['Bancada', '1 min', 'Abrir o socket', { zoom: 1, openILM: 1 }, 'Empurra a <b>alavanca</b> para o lado, para a libertar do gancho, e levanta-a. A <b>moldura de retenção</b> sobe com ela e deixa os contactos à vista. A tampa de plástico preta só deve sair depois de o processador estar instalado.', 'socket'],
+    ['Bancada', '2 min', 'Pousar o processador no socket', { zoom: 1, openILM: 1, cpuHover: 1 }, 'O processador desce <b>a direito</b> sobre o socket, com o <b>triângulo dourado</b> alinhado com o do canto. Pega-lhe sempre pelas bordas, nunca nos contactos nem na tampa.', 'socket'],
     ['Bancada', '1 min', 'Fechar a alavanca', { zoom: 1, cpuDown: 1 }, 'Assentou pelo próprio peso: <b>nunca se força</b>. Baixa a alavanca, que faz alguma pressão sobre os contactos, e a tampa de proteção salta sozinha.', 'socket'],
     ['Bancada', '0 min', 'Processador instalado', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
     ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
