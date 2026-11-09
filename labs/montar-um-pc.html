@@ -593,6 +593,16 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
 .chal li.done{border-color:var(--good);background:var(--good-soft)}
 .chal li.done::before{content:"✓";color:var(--good)}
 .bfan{transform-box:fill-box;transform-origin:center}
+.cxfan{transform-box:fill-box;transform-origin:center}
+.cxfan.run{animation:fan 1.5s linear infinite}
+.cxfan.run.fast{animation-duration:.75s}
+.cxfan.run.mid{animation-duration:1.05s}
+.cxfan.run.turbo{animation-duration:.45s}
+.bdwrap{position:relative}
+.mb .hl{fill:none;stroke:#ffd84d;stroke-width:4;opacity:0;transition:opacity .3s;pointer-events:none}
+.mb .hl.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.pill{border:1px solid var(--line);border-radius:999px;padding:.2rem .6rem;font:600 .74rem var(--ui);color:var(--muted);background:var(--soft)}
 .bfan.run{animation:fan 1.1s linear infinite}
 @media print{.tabs,.top,.controls,.credit{display:none}section[hidden]{display:block!important}}
 </style>
@@ -641,8 +651,8 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
   <p>As 18 etapas de uma montagem completa, pela ordem em que se fazem: da bancada à caixa, dos cabos ao primeiro arranque e à instalação do sistema. Carrega em Reproduzir para ver tudo seguido, ou escolhe uma etapa.</p></div>
   <div class="grid">
     <div class="card">
-      <div class="cfg"><label>Etapa<select id="bd-sel"></select></label><span class="pill" id="bd-lv"></span></div>
-      <svg class="mb" id="bd-svg" viewBox="0 0 900 480" aria-label="Montagem passo a passo"></svg>
+      <div class="cfg"><label>Etapa<select id="bd-sel"></select></label><span class="pill" id="bd-lv"></span><span class="pill" id="bd-time"></span></div>
+      <div class="bdwrap"><svg class="mb" id="bd-svg" viewBox="0 0 980 620" aria-label="Montagem passo a passo"></svg><div class="callout off" id="bd-call"></div></div>
       <div id="bd-verdict"></div>
       <div class="controls" data-ctl="montar"></div>
     </div>
@@ -849,7 +859,777 @@ function makeQuiz(Q){
   $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
   draw();
 }
+const OX = 34, OY = 36, BW = 520, BH = 560;
+const PA = {
+  io: [-14, 18, 82, 312, 'Painel de E/S traseiro', 'As fichas que ficam nas costas do computador: vídeo integrado (VGA, DisplayPort, HDMI), USB, rede (RJ45) e som. Só funcionam as de vídeo se o processador tiver gráfica integrada.'],
+  eps: [128, 6, 52, 28, 'Conector de 8 pinos (CPU_PWR1)', 'Alimentação própria do processador. Sem este cabo, o computador não arranca.'],
+  vrm: [118, 44, 72, 236, 'VRM: bobinas e condensadores', 'Os reguladores de tensão: convertem os 12 V da fonte na tensão exata do processador (cerca de 1,2 V). As bobinas (quadrados cinzentos) e os condensadores (cilindros) são a parte mais visível.'],
+  socket: [208, 92, 138, 156, 'Socket LGA 1700', 'O encaixe do processador, com a moldura metálica de retenção e a alavanca. Tem de corresponder ao processador (aqui, Intel de 12.ª a 14.ª geração).'],
+  cpufan: [300, 4, 34, 14, 'Conector CPU_FAN', 'Onde se liga a ventoinha do cooler do processador. Se ficar desligada, a placa pode recusar arrancar ou o processador sobreaquece.'],
+  ram: [374, 24, 90, 300, 'Ranhuras de memória (DIMM)', 'Quatro ranhuras para memória RAM. Com dois módulos, usam-se a 2.ª e a 4.ª (A2 e B2) para ativar o modo «dual channel», mais rápido.'],
+  atx: [488, 132, 28, 136, 'Conector de 24 pinos (ATX_PWR1)', 'A alimentação principal da motherboard, vinda da fonte.'],
+  m2: [148, 280, 214, 42, 'M.2 com dissipador', 'Ranhura para SSD NVMe, coberta por um dissipador metálico preto que evita que o SSD aqueça demasiado.'],
+  pcie: [118, 342, 304, 20, 'Ranhura PCIe x16 reforçada', 'Para a placa gráfica. Tem um reforço metálico porque as placas gráficas são pesadas.'],
+  m2b: [254, 400, 26, 74, 'Segunda ranhura M.2', 'Uma segunda ranhura para outro SSD, sem dissipador.'],
+  pciex1: [118, 412, 80, 14, 'Ranhura PCIe x1', 'Para placas de expansão pequenas: Wi-Fi, som, portas extra.'],
+  pcie2: [118, 466, 80, 14, 'Segunda ranhura PCIe x1', 'Outra ranhura pequena para placas de expansão.'],
+  chipset: [362, 390, 92, 92, 'Chipset (com dissipador)', 'Controla a comunicação entre o processador e o resto: SATA, USB, ranhuras extra. Tem um dissipador com alhetas por cima.'],
+  sio: [210, 432, 34, 34, 'Chip Super I/O', 'Controla funções lentas: sensores de temperatura, velocidade das ventoinhas, portas antigas.'],
+  sata: [462, 446, 46, 76, 'Portas SATA (em ângulo)', 'Para discos SATA. Estão viradas de lado para os cabos não chocarem com placas compridas.'],
+  bios: [70, 150, 40, 40, 'Pilha CMOS (BAT1)', 'Mantém as definições da UEFI/BIOS e o relógio quando o computador está desligado da corrente.'],
+  front: [372, 534, 64, 18, 'Painel frontal (JFP1)', 'Onde se ligam os fios do botão de ligar, do reset e das luzes da caixa.'],
+  usbh: [262, 534, 58, 18, 'Conectores USB internos', 'Ligam as portas USB da frente da caixa.'],
+  audio: [48, 534, 52, 18, 'Som frontal (JAUD1)', 'Liga as fichas de auscultadores e microfone da frente da caixa.']
+};
+const PB = {
+  io: [-14, 6, 82, 362, 'Painel de E/S traseiro', 'As fichas das costas do computador: USB 2.0 (pretas), VGA, DisplayPort e HDMI (vídeo integrado), USB 3 (azuis, mais rápidas), rede (RJ45) e som.'],
+  eps: [104, 6, 52, 28, 'Conector de 8 pinos (ATX_12V)', 'Alimentação própria do processador. Sem este cabo, o computador não arranca.'],
+  vrm: [146, 50, 216, 224, 'VRM: bobinas e condensadores', 'Os reguladores de tensão do processador: quatro bobinas em cima e quatro à esquerda do socket, com os condensadores ao lado. Convertem os 12 V da fonte em cerca de 1,2 V.'],
+  socket: [222, 108, 138, 156, 'Socket LGA 1700', 'O encaixe do processador (Intel de 12.ª a 14.ª geração), com a moldura metálica de retenção e a alavanca.'],
+  cpufan: [356, 6, 30, 14, 'Conector CPU_FAN', 'Onde se liga a ventoinha do cooler. Se ficar desligada, a placa pode recusar arrancar ou o processador sobreaquece.'],
+  ram: [400, 14, 62, 340, 'Ranhuras de memória DDR5', 'Só duas ranhuras, para memória DDR5 (mais rápida do que a DDR4, e com um entalhe noutra posição: não se podem trocar). Com dois módulos, cada um vai para a sua ranhura (A1 e B1) e fica ativo o modo dual channel.'],
+  atx: [488, 150, 26, 140, 'Conector de 24 pinos (ATX)', 'A alimentação principal da motherboard, vinda da fonte.'],
+  m2: [322, 322, 24, 176, 'Ranhura M.2', 'Para SSD NVMe. Nesta placa não tem dissipador e fica na vertical, entre a ranhura PCIe e o chipset.'],
+  pcie: [100, 392, 200, 16, 'Ranhura PCIe x16', 'Para a placa gráfica. É a ranhura comprida.'],
+  m2b: [282, 428, 22, 62, 'Segunda ranhura M.2', 'Uma segunda ranhura, mais curta, para outro SSD ou uma placa Wi-Fi.'],
+  pciex1: [100, 478, 64, 13, 'Ranhura PCIe x1', 'Para placas de expansão pequenas: rede Wi-Fi, som, portas extra.'],
+  chipset: [356, 412, 80, 86, 'Chipset (com dissipador)', 'Controla a comunicação entre o processador e o resto: SATA, USB, ranhuras extra. Tem um dissipador com alhetas por cima.'],
+  sio: [52, 430, 38, 38, 'Chip Super I/O', 'Controla funções lentas: sensores de temperatura, velocidade das ventoinhas, portas antigas.'],
+  sata: [476, 300, 42, 150, 'Portas SATA (em ângulo)', 'Duas portas SATA de lado, na borda direita, para discos e SSD de 2,5".'],
+  bios: [232, 470, 42, 42, 'Pilha CMOS', 'Mantém as definições da UEFI e o relógio quando o computador está desligado da corrente.'],
+  front: [410, 536, 70, 16, 'Painel frontal (F_PANEL)', 'Onde se ligam os fios do botão de ligar, do reset e das luzes da caixa.'],
+  usbh: [252, 536, 62, 16, 'Conectores USB internos (F_USB)', 'Ligam as portas USB da frente da caixa.'],
+  audio: [52, 536, 50, 16, 'Som frontal (F_AUDIO)', 'Liga as fichas de auscultadores e microfone da frente da caixa.']
+};
+const MODEL = new URLSearchParams(location.search).get('placa') === 'ddr4' ? 'A' : 'B';
+let HOLES = [];
+const P = MODEL === 'A' ? PA : PB;
+const R = k => { const [x, y, w, h] = P[k]; return { x: OX + x, y: OY + y, w, h }; };
+function defsSVG(p){
+  return `<defs>
+  <linearGradient id="${p}pcb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#202328"/><stop offset=".6" stop-color="#16181c"/><stop offset="1" stop-color="#101114"/></linearGradient>
+  <pattern id="${p}diag" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-38)"><rect width="26" height="26" fill="transparent"/><rect width="9" height="26" fill="rgba(255,255,255,.035)"/></pattern>
+  <linearGradient id="${p}met" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef1f4"/><stop offset=".45" stop-color="#aab3bf"/><stop offset=".55" stop-color="#cfd5dd"/><stop offset="1" stop-color="#7d8794"/></linearGradient>
+  <linearGradient id="${p}dmet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a525e"/><stop offset=".5" stop-color="#2c323b"/><stop offset="1" stop-color="#1a1e24"/></linearGradient>
+  <linearGradient id="${p}gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dc8c"/><stop offset=".5" stop-color="#d4ad4a"/><stop offset="1" stop-color="#a47f27"/></linearGradient>
+  <linearGradient id="${p}blk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34383f"/><stop offset="1" stop-color="#0e0f12"/></linearGradient>
+  <linearGradient id="${p}choke" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b9099"/><stop offset="1" stop-color="#5a5f67"/></linearGradient>
+  <linearGradient id="${p}ram" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#111"/><stop offset=".5" stop-color="#3a3f47"/><stop offset="1" stop-color="#111"/></linearGradient>
+  <linearGradient id="${p}rgb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4d6d"/><stop offset=".33" stop-color="#ffd166"/><stop offset=".66" stop-color="#06d6a0"/><stop offset="1" stop-color="#4cc9f0"/></linearGradient>
+  <radialGradient id="${p}fan" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#2a2f38"/><stop offset="1" stop-color="#0f1216"/></radialGradient>
+  <radialGradient id="${p}cap" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#d9dde3"/><stop offset=".6" stop-color="#9aa3ae"/><stop offset="1" stop-color="#5b6370"/></radialGradient>
+  <pattern id="${p}finsv" width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#1b1d21"/><rect width="3" height="7" fill="#33373e"/><rect x="3" width="1" height="7" fill="#4a4f57"/></pattern>
+  <pattern id="${p}finsh" width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#1b1d21"/><rect width="7" height="3" fill="#33373e"/><rect y="3" width="7" height="1" fill="#4a4f57"/></pattern>
+  <pattern id="${p}pins" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#a88a33"/><circle cx="2.5" cy="2.5" r="1.1" fill="#f3d88a"/></pattern>
+  <filter id="${p}sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="1.2" dy="2" stdDeviation="1.6" flood-opacity=".7"/></filter>
+  <filter id="${p}lift" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="6" dy="14" stdDeviation="9" flood-opacity=".5"/></filter>
+  </defs>`;
+}
+function boardSVG(pre, opts = {}){ return MODEL === 'A' ? boardSVG_A(pre, opts) : boardSVG_B(pre, opts); }
+function boardSVG_A(pre, opts = {}){
+  const u = n => `url(#${pre}${n})`, sh = `filter="${u('sh')}"`;
+  const silk = (x, y, t, a = 0, sz = 7) => `<text x="${x}" y="${y}" transform="rotate(${a} ${x} ${y})" style="font:600 ${sz}px var(--mono);fill:#f2f2f2;opacity:.85;letter-spacing:.3px">${t}</text>`;
+  const pins = (x, y, cols, rows, gap = 5) => { let t = ''; for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) t += `<rect x="${x + i * gap}" y="${y + j * gap}" width="2" height="2" fill="#e8c766"/>`; return t; };
+  const cap = (x, y, r = 5.5, gold) => `<g ${sh}><circle cx="${x}" cy="${y}" r="${r}" fill="${gold ? '#c9a227' : u('cap')}"/><path d="M${x - r * .55} ${y} h${r * 1.1} M${x} ${y - r * .55} v${r * 1.1}" stroke="${gold ? '#7a5d18' : '#4b5563'}" stroke-width=".8"/></g>`;
+  const choke = (x, y, w = 20) => `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="3" fill="${u('choke')}" ${sh}/><rect x="${x + 3}" y="${y + 3}" width="${w - 6}" height="${w - 6}" rx="2" fill="none" stroke="rgba(255,255,255,.18)"/>`;
+  const fet = (x, y) => `<rect x="${x}" y="${y}" width="10" height="8" rx="1" fill="#0b0c0e" stroke="#2f3238" stroke-width=".6"/>`;
+  const hole = (x, y) => `<g>${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4; return `<rect x="${x - 1.2}" y="${y - 17}" width="2.4" height="5" fill="#f2f2f2" opacity=".85" transform="rotate(${i * 45} ${x} ${y})"/>`; }).join('')}<circle cx="${x}" cy="${y}" r="9" fill="${u('met')}"/><circle cx="${x}" cy="${y}" r="4.6" fill="#0b0c0e"/></g>`;
+  let s = '';
+  s += `<rect x="${OX}" y="${OY}" width="${BW}" height="${BH}" rx="10" fill="${u('pcb')}" ${sh}/><rect x="${OX}" y="${OY}" width="${BW}" height="${BH}" rx="10" fill="${u('diag')}"/>`;
+  /* pistas finas e componentes minúsculos (textura) */
+  for (let i = 0; i < 26; i++) s += `<path d="M${OX + 120 + (i * 17) % 360} ${OY + 380 + (i * 29) % 150} h${10 + (i * 7) % 30} l6 6" stroke="#2c3036" stroke-width=".9" fill="none"/>`;
+  for (let i = 0; i < 70; i++) { const x = OX + 100 + (i * 53) % 400, y = OY + 20 + (i * 97) % 520; s += `<rect x="${x}" y="${y}" width="${i % 3 ? 3 : 5}" height="2" fill="${i % 4 ? '#5b616b' : '#b08d3a'}" opacity=".8"/>`; }
+  HOLES = [[96, 20], [496, 20], [24, 540], [496, 540], [270, 20], [96, 302], [470, 306], [330, 505]];
+  HOLES.forEach(([x, y]) => s += hole(OX + x, OY + y));
+  /* painel traseiro: portas vistas de cima */
+  const io = R('io');
+  s += `<rect x="${io.x + 10}" y="${io.y}" width="${io.w - 10}" height="${io.h}" rx="3" fill="#0d0e10" opacity=".6"/>`;
+  const port = (y, h, body, inner, lbl) => `<g ${sh}><rect x="${io.x}" y="${io.y + y}" width="60" height="${h}" rx="3" fill="${body}"/>${inner}${lbl ? silk(io.x + 64, io.y + y + h / 2 + 3, lbl, 0, 6) : ''}</g>`;
+  s += port(4, 40, '#1f3a6b', `<rect x="${io.x + 4}" y="${io.y + 10}" width="52" height="20" rx="4" fill="#2c4d86"/><circle cx="${io.x + 8}" cy="${io.y + 8}" r="3" fill="${u('met')}"/><circle cx="${io.x + 8}" cy="${io.y + 40}" r="3" fill="${u('met')}"/>`, 'VGA');
+  s += port(52, 26, u('met'), `<rect x="${io.x + 8}" y="${io.y + 58}" width="44" height="12" rx="2" fill="#16181c"/>`, 'DP');
+  s += port(84, 26, u('met'), `<rect x="${io.x + 8}" y="${io.y + 90}" width="44" height="12" rx="2" fill="#16181c"/>`, 'HDMI');
+  s += port(116, 50, u('met'), `<rect x="${io.x + 6}" y="${io.y + 122}" width="48" height="16" rx="1" fill="#16181c"/><rect x="${io.x + 6}" y="${io.y + 144}" width="48" height="16" rx="1" fill="#16181c"/>`, 'USB');
+  s += port(172, 62, u('met'), `<rect x="${io.x + 6}" y="${io.y + 178}" width="48" height="24" rx="2" fill="#16181c"/><rect x="${io.x + 6}" y="${io.y + 208}" width="48" height="18" rx="1" fill="#1e5bd8"/>`, 'LAN');
+  s += port(240, 70, '#d6d9de', `<circle cx="${io.x + 30}" cy="${io.y + 255}" r="8" fill="#7cc9e8" stroke="#555"/><circle cx="${io.x + 30}" cy="${io.y + 276}" r="8" fill="#8fd16a" stroke="#555"/><circle cx="${io.x + 30}" cy="${io.y + 297}" r="8" fill="#f08aa0" stroke="#555"/>`, 'AUDIO');
+  /* VRM: bobinas, MOSFET e condensadores à esquerda e em cima do socket */
+  for (let i = 0; i < 6; i++) { s += choke(OX + 150, OY + 60 + i * 34); s += fet(OX + 128, OY + 66 + i * 34); s += cap(OX + 182, OY + 70 + i * 34, 5); }
+  for (let i = 0; i < 3; i++) { s += choke(OX + 210 + i * 40, OY + 44, 22); s += fet(OX + 214 + i * 40, OY + 70); }
+  for (let i = 0; i < 5; i++) s += cap(OX + 222 + i * 22, OY + 82 + 0, 6);
+  s += silk(OX + 124, OY + 272, 'VRM');
+  /* conectores de alimentação */
+  const e = R('eps'); s += `<g ${sh}><rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="3" fill="${u('blk')}"/>${Array.from({ length: 8 }, (_, i) => `<rect x="${e.x + 5 + (i % 4) * 11.5}" y="${e.y + 4 + Math.floor(i / 4) * 11}" width="8" height="8" rx="1.5" fill="#050506" stroke="#3a3d42" stroke-width=".6"/>`).join('')}</g>` + silk(e.x + 2, e.y - 3, 'CPU_PWR1', 0, 6);
+  const f = R('cpufan'); s += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="2" fill="${u('blk')}" ${sh}/>` + pins(f.x + 6, f.y + 6, 4, 1, 6) + silk(f.x, f.y + 26, 'CPU_FAN1', 0, 6);
+  s += `<rect x="${OX + 490}" y="${OY + 44}" width="14" height="34" rx="2" fill="${u('blk')}" ${sh}/>` + pins(OX + 496, OY + 50, 1, 4, 6) + silk(OX + 482, OY + 92, 'SYS_FAN1', 0, 6);
+  const at = R('atx'); s += `<g ${sh}><rect x="${at.x}" y="${at.y}" width="${at.w}" height="${at.h}" rx="3" fill="${u('blk')}"/>${Array.from({ length: 24 }, (_, i) => `<rect x="${at.x + 4 + (i % 2) * 11}" y="${at.y + 6 + Math.floor(i / 2) * 10.6}" width="8" height="8" rx="1.5" fill="#050506" stroke="#3a3d42" stroke-width=".6"/>`).join('')}</g>` + silk(at.x - 6, at.y + 100, 'ATX_PWR1', -90, 6);
+  /* socket LGA 1700 com moldura metálica */
+  const so = R('socket');
+  s += `<g ${sh}><rect x="${so.x - 8}" y="${so.y - 6}" width="${so.w + 16}" height="${so.h + 12}" rx="4" fill="#0b0c0e"/><rect x="${so.x + 10}" y="${so.y + 12}" width="${so.w - 20}" height="${so.h - 24}" fill="url(#${pre}pins)"/></g>`;
+  s += `<rect x="${so.x}" y="${so.y}" width="${so.w}" height="${so.h}" rx="5" fill="none" stroke="${u('met')}" stroke-width="10" ${sh}/>`;
+  [[so.x + 8, so.y - 2], [so.x + so.w - 8, so.y - 2], [so.x + 8, so.y + so.h + 2], [so.x + so.w - 8, so.y + so.h + 2]].forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="4" fill="${u('met')}" stroke="#555" stroke-width=".6"/>`);
+  s += `<path d="M${so.x + 14} ${so.y + so.h - 14} l12 0 l-12 -12 z" fill="#f6dc8c"/>`;
+  /* memória */
+  const ra = R('ram');
+  ['A1', 'A2', 'B1', 'B2'].forEach((n, i) => {
+    const x = ra.x + 6 + i * 21;
+    s += `<rect x="${x}" y="${ra.y + 10}" width="13" height="${ra.h - 14}" rx="2" fill="#0a0b0d" stroke="#2d3036" ${sh}/><rect x="${x + 5}" y="${ra.y + 16}" width="3" height="${ra.h - 26}" fill="#000"/>`;
+    s += `<rect class="latch" id="${pre}lt${i}a" x="${x - 1}" y="${ra.y}" width="15" height="12" rx="2" fill="#7b8089" style="transform-origin:${x + 6}px ${ra.y + 12}px"/><rect x="${x}" y="${ra.y + ra.h - 6}" width="13" height="6" rx="1" fill="#2d3036"/>`;
+    s += silk(x, ra.y - 3, n, 0, 6);
+  });
+  /* dissipador do M.2 (pode estar desenhado à parte, na montagem) */
+  const m = R('m2');
+  s += `<rect x="${m.x + 6}" y="${m.y + 12}" width="${m.w - 12}" height="16" rx="2" fill="none" stroke="#f2f2f2" stroke-width=".7" stroke-dasharray="3 2" opacity=".5"/><rect x="${m.x + 2}" y="${m.y + 13}" width="10" height="14" rx="1" fill="${u('blk')}"/><circle cx="${m.x + m.w - 4}" cy="${m.y + 20}" r="4" fill="${u('met')}"/>` + silk(m.x + 16, m.y + 8, 'M2_1', 0, 6.5);
+  if (!opts.noM2hs) s += `<g ${sh}><rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="4" fill="url(#${pre}finsv)"/><rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="4" fill="none" stroke="#3d424a"/><circle cx="${m.x + 8}" cy="${m.y + m.h / 2}" r="3.5" fill="${u('met')}"/><circle cx="${m.x + m.w - 8}" cy="${m.y + m.h / 2}" r="3.5" fill="${u('met')}"/></g>`;
+  /* PCIe x16 reforçada e x1 */
+  const pc = R('pcie');
+  s += `<g ${sh}><rect x="${pc.x}" y="${pc.y}" width="${pc.w}" height="${pc.h}" rx="3" fill="${u('met')}"/><rect x="${pc.x + 4}" y="${pc.y + 4}" width="${pc.w - 8}" height="${pc.h - 8}" rx="1" fill="#0a0b0d"/><rect x="${pc.x + 72}" y="${pc.y + 3}" width="3" height="${pc.h - 6}" fill="${u('met')}"/></g><rect x="${pc.x + pc.w + 2}" y="${pc.y - 4}" width="12" height="${pc.h + 8}" rx="3" fill="#1b1d21" stroke="#4a4f57" ${sh}/>` + silk(pc.x, pc.y - 5, 'PCI_E1', 0, 6.5);
+  ['pciex1', 'pcie2'].forEach((k, i) => { const r = R(k); s += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="2" fill="#0a0b0d" stroke="#2d3036" ${sh}/><rect x="${r.x + 4}" y="${r.y + 5}" width="${r.w - 8}" height="3" fill="#000"/>` + silk(r.x, r.y - 4, 'PCI_E' + (i + 2), 0, 6.5); });
+  const mb2 = R('m2b'); s += `<rect x="${mb2.x}" y="${mb2.y}" width="${mb2.w}" height="${mb2.h}" rx="2" fill="none" stroke="#f2f2f2" stroke-width=".6" stroke-dasharray="3 2" opacity=".45"/><rect x="${mb2.x + 4}" y="${mb2.y}" width="18" height="9" rx="1" fill="${u('blk')}"/><circle cx="${mb2.x + 13}" cy="${mb2.y + mb2.h - 6}" r="3.5" fill="${u('met')}"/>` + silk(mb2.x + 28, mb2.y + 20, 'M2_2', 0, 6);
+  /* chipset com dissipador de alhetas */
+  const c = R('chipset'); s += `<g ${sh}><rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="5" fill="url(#${pre}finsv)"/><rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="5" fill="none" stroke="#3d424a"/></g>`;
+  /* Super I/O e outros chips */
+  const so2 = R('sio'); s += `<rect x="${so2.x}" y="${so2.y}" width="${so2.w}" height="${so2.h}" rx="2" fill="#0d0e10" stroke="#3a3d42" ${sh}/>${Array.from({ length: 8 }, (_, i) => `<rect x="${so2.x + 3 + i * 4}" y="${so2.y - 3}" width="1.6" height="3" fill="#b9bec6"/><rect x="${so2.x + 3 + i * 4}" y="${so2.y + so2.h}" width="1.6" height="3" fill="#b9bec6"/>`).join('')}<text x="${so2.x + so2.w / 2}" y="${so2.y + 20}" text-anchor="middle" style="font:600 6px var(--mono);fill:#9aa3ae">SIO</text>`;
+  s += `<rect x="${OX + 60}" y="${OY + 470}" width="24" height="24" rx="2" fill="#0d0e10" stroke="#3a3d42" ${sh}/>` + silk(OX + 58, OY + 505, 'AUDIO', 0, 5.5);
+  /* condensadores de áudio dourados e outros */
+  [[34, 380], [48, 392], [34, 410], [48, 422], [34, 440]].forEach(([x, y]) => s += cap(OX + x, OY + y, 5.5, true));
+  [[440, 330], [454, 330], [440, 344], [430, 500], [444, 500], [330, 380], [344, 380], [214, 500], [228, 500], [300, 470], [470, 112], [484, 112]].forEach(([x, y]) => s += cap(OX + x, OY + y, 4.6));
+  /* pilha */
+  const bi = R('bios');
+  s += opts.noBat ? `<circle cx="${bi.x + 20}" cy="${bi.y + 20}" r="21" fill="#0d1014" stroke="#3a3f47" stroke-width="2"/><path d="M${bi.x + 20} ${bi.y - 2} a22 22 0 0 1 0 44" fill="none" stroke="${u('met')}" stroke-width="3"/><rect x="${bi.x + 14}" y="${bi.y + 16}" width="12" height="8" rx="2" fill="${u('met')}"/>`
+    : `<circle cx="${bi.x + 20}" cy="${bi.y + 20}" r="20" fill="${u('met')}" ${sh}/><circle cx="${bi.x + 20}" cy="${bi.y + 20}" r="14" fill="none" stroke="rgba(0,0,0,.18)"/><text x="${bi.x + 20}" y="${bi.y + 23}" text-anchor="middle" style="font:700 6.5px var(--mono);fill:#3a414c">CR2032</text>`;
+  s += silk(bi.x + 4, bi.y - 4, 'BAT1', 0, 6);
+  /* SATA em ângulo */
+  const sa = R('sata'); [0, 1].forEach(r => [0, 1].forEach(c2 => s += `<g ${sh}><rect x="${sa.x + c2 * 24}" y="${sa.y + r * 40}" width="22" height="36" rx="2" fill="${u('blk')}"/><rect x="${sa.x + c2 * 24 + 6}" y="${sa.y + r * 40 + 4}" width="10" height="26" rx="1" fill="#050506"/><rect x="${sa.x + c2 * 24 + 9}" y="${sa.y + r * 40 + 6}" width="4" height="20" fill="#d4ad4a"/></g>`));
+  s += silk(sa.x - 2, sa.y - 4, 'SATA', 0, 6);
+  /* conectores ao longo da borda de baixo */
+  [['audio', 'JAUD1'], ['usbh', 'JUSB1'], ['front', 'JFP1']].forEach(([k, n]) => { const r = R(k); s += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="1.5" fill="${u('blk')}" ${sh}/>` + pins(r.x + 4, r.y + 4, Math.floor((r.w - 6) / 6), 2, 6) + silk(r.x, r.y + 28, n, 0, 6); });
+  [[110, 'JRGB1'], [160, 'JCI1'], [208, 'SYS_FAN2'], [440, 'JTPM1']].forEach(([x, n]) => s += `<rect x="${OX + x}" y="${OY + 534}" width="36" height="18" rx="1.5" fill="${u('blk')}" ${sh}/>` + pins(OX + x + 4, OY + 538, 5, 2, 6) + silk(OX + x, OY + 562, n, 0, 5.5));
+  s += `<rect x="${OX + 488}" y="${OY + 340}" width="22" height="40" rx="2" fill="${u('blk')}" ${sh}/>` + pins(OX + 492, OY + 344, 3, 6, 6) + silk(OX + 482, OY + 392, 'JUSB3', 0, 5.5);
+  s += `<text x="${OX + 364}" y="${OY + 236}" transform="rotate(-90 ${OX + 364} ${OY + 236})" style="font:800 9px var(--head);fill:#f2f2f2;opacity:.7;letter-spacing:2px">MICRO-ATX</text>`;
+  if (opts.hot) Object.keys(P).forEach(k => { const r = R(k); s += `<rect class="hot" data-k="${k}" x="${r.x - 3}" y="${r.y - 3}" width="${r.w + 6}" height="${r.h + 6}" rx="4"/>`; });
+  Object.keys(P).forEach(k => { const r = R(k); s += `<rect class="hl" id="${pre}hl-${k}" x="${r.x - 6}" y="${r.y - 6}" width="${r.w + 12}" height="${r.h + 12}" rx="6"/>`; });
+  return defsSVG(pre) + s;
+}
 
+function boardSVG_B(pre, opts = {}){
+  const u = n => `url(#${pre}${n})`, sh = `filter="${u('sh')}"`;
+  const silk = (x, y, t, a = 0, sz = 7) => `<text x="${x}" y="${y}" transform="rotate(${a} ${x} ${y})" style="font:600 ${sz}px var(--mono);fill:#f2f2f2;opacity:.85;letter-spacing:.3px">${t}</text>`;
+  const pins = (x, y, cols, rows, gap = 5) => { let t = ''; for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) t += `<rect x="${x + i * gap}" y="${y + j * gap}" width="2" height="2" fill="#e8c766"/>`; return t; };
+  const cap = (x, y, r = 5.5, gold) => `<g ${sh}><circle cx="${x}" cy="${y}" r="${r}" fill="${gold ? '#c9a227' : u('cap')}"/><path d="M${x - r * .55} ${y} h${r * 1.1} M${x} ${y - r * .55} v${r * 1.1}" stroke="${gold ? '#7a5d18' : '#4b5563'}" stroke-width=".8"/></g>`;
+  const choke = (x, y, w = 22) => `<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="3" fill="#2b2e33" ${sh}/><rect x="${x + 3}" y="${y + 3}" width="${w - 6}" height="${w - 6}" rx="2" fill="#3a3e45"/>`;
+  const fet = (x, y) => `<rect x="${x}" y="${y}" width="10" height="8" rx="1" fill="#0b0c0e" stroke="#2f3238" stroke-width=".6"/>`;
+  const hole = (x, y) => `<g>${Array.from({ length: 8 }, (_, i) => `<rect x="${x - 1.2}" y="${y - 17}" width="2.4" height="5" fill="#f2f2f2" opacity=".85" transform="rotate(${i * 45} ${x} ${y})"/>`).join('')}<circle cx="${x}" cy="${y}" r="9" fill="${u('met')}"/><circle cx="${x}" cy="${y}" r="4.6" fill="#0b0c0e"/></g>`;
+  let s = '';
+  /* placa cinzenta-escura com formas geométricas mais claras */
+  s += `<rect x="${OX}" y="${OY}" width="${BW}" height="${BH}" rx="10" fill="#26282c" ${sh}/>`;
+  s += `<path d="M${OX + 150} ${OY + 290} L${OX + 210} ${OY + 230} L${OX + 210} ${OY + 380} L${OX + 290} ${OY + 380} L${OX + 210} ${OY + 460} Z" fill="#33363b"/>`;
+  s += `<path d="M${OX + 330} ${OY + 290} L${OX + 400} ${OY + 220} L${OX + 400} ${OY + 290} Z" fill="#383b41"/>`;
+  s += `<path d="M${OX + 150} ${OY + 140} L${OX + 230} ${OY + 60} L${OX + 290} ${OY + 60} L${OX + 160} ${OY + 190} Z" fill="#2f3237"/>`;
+  s += `<path d="M${OX + 200} ${OY + 500} L${OX + 260} ${OY + 440} L${OX + 340} ${OY + 440} L${OX + 340} ${OY + 520} Z" fill="#2f3237"/>`;
+  s += `<path d="M${OX + 230} ${OY + 418} l14 -14 l14 14 z" fill="none" stroke="#4a4e55" stroke-width="2"/>`;
+  for (let i = 0; i < 70; i++) { const x = OX + 100 + (i * 53) % 400, y = OY + 20 + (i * 97) % 520; s += `<rect x="${x}" y="${y}" width="${i % 3 ? 3 : 5}" height="2" fill="${i % 4 ? '#5b616b' : '#b08d3a'}" opacity=".8"/>`; }
+  for (let i = 0; i < 18; i++) s += `<path d="M${OX + 360 + (i * 13) % 120} ${OY + 380 + (i * 31) % 140} h${8 + (i * 7) % 20} l6 6" stroke="#3a3d43" stroke-width=".9" fill="none"/>`;
+  HOLES = [[88, 18], [300, 18], [500, 18], [96, 300], [300, 292], [470, 372], [24, 540], [500, 540]];
+  HOLES.forEach(([x, y]) => s += hole(OX + x, OY + y));
+  /* painel traseiro */
+  const io = R('io');
+  s += `<rect x="${io.x + 10}" y="${io.y}" width="${io.w - 10}" height="${io.h}" rx="3" fill="#0d0e10" opacity=".55"/>`;
+  const port = (y, h, body, inner, lbl) => `<g ${sh}><rect x="${io.x}" y="${io.y + y}" width="62" height="${h}" rx="3" fill="${body}"/>${inner}${lbl ? silk(io.x + 66, io.y + y + h / 2 + 3, lbl, 0, 6) : ''}</g>`;
+  const slotr = (y, h, c) => `<rect x="${io.x + 7}" y="${io.y + y}" width="48" height="${h}" rx="1.5" fill="${c}"/>`;
+  s += port(4, 44, u('met'), slotr(10, 13, '#16181c') + slotr(28, 13, '#16181c'), 'USB 2.0');
+  s += port(54, 44, '#e8eaee', `<rect x="${io.x + 8}" y="${io.y + 62}" width="46" height="26" rx="5" fill="#1f2a44"/><circle cx="${io.x + 6}" cy="${io.y + 75}" r="3" fill="${u('met')}"/><circle cx="${io.x + 56}" cy="${io.y + 75}" r="3" fill="${u('met')}"/>`, 'VGA');
+  s += port(104, 56, u('met'), slotr(110, 14, '#16181c') + slotr(134, 14, '#16181c'), 'DP/HDMI');
+  s += port(166, 46, u('met'), slotr(172, 13, '#1e5bd8') + slotr(192, 13, '#1e5bd8'), 'USB 3');
+  s += port(218, 74, u('met'), `<rect x="${io.x + 7}" y="${io.y + 224}" width="48" height="24" rx="2" fill="#16181c"/><rect x="${io.x + 46}" y="${io.y + 226}" width="6" height="4" fill="#facc15"/>` + slotr(254, 13, '#1e5bd8') + slotr(272, 13, '#1e5bd8'), 'LAN');
+  s += port(298, 64, '#e8eaee', `<circle cx="${io.x + 31}" cy="${io.y + 311}" r="8" fill="#7cc9e8" stroke="#555"/><circle cx="${io.x + 31}" cy="${io.y + 330}" r="8" fill="#8fd16a" stroke="#555"/><circle cx="${io.x + 31}" cy="${io.y + 349}" r="8" fill="#f08aa0" stroke="#555"/>`, 'AUDIO');
+  /* VRM: 4 bobinas em cima, 4 à esquerda */
+  for (let i = 0; i < 4; i++) { s += choke(OX + 232 + i * 32, OY + 52); s += fet(OX + 238 + i * 32, OY + 42); s += cap(OX + 243 + i * 32, OY + 90, 6); }
+  for (let i = 0; i < 4; i++) { s += choke(OX + 168, OY + 120 + i * 36); s += fet(OX + 152, OY + 126 + i * 36); s += cap(OX + 205, OY + 130 + i * 36, 6); }
+  for (let i = 0; i < 4; i++) s += cap(OX + 128, OY + 112 + i * 34, 6.5);
+  s += silk(OX + 160, OY + 284, 'VRM');
+  /* alimentação */
+  const e = R('eps'); s += `<g ${sh}><rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="3" fill="${u('blk')}"/>${Array.from({ length: 8 }, (_, i) => `<rect x="${e.x + 5 + (i % 4) * 11.5}" y="${e.y + 4 + Math.floor(i / 4) * 11}" width="8" height="8" rx="1.5" fill="#050506" stroke="#3a3d42" stroke-width=".6"/>`).join('')}</g>` + silk(e.x + 2, e.y + 40, 'ATX_12V', 0, 6);
+  [[162, 10], [176, 10]].forEach(([x, y]) => s += cap(OX + x, OY + y + 6, 6.5));
+  const f = R('cpufan'); s += `<rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="2" fill="${u('blk')}" ${sh}/>` + pins(f.x + 5, f.y + 6, 4, 1, 6) + silk(f.x - 2, f.y + 26, 'CPU_FAN', 0, 6);
+  const at = R('atx'); s += `<g ${sh}><rect x="${at.x}" y="${at.y}" width="${at.w}" height="${at.h}" rx="3" fill="${u('blk')}"/>${Array.from({ length: 24 }, (_, i) => `<rect x="${at.x + 4 + (i % 2) * 11}" y="${at.y + 6 + Math.floor(i / 2) * 11}" width="8" height="8" rx="1.5" fill="#050506" stroke="#3a3d42" stroke-width=".6"/>`).join('')}</g>` + silk(at.x - 6, at.y + 110, 'ATX', -90, 6);
+  /* socket */
+  const so = R('socket');
+  s += `<g ${sh}><rect x="${so.x - 8}" y="${so.y - 6}" width="${so.w + 16}" height="${so.h + 12}" rx="4" fill="#0b0c0e"/><rect x="${so.x + 10}" y="${so.y + 12}" width="${so.w - 20}" height="${so.h - 24}" fill="url(#${pre}pins)"/></g>`;
+  s += `<rect x="${so.x}" y="${so.y}" width="${so.w}" height="${so.h}" rx="5" fill="none" stroke="${u('met')}" stroke-width="10" ${sh}/>`;
+  [[so.x + 8, so.y - 2], [so.x + so.w - 8, so.y - 2], [so.x + 8, so.y + so.h + 2], [so.x + so.w - 8, so.y + so.h + 2]].forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="4" fill="${u('met')}" stroke="#555" stroke-width=".6"/>`);
+  s += `<path d="M${so.x + 14} ${so.y + so.h - 14} l12 0 l-12 -12 z" fill="#f6dc8c"/>` + silk(so.x + so.w + 18, so.y + 120, 'Socket 1700', -90, 7);
+  /* duas ranhuras DDR5 */
+  const ra = R('ram');
+  ['DDR5_A1', 'DDR5_B1'].forEach((n, i) => {
+    const x = ra.x + 6 + i * 28;
+    s += `<rect x="${x}" y="${ra.y + 10}" width="14" height="${ra.h - 14}" rx="2" fill="#0a0b0d" stroke="#2d3036" ${sh}/><rect x="${x + 5}" y="${ra.y + 16}" width="4" height="${ra.h - 26}" fill="#000"/>`;
+    s += `<rect class="latch" id="${pre}lt${i}a" x="${x - 1}" y="${ra.y}" width="16" height="12" rx="2" fill="#16181c" stroke="#3a3d42" style="transform-origin:${x + 7}px ${ra.y + 12}px"/><rect x="${x}" y="${ra.y + ra.h - 6}" width="14" height="6" rx="1" fill="#16181c"/>`;
+  });
+  s += silk(ra.x + 2, ra.y + ra.h + 12, 'DDR5_A1 B1', 0, 6);
+  /* M.2 vertical, sem dissipador */
+  const m = R('m2');
+  s += `<rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="2" fill="none" stroke="#f2f2f2" stroke-width=".7" stroke-dasharray="3 2" opacity=".5"/><rect x="${m.x + 2}" y="${m.y}" width="${m.w - 4}" height="10" rx="1" fill="${u('blk')}" ${sh}/><circle cx="${m.x + m.w / 2}" cy="${m.y + m.h - 6}" r="4" fill="${u('met')}"/>` + silk(m.x + m.w + 4, m.y + 10, 'M2A_CPU', 0, 6);
+  const mb2 = R('m2b'); s += `<rect x="${mb2.x}" y="${mb2.y}" width="${mb2.w}" height="${mb2.h}" rx="2" fill="none" stroke="#f2f2f2" stroke-width=".6" stroke-dasharray="3 2" opacity=".45"/><rect x="${mb2.x + 2}" y="${mb2.y}" width="${mb2.w - 4}" height="9" rx="1" fill="${u('blk')}"/><circle cx="${mb2.x + mb2.w / 2}" cy="${mb2.y + mb2.h - 6}" r="3.5" fill="${u('met')}"/>` + silk(mb2.x - 36, mb2.y + 20, 'M2P_SB', 0, 6);
+  /* PCIe */
+  const pc = R('pcie');
+  s += `<g ${sh}><rect x="${pc.x}" y="${pc.y}" width="${pc.w}" height="${pc.h}" rx="2" fill="#16181c" stroke="#3a3d42"/><rect x="${pc.x + 4}" y="${pc.y + 6}" width="${pc.w - 8}" height="4" fill="#000"/><rect x="${pc.x + 46}" y="${pc.y + 3}" width="2" height="${pc.h - 6}" fill="#3a3d42"/></g><rect x="${pc.x + pc.w + 2}" y="${pc.y - 3}" width="9" height="${pc.h + 6}" rx="2" fill="#16181c" stroke="#4a4f57" ${sh}/>` + silk(pc.x, pc.y - 5, 'PCIEX16', 0, 6.5);
+  const p1 = R('pciex1'); s += `<rect x="${p1.x}" y="${p1.y}" width="${p1.w}" height="${p1.h}" rx="2" fill="#16181c" stroke="#3a3d42" ${sh}/><rect x="${p1.x + 4}" y="${p1.y + 5}" width="${p1.w - 8}" height="3" fill="#000"/>` + silk(p1.x, p1.y - 4, 'PCIEX1', 0, 6.5);
+  /* chipset */
+  const c = R('chipset'); s += `<g ${sh}><rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="4" fill="url(#${pre}finsv)"/><rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="4" fill="none" stroke="#3d424a"/></g>`;
+  /* Super I/O e áudio */
+  const so2 = R('sio'); s += `<rect x="${so2.x}" y="${so2.y}" width="${so2.w}" height="${so2.h}" rx="2" fill="#0d0e10" stroke="#3a3d42" ${sh}/>${Array.from({ length: 9 }, (_, i) => `<rect x="${so2.x + 3 + i * 4}" y="${so2.y - 3}" width="1.6" height="3" fill="#b9bec6"/><rect x="${so2.x + 3 + i * 4}" y="${so2.y + so2.h}" width="1.6" height="3" fill="#b9bec6"/>`).join('')}<text x="${so2.x + so2.w / 2}" y="${so2.y + 22}" text-anchor="middle" style="font:600 6px var(--mono);fill:#9aa3ae">SIO</text>`;
+  [[30, 436], [30, 452], [30, 468], [30, 484]].forEach(([x, y]) => s += cap(OX + x, OY + y, 6, true));
+  s += `<path d="M${OX + 40} ${OY + 430} v60" stroke="#d4a017" stroke-width="2" stroke-dasharray="4 3"/>`;
+  [[440, 70], [454, 70], [440, 300], [454, 520], [370, 300], [180, 300], [194, 300], [300, 520]].forEach(([x, y]) => s += cap(OX + x, OY + y, 4.6));
+  /* pilha (ao centro, em baixo) */
+  const bi = R('bios');
+  s += opts.noBat ? `<circle cx="${bi.x + 21}" cy="${bi.y + 21}" r="22" fill="#0d1014" stroke="#3a3f47" stroke-width="2"/><path d="M${bi.x + 21} ${bi.y - 1} a22 22 0 0 1 0 44" fill="none" stroke="${u('met')}" stroke-width="3"/><rect x="${bi.x + 15}" y="${bi.y + 17}" width="12" height="8" rx="2" fill="${u('met')}"/>`
+    : `<circle cx="${bi.x + 21}" cy="${bi.y + 21}" r="21" fill="${u('met')}" ${sh}/><circle cx="${bi.x + 21}" cy="${bi.y + 21}" r="15" fill="none" stroke="rgba(0,0,0,.18)"/><text x="${bi.x + 21}" y="${bi.y + 24}" text-anchor="middle" style="font:700 6.5px var(--mono);fill:#3a414c">CR2032</text>`;
+  /* SATA de lado na borda direita */
+  const sa = R('sata'); [0, 110].forEach(dy => s += `<g ${sh}><rect x="${sa.x}" y="${sa.y + dy}" width="${sa.w}" height="40" rx="3" fill="${u('blk')}"/><rect x="${sa.x + 6}" y="${sa.y + dy + 6}" width="22" height="28" rx="2" fill="#050506"/><rect x="${sa.x + 10}" y="${sa.y + dy + 9}" width="4" height="22" fill="#d4ad4a"/><rect x="${sa.x + 18}" y="${sa.y + dy + 9}" width="4" height="22" fill="#d4ad4a"/></g>`);
+  s += silk(sa.x + 4, sa.y - 5, 'SATA3', 0, 6);
+  /* conectores da borda de baixo */
+  [['audio', 'F_AUDIO'], ['usbh', 'F_USB1 F_USB2'], ['front', 'F_PANEL']].forEach(([k, n]) => { const r = R(k); s += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="1.5" fill="${u('blk')}" ${sh}/>` + pins(r.x + 4, r.y + 4, Math.floor((r.w - 6) / 6), 2, 6) + silk(r.x, r.y + 26, n, 0, 6); });
+  [[112, 'COM'], [160, 'LED_C'], [204, 'SPI_TPM'], [330, 'SYS_FAN']].forEach(([x, n]) => s += `<rect x="${OX + x}" y="${OY + 536}" width="38" height="16" rx="1.5" fill="${u('blk')}" ${sh}/>` + pins(OX + x + 4, OY + 540, 5, 2, 6) + silk(OX + x, OY + 562, n, 0, 5.5));
+  s += `<text x="${OX + 386}" y="${OY + 330}" transform="rotate(-90 ${OX + 386} ${OY + 330})" style="font:800 7px var(--head);fill:#f2f2f2;opacity:.6;letter-spacing:1.5px">B760M · DDR5</text>`;
+  if (opts.hot) Object.keys(P).forEach(k => { const r = R(k); s += `<rect class="hot" data-k="${k}" x="${r.x - 3}" y="${r.y - 3}" width="${r.w + 6}" height="${r.h + 6}" rx="4"/>`; });
+  Object.keys(P).forEach(k => { const r = R(k); s += `<rect class="hl" id="${pre}hl-${k}" x="${r.x - 6}" y="${r.y - 6}" width="${r.w + 12}" height="${r.h + 12}" rx="6"/>`; });
+  return defsSVG(pre) + s;
+}
+
+/* ---------- Módulo de memória: de frente (no tabuleiro) e de cima (encaixado) ---------- */
+function ramFace(x, y, kind){
+  const W = 150, H = 35, notch = kind === 4 ? .535 : .505, nx = x + W * notch, pcb = '#2e5a70', pcb2 = '#24495b';
+  let s = `<g class="face"><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="2" fill="${pcb}"/><rect x="${x}" y="${y}" width="${W}" height="${H}" rx="2" fill="none" stroke="${pcb2}" stroke-width="1"/>`;
+  s += `<path d="M${x + 1} ${y + 1.2} H${x + W - 1}" stroke="rgba(255,255,255,.25)" stroke-width="1"/>`;
+  /* recortes laterais das patilhas */
+  s += `<path d="M${x} ${y + 14} a4 4 0 0 1 0 8 z" fill="#0f1b22"/><path d="M${x + W} ${y + 14} a4 4 0 0 0 0 8 z" fill="#0f1b22"/>`;
+  /* chips de memória */
+  const chip = cx => `<rect x="${cx}" y="${y + 6}" width="14" height="16" rx="1" fill="#15171b"/><rect x="${cx + 1}" y="${y + 7}" width="12" height="2" fill="rgba(255,255,255,.12)"/>`;
+  [5, 21, 37, 53, 85, 101, 117, 133].forEach(o => s += chip(x + o));
+  /* SPD e PMIC (a DDR5 tem o regulador de tensão no próprio módulo) */
+  s += `<rect x="${nx - 3.5}" y="${y + 6}" width="7" height="5" fill="#15171b"/>`;
+  if (kind === 5) s += `<rect x="${nx - 5.5}" y="${y + 13}" width="11" height="9" rx="1" fill="#15171b"/><text x="${nx}" y="${y + 19.5}" text-anchor="middle" style="font:700 3.4px var(--mono);fill:#9aa3ae">PMIC</text>`;
+  for (let i = 0; i < 18; i++) s += `<rect x="${x + 6 + i * 8 + (i % 3)}" y="${y + 24}" width="2.4" height="1.4" fill="#b58b3a"/>`;
+  s += `<text x="${x + W - 4}" y="${y + 4.6}" text-anchor="end" style="font:700 4px var(--mono);fill:#cfe3ee">DDR${kind} 16GB</text>`;
+  /* contactos dourados e o entalhe */
+  for (let fx = x + 3; fx < x + W - 3; fx += 2) if (Math.abs(fx - nx) > 2.5) s += `<rect x="${fx}" y="${y + H - 7}" width="1.3" height="6.4" fill="#e3b24a"/>`;
+  s += `<path d="M${nx - 2.5} ${y + H + .5} v-6 a2.5 2.5 0 0 1 5 0 v6 z" fill="#0f1b22"/>`;
+  return s + '</g>';
+}
+function ramTop(x, y, h){
+  let s = `<g class="top"><rect x="${x + 4}" y="${y}" width="8" height="${h}" rx="1.5" fill="#2e5a70" stroke="#1b3644"/>`;
+  for (let i = 0; i < 8; i++) { const cy = y + 10 + i * (h - 20) / 8; s += `<rect x="${x + 1}" y="${cy}" width="3.5" height="${(h - 20) / 8 - 6}" fill="#15171b"/><rect x="${x + 11.5}" y="${cy}" width="3.5" height="${(h - 20) / 8 - 6}" fill="#15171b"/>`; }
+  return s + `<rect x="${x + 6}" y="${y + 2}" width="4" height="${h - 4}" fill="rgba(255,255,255,.12)"/></g>`;
+}
+
+const LEARN = [
+ { g: 'Fundamentos', id: 'o-que-e', t: 'O que é a motherboard', fig: 'fig_zonas', h: `
+  <p>A <b>motherboard</b> (placa-mãe, ou placa principal) é a placa de circuito impresso que liga entre si todos os componentes do computador. Não "faz" cálculos: <b>organiza a comunicação</b> e distribui a energia.</p>
+  <p>Fisicamente, é um <b>PCB multicamada</b>: normalmente 4 a 8 camadas de fibra de vidro (FR-4) com pistas de cobre coladas entre si. As camadas interiores são usadas para a massa (GND) e para a alimentação; as exteriores levam os sinais rápidos.</p>
+  <h4>As quatro funções</h4>
+  <ul>
+   <li><b>Suporte mecânico</b>: fixa e alinha os componentes, com furos normalizados e espaçadores.</li>
+   <li><b>Distribuição de energia</b>: recebe 12 V, 5 V e 3,3 V da fonte e converte-os nas tensões de cada chip (o processador usa cerca de 1,2 V).</li>
+   <li><b>Comunicação</b>: liga processador, memória, armazenamento e periféricos através de <b>barramentos</b>.</li>
+   <li><b>Arranque e configuração</b>: guarda o firmware (UEFI) e as definições do sistema.</li>
+  </ul>
+  <div class="tip"><b>Sabias que…</b> as pistas de um sinal PCIe 4.0 são desenhadas aos pares, com o mesmo comprimento ao milímetro (por isso se veem pistas "em serpentina"): se um fio do par fosse mais comprido, os bits chegariam desencontrados.</div>` },
+
+ { g: 'Fundamentos', id: 'formatos', t: 'Formatos: ATX, micro-ATX, mini-ITX', fig: 'fig_sizes', h: `
+  <p>O <b>formato</b> (form factor) define o tamanho da placa, a posição dos furos de fixação e do painel traseiro. É o que garante que uma placa de uma marca encaixa numa caixa de outra.</p>
+  <table class="tb"><thead><tr><th>Formato</th><th>Dimensões</th><th>Ranhuras de expansão</th><th>Uso típico</th></tr></thead><tbody>
+   <tr><td>E-ATX</td><td>305 × 330 mm</td><td>7</td><td>Estações de trabalho e servidores</td></tr>
+   <tr><td><b>ATX</b></td><td>305 × 244 mm</td><td>7</td><td>Torre comum, boa expansão</td></tr>
+   <tr><td><b>Micro-ATX</b></td><td>244 × 244 mm (ou menos)</td><td>até 4</td><td>O mais vendido: escolas, escritórios</td></tr>
+   <tr><td><b>Mini-ITX</b></td><td>170 × 170 mm</td><td>1</td><td>Computadores compactos</td></tr>
+  </tbody></table>
+  <p>Uma caixa ATX aceita também micro-ATX e mini-ITX, porque os furos coincidem. O contrário não acontece.</p>
+  <div class="tip"><b>Na prática</b>: a micro-ATX é a escolha habitual para salas de aula. Perde-se ranhuras PCIe, raramente usadas, e ganha-se espaço e preço.</div>` },
+
+ { g: 'Fundamentos', id: 'evolucao', t: 'Evolução: do IBM PC aos nossos dias', fig: 'fig_timeline', h: `
+  <p>A placa-mãe mudou menos de aspeto do que de <b>organização interna</b>. A grande tendência é clara: tudo o que era um chip separado foi <b>absorvido pelo processador</b>.</p>
+  <h4>Marcos principais</h4>
+  <ul>
+   <li><b>1981 · IBM PC</b>: a primeira placa de uso geral, com ranhuras ISA de 8 bits.</li>
+   <li><b>1984 · AT</b> e, depois, <b>Baby AT</b>: formato dominante durante uma década; alimentação por dois conectores (P8 e P9) que se trocavam com facilidade, com resultados desastrosos.</li>
+   <li><b>1995 · ATX</b> (Intel): revoluciona tudo. Conector de alimentação único e com chave, painel traseiro integrado, e a fonte passa a poder ser ligada e desligada por software.</li>
+   <li><b>1997 · micro-ATX</b>; <b>2001 · mini-ITX</b> (VIA).</li>
+   <li><b>Anos 90 e 2000 · northbridge e southbridge</b>: dois chips grandes. O northbridge tratava da memória e da placa gráfica; o southbridge dos discos e dos periféricos.</li>
+   <li><b>2003–2009 · o northbridge desaparece</b>: o controlador de memória e, depois, as linhas PCIe passam para dentro do processador. Resta um só chip, o <b>PCH</b> (chipset).</li>
+   <li><b>Hoje</b>: barramentos série de alta velocidade (PCIe, DMI), armazenamento sem cabos (M.2) e VRM cada vez mais potentes.</li>
+  </ul>` },
+
+ { g: 'Fundamentos', id: 'chipset', t: 'Chipset e gerações', fig: 'fig_nb', h: `
+  <p>O <b>chipset</b> é o "centro de distribuição" dos periféricos. Define quantas portas USB e SATA existem, quantas linhas PCIe sobram e se é possível fazer overclock.</p>
+  <h4>Antes e agora</h4>
+  <p>Até aos anos 2000, o <b>northbridge</b> ligava o processador à memória e à placa gráfica (barramento FSB), e o <b>southbridge</b> tratava do resto. Hoje, o controlador de memória e as linhas principais do PCIe estão <b>dentro do processador</b>, e o chipset, ligado por um só canal (<b>DMI</b> na Intel), apenas multiplica ligações.</p>
+  <table class="tb"><thead><tr><th>Linha</th><th>Intel (LGA 1700)</th><th>AMD (AM5)</th><th>Para quem</th></tr></thead><tbody>
+   <tr><td>Topo</td><td>Z790</td><td>X670 / X670E</td><td>Overclock, muitas linhas PCIe</td></tr>
+   <tr><td>Médio</td><td>H770</td><td>B650 / B650E</td><td>Equilíbrio</td></tr>
+   <tr><td><b>Comum</b></td><td><b>B760</b></td><td>B650</td><td>A escolha típica: boa, sem extras caros</td></tr>
+   <tr><td>Entrada</td><td>H610</td><td>A620</td><td>Escritório, sem overclock de memória</td></tr>
+  </tbody></table>
+  <div class="tip">A letra diz muito: na Intel, <b>Z</b> permite overclock do processador, <b>B</b> e <b>H</b> não. Na AMD, <b>E</b> significa mais linhas em PCIe 5.0.</div>` },
+
+ { g: 'Processador e memória', id: 'socket', t: 'Socket: LGA e PGA', fig: 'fig_socket', h: `
+  <p>O <b>socket</b> é o encaixe do processador. Tem de corresponder exatamente: não há adaptadores.</p>
+  <ul>
+   <li><b>LGA</b> (Land Grid Array): os <b>pinos estão na placa</b> e o processador tem apenas superfícies de contacto. É o que a Intel usa há muito, e a AMD passou a usar no AM5. Um pino dobrado na placa é uma avaria cara.</li>
+   <li><b>PGA</b> (Pin Grid Array): os <b>pinos estão no processador</b>. Era o caso do AMD AM4. Um pino torto podia, às vezes, ser endireitado com cuidado.</li>
+  </ul>
+  <h4>Sockets recentes</h4>
+  <table class="tb"><thead><tr><th>Socket</th><th>Contactos</th><th>Ano</th><th>Processadores</th></tr></thead><tbody>
+   <tr><td>LGA 1151</td><td>1151</td><td>2015</td><td>Intel 6.ª a 9.ª geração</td></tr>
+   <tr><td>LGA 1200</td><td>1200</td><td>2020</td><td>Intel 10.ª e 11.ª</td></tr>
+   <tr><td><b>LGA 1700</b></td><td>1700</td><td>2021</td><td>Intel 12.ª, 13.ª e 14.ª</td></tr>
+   <tr><td>LGA 1851</td><td>1851</td><td>2024</td><td>Intel Core Ultra (série 2)</td></tr>
+   <tr><td>AM4 (PGA)</td><td>1331</td><td>2016</td><td>AMD Ryzen 1000 a 5000</td></tr>
+   <tr><td>AM5 (LGA)</td><td>1718</td><td>2022</td><td>AMD Ryzen 7000 e seguintes</td></tr>
+  </tbody></table>
+  <div class="tip"><b>Atenção</b>: o mesmo socket não garante compatibilidade. Um processador novo pode exigir uma <b>atualização da UEFI</b> para arrancar numa placa mais antiga.</div>` },
+
+ { g: 'Processador e memória', id: 'memoria', t: 'Memória: as gerações da DDR', fig: 'fig_dimm', h: `
+  <p>Os módulos de memória de secretária chamam-se <b>DIMM</b>. Cada geração tem o <b>entalhe numa posição diferente</b>, de propósito: é impossível pôr um módulo na ranhura errada.</p>
+  <table class="tb"><thead><tr><th>Geração</th><th>Contactos</th><th>Tensão</th><th>Velocidades típicas</th></tr></thead><tbody>
+   <tr><td>SDRAM</td><td>168</td><td>3,3 V</td><td>100–133 MHz</td></tr>
+   <tr><td>DDR</td><td>184</td><td>2,5 V</td><td>200–400 MT/s</td></tr>
+   <tr><td>DDR2</td><td>240</td><td>1,8 V</td><td>400–1066 MT/s</td></tr>
+   <tr><td>DDR3</td><td>240</td><td>1,5 V</td><td>800–2133 MT/s</td></tr>
+   <tr><td>DDR4</td><td>288</td><td>1,2 V</td><td>2133–3600 MT/s</td></tr>
+   <tr><td><b>DDR5</b></td><td>288</td><td>1,1 V</td><td>4800–8000 MT/s</td></tr>
+  </tbody></table>
+  <p>A DDR4 e a DDR5 têm o mesmo número de contactos, mas <b>não são compatíveis</b>: o entalhe está noutro sítio e a DDR5 traz o regulador de tensão (<b>PMIC</b>) no próprio módulo.</p>
+  <h4>Canais</h4>
+  <p>O processador tem dois <b>canais</b> de memória, cada um de 64 bits. Com um módulo em cada canal, a largura de banda <b>duplica</b>. Numa placa de 4 ranhuras, os dois módulos vão normalmente para a <b>2.ª e a 4.ª</b> (A2 e B2). O manual indica sempre as corretas.</p>
+  <div class="tip"><b>XMP / EXPO</b>: de origem, a memória funciona à velocidade base (por exemplo, 4800 MT/s). O perfil XMP (Intel) ou EXPO (AMD), ativado na UEFI, aplica a velocidade anunciada na caixa.</div>` },
+
+ { g: 'Alimentação', id: 'alimentacao', t: 'Alimentação: conectores e tensões', fig: 'fig_power', h: `
+  <p>A fonte entrega três tensões principais: <b>12 V</b> (a mais usada hoje), <b>5 V</b> e <b>3,3 V</b>. Há ainda os <b>5 V de reserva</b> (5 VSB), sempre presentes enquanto o cabo está na tomada: é o que mantém o botão de ligar à escuta.</p>
+  <h4>Conectores</h4>
+  <ul>
+   <li><b>ATX de 24 pinos</b>: a alimentação principal da placa. Antes de 2003 tinha 20 pinos.</li>
+   <li><b>EPS de 8 pinos</b> (12 V do CPU): alimenta o VRM do processador. Pode haver dois em placas de topo.</li>
+   <li><b>PCIe de 6+2 pinos</b>: até 150 W para a placa gráfica. A ranhura já fornece 75 W.</li>
+   <li><b>12VHPWR / 12V-2x6</b> (ATX 3.0): um só cabo até 600 W, para as placas gráficas mais recentes.</li>
+   <li><b>SATA de 15 pinos</b> e <b>Molex de 4 pinos</b>: para discos e ventoinhas.</li>
+  </ul>
+  <h4>Sinais de controlo</h4>
+  <p><b>PS_ON#</b>: quando o botão da caixa liga este pino à massa, a fonte arranca. <b>PWR_OK</b>: a fonte avisa a placa de que as tensões estão estáveis; só então o processador sai do reset.</p>
+  <div class="tip"><b>80 PLUS</b> mede a eficiência (Bronze, Gold, Platinum…). Uma fonte Gold a 500 W consome cerca de 555 W da tomada; o resto é calor.</div>` },
+
+ { g: 'Alimentação', id: 'vrm-learn', t: 'VRM: o conversor do processador', fig: 'fig_vrm', h: `
+  <p>O processador precisa de cerca de <b>1,2 V</b>, mas com correntes de 100 a 250 A. Nenhuma fonte entrega isso diretamente: quem converte é o <b>VRM</b> da placa, logo ao lado do socket.</p>
+  <p>Cada <b>fase</b> é um conversor <i>buck</i> com três peças visíveis: os <b>MOSFET</b> (pequenos retângulos pretos), a <b>bobina</b> (cubo cinzento) e os <b>condensadores</b>. As fases trabalham desfasadas, à vez.</p>
+  <ul>
+   <li>Mais fases significam <b>menos corrente em cada uma</b>. As perdas por condução seguem P = I² × R, por isso o calor cai muito.</li>
+   <li>A notação <b>6+1+1</b> quer dizer: 6 fases para os núcleos (Vcore), 1 para a gráfica integrada e 1 para outras partes.</li>
+   <li>Os <b>dissipadores</b> sobre o VRM não são decoração: sem eles, uma placa fraca com um processador potente reduz a velocidade para se proteger.</li>
+  </ul>
+  <div class="tip">Ao escolher a placa para um processador de topo, o VRM conta tanto como o chipset. Uma placa de entrada com um i9 perde desempenho em trabalhos longos.</div>` },
+
+ { g: 'Expansão', id: 'adaptadores', t: 'Adaptadores: placas de expansão', fig: 'fig_pcie', h: `
+  <p>As <b>placas de expansão</b> acrescentam funções que a placa-mãe não traz. Encaixam nas ranhuras e são seguras por um parafuso à traseira da caixa.</p>
+  <h4>As mais comuns</h4>
+  <ul>
+   <li><b>Placa gráfica</b> (vídeo): calcula e envia a imagem para o monitor. É a maior e a que mais consome.</li>
+   <li><b>Placa de rede (NIC)</b>: liga o computador à rede com cabo. Hoje quase sempre já integrada.</li>
+   <li><b>Placa de rede sem fios</b>: Wi-Fi e Bluetooth, com antenas.</li>
+   <li><b>Placa de som</b>: melhor qualidade do que o codec integrado.</li>
+   <li><b>Controladoras</b>: portas USB ou SATA extra, ou adaptadores para SSD M.2.</li>
+  </ul>
+  <h4>Dos barramentos antigos ao PCIe</h4>
+  <table class="tb"><thead><tr><th>Barramento</th><th>Época</th><th>Débito máximo</th></tr></thead><tbody>
+   <tr><td>ISA 16 bits</td><td>1984</td><td>≈ 8 MB/s</td></tr>
+   <tr><td>PCI 32 bits</td><td>1992</td><td>133 MB/s (partilhados)</td></tr>
+   <tr><td>AGP 8×</td><td>1997</td><td>2,1 GB/s (só vídeo)</td></tr>
+   <tr><td><b>PCIe 4.0 ×16</b></td><td>2017</td><td>≈ 31,5 GB/s por sentido</td></tr>
+   <tr><td>PCIe 5.0 ×16</td><td>2019</td><td>≈ 63 GB/s por sentido</td></tr>
+  </tbody></table>
+  <p>O PCIe é <b>série e ponto a ponto</b>: cada ranhura tem as suas <b>linhas</b> só para si, ao contrário do PCI, que era partilhado. Uma ranhura comprida pode ter menos linhas ligadas do que parece: é comum ler «x16 a funcionar em x4».</p>` },
+
+ { g: 'Armazenamento', id: 'discos', t: 'Discos internos', fig: 'fig_storage', h: `
+  <p>A ligação dos discos é a área que mais mudou nos últimos anos: passou-se de fitas largas e lentas para um conector sem cabos nenhuns.</p>
+  <table class="tb"><thead><tr><th>Interface</th><th>Época</th><th>Velocidade</th><th>Notas</th></tr></thead><tbody>
+   <tr><td><b>IDE / PATA</b></td><td>1986–2005</td><td>até 133 MB/s</td><td>Fita de 40 ou 80 fios, 2 discos por cabo, jumpers <i>master</i> e <i>slave</i></td></tr>
+   <tr><td><b>SATA I / II / III</b></td><td>2003–hoje</td><td>150 / 300 / 600 MB/s</td><td>Cabo fino, um disco por porta, ligação a quente</td></tr>
+   <tr><td><b>M.2 NVMe</b></td><td>2013–hoje</td><td>até ~14 GB/s</td><td>Sem cabos; usa linhas PCIe diretamente</td></tr>
+  </tbody></table>
+  <h4>Formatos M.2</h4>
+  <p>O número indica o tamanho: <b>2280</b> são 22 mm de largura por 80 mm de comprimento. Há também 2242, 2260 e 22110. O <b>entalhe</b> (key M ou B) indica o tipo de ligação.</p>
+  <h4>AHCI e NVMe</h4>
+  <p>Não basta o cabo ser rápido: o <b>protocolo</b> também conta. O AHCI foi pensado para discos mecânicos, com uma fila de 32 comandos. O <b>NVMe</b> foi pensado para memória flash, com milhares de filas em paralelo. É por isso que um SSD NVMe parece muito mais rápido a abrir programas.</p>
+  <div class="tip"><b>Cuidado com a partilha</b>: em muitas placas, usar uma certa ranhura M.2 desliga uma ou duas portas SATA, porque partilham as mesmas linhas. Vem sempre nas notas da ficha técnica.</div>` },
+
+ { g: 'Cabos', id: 'cabos-int', t: 'Cabos e conectores internos', fig: 'fig_headers', h: `
+  <p>Os conectores internos (<i>headers</i>) são pequenos blocos de pinos ao longo das bordas da placa. É aqui que se fazem mais erros de montagem.</p>
+  <h4>Painel frontal (F_PANEL)</h4>
+  <p>Fios finos vindos da caixa, um par de cada vez:</p>
+  <ul>
+   <li><b>PWR_SW</b> e <b>RESET_SW</b>: botões. São interruptores, não têm polaridade.</li>
+   <li><b>PWR_LED</b> e <b>HDD_LED</b>: luzes. <b>Têm polaridade</b>: o fio colorido é o positivo. Ao contrário, a luz não acende, mas nada se estraga.</li>
+   <li><b>SPEAKER</b>: o altifalante que dá os bips de erro.</li>
+  </ul>
+  <h4>Outros conectores</h4>
+  <ul>
+   <li><b>USB 2.0</b>: 9 pinos, com um furo tapado como chave. <b>USB 3.2 Gen 1</b>: bloco azul de 19 pinos. <b>USB-C frontal</b>: conector próprio, de 20 pinos.</li>
+   <li><b>F_AUDIO</b>: som da frente da caixa (HD Audio).</li>
+   <li><b>Ventoinhas</b>: <b>3 pinos</b> (velocidade controlada pela tensão) ou <b>4 pinos</b> (controlo PWM, mais preciso). Uma ventoinha de 3 pinos funciona num conector de 4.</li>
+   <li><b>RGB</b>: <b>12 V de 4 pinos</b> (cor única) e <b>ARGB de 5 V e 3 pinos</b> (endereçável). <b>Nunca se trocam</b>: ligar uma tira de 5 V a 12 V queima-a.</li>
+   <li><b>Jumper Clear CMOS</b>: dois pinos que repõem as definições de origem da UEFI.</li>
+  </ul>
+  <div class="tip"><b>Dica de oficina</b>: o manual da placa tem sempre o desenho do F_PANEL com os pinos numerados. Vale a pena tê-lo aberto, mesmo com experiência.</div>` },
+
+ { g: 'Cabos', id: 'cabos-ext', t: 'Cabos e portas externas', fig: 'fig_io', h: `
+  <p>No painel traseiro ficam as ligações ao exterior. Reconhecê-las de imediato faz parte do trabalho de um técnico.</p>
+  <h4>Vídeo</h4>
+  <ul>
+   <li><b>VGA</b> (azul, 15 pinos): analógico, já obsoleto, ainda comum em projetores.</li>
+   <li><b>DVI</b>: a transição entre o analógico e o digital.</li>
+   <li><b>HDMI</b>: imagem e som; o mais usado em televisões.</li>
+   <li><b>DisplayPort</b>: preferido nos monitores de computador, suporta resoluções e frequências mais altas.</li>
+  </ul>
+  <p><b>Regra importante</b>: estas fichas pertencem à <b>gráfica integrada do processador</b>. Com uma placa gráfica instalada, o monitor liga-se a ela, não à placa-mãe. E processadores Intel com <b>F</b> no nome não têm gráfica integrada.</p>
+  <h4>Dados e rede</h4>
+  <ul>
+   <li><b>USB</b>: pretas (2.0), azuis (5 Gb/s), vermelhas ou azul-turquesa (10 Gb/s) e <b>USB-C</b>, reversível.</li>
+   <li><b>RJ45</b>: rede com cabo, de 1 a 2,5 Gb/s, com luzes de ligação e atividade.</li>
+   <li><b>PS/2</b>: roxo para o teclado, verde para o rato. Antigos, mas úteis, porque funcionam antes de o sistema operativo arrancar.</li>
+  </ul>
+  <h4>Som</h4>
+  <p>Três fichas por cor: <b>azul</b> entrada de linha, <b>verde</b> saída (colunas e auscultadores), <b>rosa</b> microfone. Nas placas melhores há ainda saídas traseiras, central e <b>S/PDIF</b> ótica.</p>` },
+
+ { g: 'Firmware', id: 'uefi', t: 'BIOS, UEFI e pilha CMOS', fig: 'fig_uefi', h: `
+  <p>Quando se carrega no botão, ainda não há sistema operativo. Quem toma conta do arranque é o <b>firmware</b>, gravado num chip de memória flash (SPI) soldado à placa.</p>
+  <h4>Do BIOS ao UEFI</h4>
+  <table class="tb"><thead><tr><th></th><th>BIOS clássica</th><th>UEFI</th></tr></thead><tbody>
+   <tr><td>Interface</td><td>Texto, só teclado</td><td>Gráfica, com rato</td></tr>
+   <tr><td>Discos</td><td>MBR, até 2 TB</td><td>GPT, muito além de 2 TB</td></tr>
+   <tr><td>Arranque</td><td>Mais lento</td><td>Rápido, com Secure Boot</td></tr>
+  </tbody></table>
+  <h4>POST</h4>
+  <p>O <b>POST</b> (autoteste ao ligar) verifica, por ordem: as tensões, o processador, a memória (o chamado <i>memory training</i>), o vídeo e os discos. Se falha antes de haver imagem, avisa por <b>bips</b> ou pelos <b>LED de diagnóstico</b> (CPU, DRAM, VGA, BOOT).</p>
+  <h4>Pilha CMOS</h4>
+  <p>A pilha <b>CR2032</b> mantém o relógio e as definições quando o computador está desligado da corrente. Quando se gasta, o computador perde a hora e volta às definições de origem a cada arranque. Trocá-la é a reparação mais barata que há.</p>` },
+
+ { g: 'Firmware', id: 'escolher', t: 'Escolher e comprar uma placa', fig: null, h: `
+  <p>Resumo do que um técnico verifica, por ordem:</p>
+  <ol>
+   <li><b>Socket</b>: tem de corresponder ao processador (LGA 1700, AM5…).</li>
+   <li><b>Chipset</b>: define as funções e se há overclock.</li>
+   <li><b>Tipo de memória</b>: DDR4 ou DDR5, e o número de ranhuras.</li>
+   <li><b>Formato</b>: ATX, micro-ATX ou mini-ITX, conforme a caixa.</li>
+   <li><b>VRM</b>: número de fases e dissipadores, sobretudo com processadores potentes.</li>
+   <li><b>Armazenamento</b>: quantas ranhuras M.2 e portas SATA, e o que fica partilhado.</li>
+   <li><b>Portas traseiras</b>: USB suficientes, tipo de vídeo, velocidade da rede.</li>
+   <li><b>Conectores internos</b>: ventoinhas, USB frontal, USB-C, RGB.</li>
+  </ol>
+  <div class="tip"><b>Erro clássico</b>: comprar uma placa DDR4 e memórias DDR5, ou um processador «F» sem placa gráfica. Vale sempre a pena confirmar a ficha técnica antes de encomendar.</div>` }
+];
+
+/* ---------- Ilustrações do módulo de aprendizagem ---------- */
+const FIG = {
+ fig_zonas: () => `<svg viewBox="0 0 620 360" class="fg">
+   <rect x="20" y="16" width="400" height="330" rx="10" fill="#1d2025" stroke="#3a3f47"/>
+   ${[['Painel de E/S', 28, 30, 60, 150, 'var(--p1)'], ['VRM', 100, 24, 150, 50, 'var(--p5)'], ['Socket do CPU', 150, 86, 110, 110, 'var(--p4)'], ['Memória', 282, 30, 110, 170, 'var(--p2)'], ['Alimentação', 282, 212, 110, 40, 'var(--p6)'], ['PCIe', 60, 212, 200, 30, 'var(--p3)'], ['Chipset', 282, 264, 72, 66, 'var(--p5)'], ['Conectores', 46, 300, 200, 30, 'var(--p1)'], ['M.2', 60, 256, 180, 24, 'var(--p2)']].map(([t, x, y, w, h, c]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${c}" opacity=".30" stroke="${c}" stroke-width="1.5"/><text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" style="font:600 10px var(--ui);fill:#e8eef5">${t}</text>`).join('')}
+   <text x="440" y="36" style="font:700 12px var(--head);fill:var(--ink)">As zonas da placa</text>
+   ${['Alimentação e conversão', 'Processamento e memória', 'Expansão (PCIe)', 'Armazenamento (M.2, SATA)', 'Ligações internas e externas'].map((t, i) => `<text x="440" y="${62 + i * 22}" style="font:500 11px var(--ui);fill:var(--muted)">• ${t}</text>`).join('')}</svg>`,
+
+ fig_sizes: () => { const k = .62; const B = [['E-ATX', 330, 305, 'var(--p5)'], ['ATX', 244, 305, 'var(--p1)'], ['Micro-ATX', 244, 244, 'var(--p3)'], ['Mini-ITX', 170, 170, 'var(--p4)']];
+   let x = 16, s = '';
+   B.forEach(([n, w, h, c]) => { s += `<g><rect x="${x}" y="${20 + (330 - h) * k}" width="${w * k}" height="${h * k}" rx="6" fill="${c}" opacity=".18" stroke="${c}" stroke-width="2"/><text x="${x + 8}" y="${36 + (330 - h) * k}" style="font:700 11px var(--head);fill:var(--ink)">${n}</text><text x="${x + 8}" y="${50 + (330 - h) * k}" style="font:500 10px var(--mono);fill:var(--muted)">${w} × ${h} mm</text></g>`; x += w * k + 14; });
+   return `<svg viewBox="0 0 640 240" class="fg">${s}</svg>`; },
+
+ fig_timeline: () => { const E = [[1981, 'IBM PC · ISA'], [1984, 'AT'], [1995, 'ATX'], [1997, 'micro-ATX · AGP'], [2003, 'PCIe · SATA'], [2009, 'PCH: fim do northbridge'], [2013, 'M.2 / NVMe'], [2021, 'DDR5 · PCIe 5.0']];
+   return `<svg viewBox="0 0 660 170" class="fg"><line x1="30" y1="96" x2="630" y2="96" stroke="var(--line)" stroke-width="3"/>
+   ${E.map((e, i) => { const x = 40 + i * 83, up = i % 2 === 0; return `<circle cx="${x}" cy="96" r="6" fill="var(--accent)"/><line x1="${x}" y1="96" x2="${x}" y2="${up ? 66 : 126}" stroke="var(--line)" stroke-width="2"/><text x="${x}" y="${up ? 56 : 146}" text-anchor="middle" style="font:700 11px var(--mono);fill:var(--ink)">${e[0]}</text><text x="${x}" y="${up ? 42 : 160}" text-anchor="middle" style="font:500 9.5px var(--ui);fill:var(--muted)">${e[1]}</text>`; }).join('')}</svg>`; },
+
+ fig_nb: () => { const box = (x, y, w, h, t, c, sub) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="${c}" opacity=".2" stroke="${c}" stroke-width="1.6"/><text x="${x + w / 2}" y="${y + h / 2 + (sub ? -2 : 4)}" text-anchor="middle" style="font:700 10.5px var(--ui);fill:var(--ink)">${t}</text>${sub ? `<text x="${x + w / 2}" y="${y + h / 2 + 12}" text-anchor="middle" style="font:500 9px var(--ui);fill:var(--muted)">${sub}</text>` : ''}`;
+   const ln = (a, b, c, d, t) => `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="var(--muted)" stroke-width="2"/>${t ? `<text x="${(a + c) / 2 + 6}" y="${(b + d) / 2 - 4}" style="font:600 8.5px var(--mono);fill:var(--muted)">${t}</text>` : ''}`;
+   return `<svg viewBox="0 0 660 250" class="fg">
+   <text x="20" y="18" style="font:700 11px var(--head);fill:var(--muted)">ANTES (anos 90–2000)</text>
+   ${box(20, 30, 90, 40, 'CPU', 'var(--p1)')}${ln(65, 70, 65, 100, 'FSB')}${box(20, 100, 90, 44, 'Northbridge', 'var(--p4)', 'memória, AGP')}${box(130, 100, 70, 44, 'RAM', 'var(--p2)')}${ln(110, 122, 130, 122)}${ln(65, 144, 65, 176)}${box(20, 176, 90, 44, 'Southbridge', 'var(--p5)', 'discos, USB')}
+   <line x1="320" y1="20" x2="320" y2="235" stroke="var(--line)" stroke-dasharray="4 4"/>
+   <text x="360" y="18" style="font:700 11px var(--head);fill:var(--muted)">HOJE</text>
+   ${box(360, 30, 150, 74, 'Processador', 'var(--p1)', 'núcleos + controlador de memória + PCIe')}${box(530, 44, 80, 44, 'RAM', 'var(--p2)')}${ln(510, 66, 530, 66)}${ln(435, 104, 435, 150, 'DMI')}${box(360, 150, 150, 50, 'Chipset (PCH)', 'var(--p5)', 'SATA, USB, rede')}
+   <text x="360" y="222" style="font:500 10px var(--ui);fill:var(--muted)">O northbridge desapareceu: está dentro do processador.</text></svg>`; },
+
+ fig_socket: () => `<svg viewBox="0 0 640 220" class="fg">
+   <text x="30" y="20" style="font:700 11px var(--head);fill:var(--ink)">LGA — pinos na placa</text>
+   <rect x="30" y="34" width="240" height="60" rx="4" fill="#3a3f47"/><text x="150" y="70" text-anchor="middle" style="font:700 10px var(--ui);fill:#e8eef5">PROCESSADOR (superfícies lisas)</text>
+   ${Array.from({ length: 24 }, (_, i) => `<line x1="${40 + i * 10}" y1="100" x2="${40 + i * 10}" y2="116" stroke="#d4ad4a" stroke-width="2.4"/>`).join('')}
+   <rect x="30" y="116" width="240" height="26" rx="3" fill="#1d5a3a"/><text x="150" y="134" text-anchor="middle" style="font:600 9.5px var(--ui);fill:#cfe3ea">MOTHERBOARD</text>
+   <text x="30" y="166" style="font:500 10px var(--ui);fill:var(--muted)">Intel desde 2004 · AMD AM5. Um pino dobrado na placa</text><text x="30" y="180" style="font:500 10px var(--ui);fill:var(--muted)">é uma reparação cara.</text>
+   <text x="370" y="20" style="font:700 11px var(--head);fill:var(--ink)">PGA — pinos no processador</text>
+   <rect x="370" y="34" width="240" height="60" rx="4" fill="#3a3f47"/><text x="490" y="64" text-anchor="middle" style="font:700 10px var(--ui);fill:#e8eef5">PROCESSADOR</text>
+   ${Array.from({ length: 24 }, (_, i) => `<line x1="${380 + i * 10}" y1="94" x2="${380 + i * 10}" y2="116" stroke="#d4ad4a" stroke-width="2.4"/>`).join('')}
+   <rect x="370" y="116" width="240" height="26" rx="3" fill="#1d5a3a"/><text x="490" y="134" text-anchor="middle" style="font:600 9.5px var(--ui);fill:#cfe3ea">MOTHERBOARD (furos)</text>
+   <text x="370" y="166" style="font:500 10px var(--ui);fill:var(--muted)">AMD até ao AM4. Os pinos ficam expostos ao manusear</text><text x="370" y="180" style="font:500 10px var(--ui);fill:var(--muted)">o processador.</text></svg>`,
+
+ fig_dimm: () => { const M = [['DDR3', .47, 240, '1,5 V'], ['DDR4', .535, 288, '1,2 V'], ['DDR5', .505, 288, '1,1 V']];
+   return `<svg viewBox="0 0 640 230" class="fg">${M.map(([n, notch, pins, v], i) => { const y = 16 + i * 70, W = 440, x = 110, nx = x + W * notch;
+   return `<text x="20" y="${y + 26}" style="font:700 12px var(--head);fill:var(--ink)">${n}</text><text x="20" y="${y + 40}" style="font:500 9.5px var(--mono);fill:var(--muted)">${pins} · ${v}</text>
+   <rect x="${x}" y="${y}" width="${W}" height="40" rx="2" fill="#2e5a70"/>${Array.from({ length: 10 }, (_, j) => `<rect x="${x + 14 + j * 43}" y="${y + 6}" width="30" height="18" fill="#15171b"/>`).join('')}
+   ${Array.from({ length: Math.floor(W / 5) }, (_, j) => { const fx = x + 3 + j * 5; return Math.abs(fx - nx) > 7 ? `<rect x="${fx}" y="${y + 31}" width="3" height="9" fill="#e3b24a"/>` : ''; }).join('')}
+   <path d="M${nx - 4} ${y + 41} v-9 a4 4 0 0 1 8 0 v9 z" fill="var(--page)" stroke="var(--bad)" stroke-width="1.5"/>
+   <text x="${nx}" y="${y + 56}" text-anchor="middle" style="font:600 9px var(--mono);fill:var(--bad)">entalhe</text>`; }).join('')}
+   <text x="110" y="222" style="font:500 10px var(--ui);fill:var(--muted)">O entalhe muda de posição em cada geração: é impossível trocar os módulos.</text></svg>`; },
+
+ fig_power: () => { const con = (x, y, cols, rows, w, lbl, col) => `<rect x="${x}" y="${y}" width="${cols * w + 6}" height="${rows * w + 6}" rx="3" fill="#1b1d21" stroke="#3a3d42"/>${Array.from({ length: cols * rows }, (_, i) => `<rect x="${x + 3 + (i % cols) * w}" y="${y + 3 + Math.floor(i / cols) * w}" width="${w - 2}" height="${w - 2}" rx="1" fill="${col}"/>`).join('')}<text x="${x}" y="${y + rows * w + 22}" style="font:600 10px var(--ui);fill:var(--ink)">${lbl}</text>`;
+   return `<svg viewBox="0 0 660 190" class="fg">
+   ${con(20, 20, 12, 2, 11, 'ATX 24 pinos · placa', '#d4ad4a')}
+   ${con(180, 20, 4, 2, 13, 'EPS 8 pinos · CPU', '#4a5568')}
+   ${con(265, 20, 4, 2, 13, 'PCIe 6+2 · gráfica', '#1e5bd8')}
+   ${con(350, 20, 6, 2, 12, '12VHPWR · 600 W', '#dc2626')}
+   ${con(450, 20, 5, 1, 14, 'SATA 15 pinos', '#111')}
+   ${con(540, 20, 4, 1, 14, 'Molex 4 pinos', '#f59e0b')}
+   <text x="20" y="110" style="font:700 11px var(--head);fill:var(--ink)">Tensões</text>
+   ${[['+12 V', 'processador, gráfica, motores', 'var(--p1)'], ['+5 V', 'USB, SSD, lógica', 'var(--p3)'], ['+3,3 V', 'memória, chipset', 'var(--p4)'], ['+5 VSB', 'sempre ligada: botão de ligar e Wake-on-LAN', 'var(--p5)']].map(([v, t, c], i) => `<rect x="20" y="${122 + i * 16}" width="46" height="13" rx="3" fill="${c}" opacity=".25" stroke="${c}"/><text x="26" y="${132 + i * 16}" style="font:700 9px var(--mono);fill:var(--ink)">${v}</text><text x="76" y="${132 + i * 16}" style="font:500 10px var(--ui);fill:var(--muted)">${t}</text>`).join('')}</svg>`; },
+
+ fig_vrm: () => `<svg viewBox="0 0 660 210" class="fg">
+   <rect x="20" y="40" width="80" height="40" rx="5" fill="var(--p1)" opacity=".25" stroke="var(--p1)"/><text x="60" y="64" text-anchor="middle" style="font:700 10px var(--ui);fill:var(--ink)">12 V</text>
+   ${[0, 1, 2].map(i => { const y = 20 + i * 60; return `<line x1="100" y1="60" x2="140" y2="${y + 24}" stroke="var(--muted)" stroke-width="2"/>
+     <rect x="140" y="${y}" width="46" height="48" rx="4" fill="#0b0c0e"/><text x="163" y="${y + 28}" text-anchor="middle" style="font:700 8px var(--mono);fill:#9aa3ae">MOSFET</text>
+     <rect x="200" y="${y + 4}" width="40" height="40" rx="5" fill="#80868f"/><text x="220" y="${y + 28}" text-anchor="middle" style="font:700 8px var(--mono);fill:#1f2227">BOBINA</text>
+     <circle cx="266" cy="${y + 24}" r="13" fill="#2b2e33"/><path d="M259 ${y + 24} h14 M266 ${y + 17} v14" stroke="#9aa3ae"/>
+     <line x1="282" y1="${y + 24}" x2="330" y2="105" stroke="var(--muted)" stroke-width="2"/>
+     <text x="105" y="${y + 18}" style="font:600 9px var(--mono);fill:var(--muted)">fase ${i + 1}</text>`; }).join('')}
+   <rect x="330" y="80" width="110" height="50" rx="6" fill="var(--p4)" opacity=".25" stroke="var(--p4)"/><text x="385" y="100" text-anchor="middle" style="font:700 10px var(--ui);fill:var(--ink)">Vcore ≈ 1,2 V</text><text x="385" y="116" text-anchor="middle" style="font:600 9px var(--mono);fill:var(--muted)">150–250 A</text>
+   <text x="470" y="60" style="font:700 11px var(--head);fill:var(--ink)">Porque há várias fases?</text>
+   ${['A corrente divide-se por todas.', 'Perdas = I² × R: metade da', 'corrente, um quarto das perdas.', 'Trabalham desfasadas: a tensão', 'de saída fica mais estável.'].map((t, i) => `<text x="470" y="${82 + i * 16}" style="font:500 10px var(--ui);fill:var(--muted)">${t}</text>`).join('')}</svg>`,
+
+ fig_pcie: () => { const S = [['PCIe x1', 25], ['PCIe x4', 39], ['PCIe x8', 56], ['PCIe x16', 89]];
+   return `<svg viewBox="0 0 660 210" class="fg">${S.map(([n, w], i) => { const y = 20 + i * 44; return `<text x="20" y="${y + 20}" style="font:700 11px var(--head);fill:var(--ink)">${n}</text>
+   <rect x="120" y="${y}" width="${w * 4.2}" height="24" rx="3" fill="#16181c" stroke="#3a3d42"/><rect x="${120 + 44}" y="${y + 3}" width="3" height="18" fill="#3a3d42"/><rect x="126" y="${y + 9}" width="${w * 4.2 - 12}" height="6" fill="#000"/>
+   <text x="${128 + w * 4.2}" y="${y + 17}" style="font:500 10px var(--ui);fill:var(--muted)">${['~1,97', '~7,9', '~15,8', '~31,5'][i]} GB/s em PCIe 4.0</text>`; }).join('')}
+   <text x="20" y="200" style="font:500 10px var(--ui);fill:var(--muted)">Uma placa pequena funciona numa ranhura maior. O contrário só com ranhuras abertas na ponta.</text></svg>`; },
+
+ fig_storage: () => `<svg viewBox="0 0 660 230" class="fg">
+   <text x="20" y="18" style="font:700 11px var(--head);fill:var(--ink)">IDE / PATA (40 pinos)</text>
+   <rect x="20" y="26" width="180" height="28" rx="2" fill="#d6d9de" stroke="#9aa3ae"/>${Array.from({ length: 36 }, (_, i) => `<line x1="${25 + i * 5}" y1="26" x2="${25 + i * 5}" y2="54" stroke="#b4b9c2"/>`).join('')}<text x="210" y="45" style="font:500 10px var(--ui);fill:var(--muted)">fita larga · 133 MB/s · 2 discos</text>
+   <text x="20" y="84" style="font:700 11px var(--head);fill:var(--ink)">SATA</text>
+   <rect x="20" y="92" width="52" height="16" rx="2" fill="#dc2626"/><rect x="72" y="94" width="110" height="12" rx="2" fill="#b91c1c"/><text x="210" y="105" style="font:500 10px var(--ui);fill:var(--muted)">cabo fino · 600 MB/s · 1 disco por porta</text>
+   <text x="20" y="140" style="font:700 11px var(--head);fill:var(--ink)">M.2 NVMe</text>
+   <rect x="20" y="148" width="190" height="18" rx="2" fill="#145c32"/><rect x="22" y="150" width="10" height="14" fill="#e3b24a"/>${[40, 90, 140].map(x => `<rect x="${x}" y="150" width="42" height="14" rx="1" fill="#0d0f12"/>`).join('')}<text x="220" y="161" style="font:500 10px var(--ui);fill:var(--muted)">sem cabos · usa linhas PCIe · até ~14 GB/s</text>
+   <text x="20" y="196" style="font:700 10px var(--head);fill:var(--ink)">Formatos M.2:</text>
+   ${[['2242', 42], ['2260', 60], ['2280', 80], ['22110', 110]].map(([n, L], i) => `<rect x="${110 + i * 130}" y="186" width="${L}" height="12" rx="1" fill="var(--p2)" opacity=".4" stroke="var(--p2)"/><text x="${110 + i * 130}" y="214" style="font:600 9.5px var(--mono);fill:var(--muted)">${n} (${L} mm)</text>`).join('')}</svg>`,
+
+ fig_headers: () => `<svg viewBox="0 0 660 230" class="fg">
+   <text x="20" y="18" style="font:700 11px var(--head);fill:var(--ink)">F_PANEL — painel frontal</text>
+   <rect x="20" y="28" width="210" height="54" rx="4" fill="#1b1d21" stroke="#3a3d42"/>
+   ${Array.from({ length: 18 }, (_, i) => `<circle cx="${34 + (i % 9) * 23}" cy="${44 + Math.floor(i / 9) * 22}" r="4" fill="#e8c766"/>`).join('')}
+   ${[['PWR_LED', 34, 1], ['HDD_LED', 103, 1], ['RESET', 149, 1], ['PWR_SW', 195, 1]].map(([t, x]) => `<text x="${x}" y="100" text-anchor="middle" style="font:600 8px var(--mono);fill:var(--muted)">${t}</text>`).join('')}
+   <text x="20" y="124" style="font:500 10px var(--ui);fill:var(--muted)">Os LED têm polaridade: o fio colorido é o +</text>
+   <text x="280" y="18" style="font:700 11px var(--head);fill:var(--ink)">Outros conectores</text>
+   ${[['USB 2.0 · 9 pinos', '#1b1d21'], ['USB 3.2 Gen 1 · 19 pinos', '#1e3a8a'], ['USB-C frontal · 20 pinos', '#111827'], ['F_AUDIO · 9 pinos', '#065f46'], ['Ventoinha PWM · 4 pinos', '#111'], ['ARGB 5 V · 3 pinos', '#7c3aed'], ['RGB 12 V · 4 pinos', '#b45309']].map(([t, c], i) => `<rect x="280" y="${30 + i * 26}" width="26" height="12" rx="2" fill="${c}"/><text x="316" y="${40 + i * 26}" style="font:500 10px var(--ui);fill:var(--ink)">${t}</text>`).join('')}
+   <text x="280" y="222" style="font:600 10px var(--ui);fill:var(--bad)">⚠ ARGB de 5 V e RGB de 12 V não se trocam: queima.</text></svg>`,
+
+ fig_io: () => { const P = [['PS/2', '#7c3aed'], ['VGA', '#1e3a8a'], ['DisplayPort', '#111827'], ['HDMI', '#111827'], ['USB 2.0', '#1f2937'], ['USB 5 Gb/s', '#1e5bd8'], ['USB-C', '#111827'], ['RJ45 rede', '#374151'], ['Áudio', '#e5e7eb']];
+   return `<svg viewBox="0 0 660 170" class="fg"><rect x="16" y="24" width="628" height="76" rx="6" fill="#cfd5dd"/>
+   ${P.map(([n, c], i) => { const x = 30 + i * 68; return `<rect x="${x}" y="${42}" width="46" height="34" rx="3" fill="${c}" stroke="#6b7280"/><text x="${x + 23}" y="${118}" text-anchor="middle" style="font:600 9px var(--ui);fill:var(--ink)">${n}</text>`; }).join('')}
+   <text x="20" y="150" style="font:500 10px var(--ui);fill:var(--muted)">Com placa gráfica instalada, o monitor liga-se a ela, nunca às fichas da motherboard.</text></svg>`; },
+
+ fig_uefi: () => `<svg viewBox="0 0 660 200" class="fg">
+   ${['Tensões e PWR_OK', 'Processador e microcódigo', 'Memória (training)', 'Vídeo', 'Discos e ordem de arranque', 'Entrega ao sistema operativo'].map((t, i) => { const x = 20 + i * 106; return `<rect x="${x}" y="40" width="94" height="52" rx="7" fill="var(--soft)" stroke="var(--line)"/><text x="${x + 47}" y="${62}" text-anchor="middle" style="font:700 9px var(--mono);fill:var(--accent)">${i + 1}</text><foreignObject x="${x + 4}" y="66" width="86" height="40"><div xmlns="http://www.w3.org/1999/xhtml" style="font:500 9px/1.2 var(--ui);color:var(--muted);text-align:center">${t}</div></foreignObject>${i < 5 ? `<path d="M${x + 96} 66 l8 0 M${x + 100} 62 l4 4 l-4 4" stroke="var(--muted)" stroke-width="1.6" fill="none"/>` : ''}`; }).join('')}
+   <text x="20" y="26" style="font:700 11px var(--head);fill:var(--ink)">Sequência do POST</text>
+   <text x="20" y="130" style="font:500 10px var(--ui);fill:var(--muted)">Se falha antes do vídeo, o aviso é sonoro (bips) ou por LED de diagnóstico.</text>
+   <circle cx="60" cy="168" r="18" fill="url(#lr-met)"/><text x="60" y="172" text-anchor="middle" style="font:700 8px var(--mono);fill:#3a414c">CR2032</text>
+   <text x="92" y="166" style="font:600 10px var(--ui);fill:var(--ink)">Pilha CMOS</text><text x="92" y="180" style="font:500 10px var(--ui);fill:var(--muted)">mantém o relógio e as definições</text>
+   <defs><linearGradient id="lr-met" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef1f4"/><stop offset="1" stop-color="#8e98a5"/></linearGradient></defs></svg>`
+};
+const ISOC = (() => {
+    const S = .70, CX = 505, CY = 300;
+    /* x: frente→trás · y: lado aberto→tabuleiro · z: altura */
+    const P = (x, y, z) => [CX + (x - y) * .866 * S, CY + (x + y) * .5 * S - z * S];
+    const pts = a => a.map(q => q.map(n => n.toFixed(1)).join(' ')).join(' L ');
+    const quad = (a, b, c, d, fill, stroke, extra = '') => `<path d="M ${pts([a, b, c, d])} Z" fill="${fill}" ${stroke ? `stroke="${stroke}" stroke-width="1.2"` : ''} ${extra}/>`;
+    /* painel no plano y = cte (paralelo ao tabuleiro) */
+    const planeY = (y, x1, z1, x2, z2, fill, stroke, extra) => quad(P(x1, y, z1), P(x2, y, z1), P(x2, y, z2), P(x1, y, z2), fill, stroke, extra);
+    /* painel no plano x = cte (frente/trás) */
+    const planeX = (x, y1, z1, y2, z2, fill, stroke, extra) => quad(P(x, y1, z1), P(x, y2, z1), P(x, y2, z2), P(x, y1, z2), fill, stroke, extra);
+    /* painel no plano z = cte (chão/topo) */
+    const planeZ = (z, x1, y1, x2, y2, fill, stroke, extra) => quad(P(x1, y1, z), P(x2, y1, z), P(x2, y2, z), P(x1, y2, z), fill, stroke, extra);
+    const box = (x1, y1, z1, x2, y2, z2, c1, c2, c3) => planeY(y1, x1, z1, x2, z2, c1) + planeX(x2, y1, z1, y2, z2, c2) + planeZ(z2, x1, y1, x2, y2, c3);
+    const D = 400, W = 300, H = 430, TY = 0;             /* tabuleiro ao fundo da vista */
+    const BX1 = 70, BX2 = 350, BZ1 = 110, BZ2 = 390;      /* área da placa no tabuleiro */
+    const SPOS = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2], [2, 2]];
+    const sx = c => BX1 + 32 + c * 110, sz = r => BZ2 - 38 - r * 104;
+    const NEED = [0, 1, 2, 3, 5, 6, 7, 8];
+    /* matrizes: desenhar em 2D sobre um plano do espaço 3D */
+    const mat = (o, a, b) => `matrix(${(a[0] - o[0]).toFixed(4)} ${(a[1] - o[1]).toFixed(4)} ${(b[0] - o[0]).toFixed(4)} ${(b[1] - o[1]).toFixed(4)} ${o[0].toFixed(2)} ${o[1].toFixed(2)})`;
+    const matX = x => mat(P(x, 0, 0), P(x, 1, 0), P(x, 0, -1));   /* u = y, v = −z (para cima no ecrã) */
+    const matY = y => mat(P(0, y, 0), P(1, y, 0), P(0, y, -1));   /* u = x, v = −z */
+    /* ventoinha desenhada no plano, com moldura, pás curvas e parafusos */
+    const fanShape = (r, on, col, sp = '') => {
+      const R2 = r, fr = r * 1.12;
+      let g = `<rect x="${-fr}" y="${-fr}" width="${fr * 2}" height="${fr * 2}" rx="${r * .22}" fill="#262c35" stroke="#11151a" stroke-width="1.6"/>`;
+      g += `<circle r="${R2 * .98}" fill="#0f1319"/><circle r="${R2 * .98}" fill="none" stroke="#39414c" stroke-width="1.4"/>`;
+      g += `<g class="cxfan${on ? ' run ' + sp : ''}">${Array.from({ length: 9 }, (_, i) => `<path d="M${R2 * .2} ${-R2 * .06} C ${R2 * .52} ${-R2 * .1}, ${R2 * .84} ${-R2 * .36}, ${R2 * .7} ${-R2 * .78} C ${R2 * .5} ${-R2 * .92}, ${R2 * .26} ${-R2 * .64}, ${R2 * .12} ${-R2 * .24} Z" fill="${i % 2 ? '#78828f' : '#6b7686'}" stroke="#2b3038" stroke-width=".5" transform="rotate(${i * 40})"/>`).join('')}</g>`;
+      g += `<circle r="${R2 * .98}" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="${R2 * .12}"/>`;
+      g += `<circle r="${R2 * .26}" fill="#1b2027" stroke="#49525d" stroke-width="1"/><circle r="${R2 * .19}" fill="#8e98a5"/><circle cx="${-R2 * .05}" cy="${-R2 * .05}" r="${R2 * .08}" fill="#cbd5e1" opacity=".7"/>`;
+      g += [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => `<circle cx="${a * fr * .82}" cy="${b * fr * .82}" r="${r * .09}" fill="#161a20" stroke="#4a535f" stroke-width="1"/>`).join('');
+      return g;
+    };
+    const fanISO = (x, z, r, col, on, plane) => {
+      /* ventoinha no plano x = cte, vista de lado */
+      const u = (x > D / 2 ? W * .24 : W * .55), v = -z;
+      const arrow = on ? `<g transform="translate(${u} ${v - r * 1.5})"><path d="M-12 0 h20 M2 -6 l6 6 l-6 6" stroke="${col}" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="rotate(${col === '#3b82f6' ? 0 : 180})"/></g>` : '';
+      return `<g transform="${matX(x)}"><g transform="translate(${u} ${v})">${fanShape(r, true, col, on ? 'mid' : '')}</g>${arrow}</g>`;
+    };
+    const LB = [];
+    const label = (x, y, z, t, dx, dy) => { const p = P(x, y, z); LB.push(`<path d="M${p[0]} ${p[1]} L${p[0] + dx * .55} ${p[1] + dy * .55} L${p[0] + dx} ${p[1] + dy}" stroke="#94a3b8" stroke-width="1.3" fill="none"/><circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#94a3b8"/><rect x="${p[0] + dx - (dx < 0 ? t.length * 6.4 + 12 : 0)}" y="${p[1] + dy - 11}" width="${t.length * 6.4 + 12}" height="19" rx="5" fill="#f8fafc" stroke="#cbd5e1"/><text x="${p[0] + dx + (dx < 0 ? -6 : 6)}" y="${p[1] + dy + 3}" text-anchor="${dx < 0 ? 'end' : 'start'}" style="font:700 10px var(--ui);fill:#334155">${t}</text>`); };
+    function draw(st){
+      LB.length = 0;
+      let s = `<defs>
+        <linearGradient id="ci-met" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8ecf1"/><stop offset="1" stop-color="#78828f"/></linearGradient>
+        <pattern id="ci-mesh" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="3.5" cy="3.5" r="1.5" fill="#0c1015"/></pattern>
+      </defs><rect width="980" height="620" fill="#eef2f8"/>`;
+      /* sombra no chão */
+      s += `<ellipse cx="${CX - 45}" cy="${CY + 245}" rx="320" ry="55" fill="#0f172a" opacity=".10"/>`;
+      /* paredes: fundo (x=D) e tabuleiro (y=W) */
+      s += planeY(TY, 0, 0, D, H, '#262d36', '#39414c');
+      s += planeY(TY + .5, BX1 - 10, BZ1 - 10, BX2 + 14, BZ2 + 12, 'rgba(0,0,0,.28)', '');
+      s += planeX(0, 0, 0, W, H, '#2b323c', '#4a535f');
+      s += planeX(3, 20, 40, W - 20, H - 40, 'url(#ci-mesh)', '');
+      s += planeZ(0, 0, 0, D, W, '#1b2129', '#39414c');
+      /* recorte do cooler e orifícios de passagem no tabuleiro */
+      s += planeY(TY + 1, BX1 + 70, BZ1 + 120, BX1 + 210, BZ1 + 250, '#11161c', '#39414c', 'stroke-dasharray="6 4"');
+      s += planeY(TY + 1, BX1 - 34, BZ1 + 20, BX1 - 14, BZ1 + 150, '#0b0e12', '#4a535f');
+      s += planeY(TY + 1, BX1 - 34, BZ1 + 180, BX1 - 14, BZ2 - 10, '#0b0e12', '#4a535f');
+      /* posições roscadas e espaçadores */
+      SPOS.forEach(([c, r], i) => {
+        const x = sx(c), z = sz(r), has = st.stand && NEED.includes(i), extra = st.extra && i === 4;
+        const p = P(x, TY + 1, z);
+        s += `<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="#11161c" stroke="#4a535f"/>`;
+        if (st.marks && !st.stand) s += `<circle cx="${p[0]}" cy="${p[1]}" r="11" fill="none" stroke="${NEED.includes(i) ? '#38bdf8' : '#64748b'}" stroke-width="2" stroke-dasharray="4 3"/>`;
+        if (has || extra) {
+          const a = P(x, TY, z), b = P(x, TY + 16, z);
+          s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${extra ? '#ef4444' : '#aeb6c1'}" stroke-width="8" stroke-linecap="round"/><circle cx="${b[0]}" cy="${b[1]}" r="5" fill="url(#ci-met)" stroke="${extra ? '#ef4444' : '#6b7682'}" stroke-width="${extra ? 2.5 : 1}"/>`;
+          if (extra) s += `<circle cx="${b[0]}" cy="${b[1]}" r="15" fill="none" stroke="#ef4444" stroke-width="3"><animate attributeName="r" values="12;20;12" dur="1.4s" repeatCount="indefinite"/></circle><text x="${b[0]}" y="${b[1] - 26}" text-anchor="middle" style="font:700 11px var(--ui);fill:#ef4444">espaçador a mais!</text>`;
+        }
+      });
+      /* espelho de E/S na parede do fundo */
+      if (st.shield) { const z0 = BZ2 - 76; s += planeX(D - 3, TY + 14, z0, TY + 140, z0 + 76, 'url(#ci-met)', '#6b7682');
+        for (let i = 0; i < 4; i++) s += planeX(D - 6, TY + 26 + i * 30, z0 + 18, TY + 46 + i * 30, z0 + 56, '#11151a', ''); }
+      /* motherboard, a 16 de distância do tabuleiro */
+      /* cablagem: passa por trás da placa, junto ao tabuleiro */
+      if (st.wires) {
+        const W2 = st.wires, BK = 6;
+        const route = (pts3, col, wd, op = .95) => {
+          const p = pts3.map(q => P(...q));
+          let d = `M${p[0][0]} ${p[0][1]}`;
+          for (let i = 1; i < p.length - 1; i++) { const a2 = p[i], b2 = p[i + 1]; d += ` Q ${a2[0]} ${a2[1]} ${(a2[0] + b2[0]) / 2} ${(a2[1] + b2[1]) / 2}`; }
+          d += ` L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`;
+          return `<path d="${d}" stroke="#0a0c0f" stroke-width="${wd + 2.5}" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="${op * .55}"/><path d="${d}" stroke="${col}" stroke-width="${wd}" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="${op}"/>`;
+        };
+        const K = (x, z) => [x, TY + BK, z];                      /* canal por trás da placa */
+        const PS = (x, z) => [x, 120, z];                          /* saída da fonte */
+        if (W2.atx)  s += route([PS(236, 88), K(BX2 + 10, BZ1 + 40), K(BX2 + 10, BZ1 + 145), K(BX2 - 16, BZ1 + 150)], '#23272e', 8);
+        if (W2.eps)  s += route([PS(190, 88), K(BX1 - 24, BZ1 + 60), K(BX1 - 24, BZ2 + 6), K(BX1 + 46, BZ2 + 2)], '#23272e', 6);
+        if (W2.pcie) s += route([PS(214, 88), K(BX2 + 10, BZ1 + 30), K(BX2 - 90, BZ1 + 74)], '#23272e', 6);
+        if (W2.sata1) s += route([PS(206, 90), [238, 150, 110], [256, 190, 116]], '#23272e', 4);
+        if (W2.sata2) s += route([PS(176, 92), [120, 150, 200], [96, 200, 352]], '#23272e', 4);
+        if (W2.dssd) s += route([[268, 180, 124], K(BX2 + 10, BZ1 + 60), K(BX2 - 18, BZ1 + 112)], '#dc2626', 3.2);
+        if (W2.ddvd) s += route([[142, 210, 372], K(BX1 - 24, BZ2 - 20), K(BX2 + 10, BZ1 + 86), K(BX2 - 18, BZ1 + 90)], '#dc2626', 3.2);
+        if (W2.fan1) s += route([[28, 160, 268], K(BX1 - 24, BZ2 - 30), K(BX1 + 190, BZ2 + 4)], '#e2e8f0', 2.4);
+        if (W2.fan2) s += route([[D - 26, 160, 400], K(BX2 + 10, BZ2 + 6), K(BX2 - 4, BZ2 - 20)], '#e2e8f0', 2.4);
+        if (W2.pwr) ['#e11d48', '#facc15', '#22c55e', '#f1f5f9'].forEach((c, i) => s += route([[16, 150 - i * 6, 120], [120, 60, 70], K(BX1 - 26 + i * 2, BZ1 - 30), K(BX1 + 104 + i * 4, BZ1 + 14)], c, 1.6, .9));
+        if (W2.usb) s += route([[16, 170, 150], [140, 60, 66], K(BX1 - 22, BZ1 - 40), K(BX1 + 172, BZ1 + 14)], '#2563eb', 3.4);
+        if (W2.aud) s += route([[16, 190, 100], [90, 60, 62], K(BX1 - 28, BZ1 - 48), K(BX1 + 30, BZ1 + 14)], '#16a34a', 3);
+      }
+      if (st.board) {
+        const BY = TY + 16, F = y => BY + y;
+        s += `<g id="cx-board"${st.drop ? ' class="drop"' : ''}>`;
+        /* PCB */
+        s += planeY(BY, BX1, BZ1, BX2, BZ2, '#1b1f26', '#39414c');
+        s += planeY(BY + 1, BX1 + 8, BZ1 + 8, BX2 - 8, BZ2 - 8, 'none', 'rgba(255,255,255,.06)');
+        /* VRM e dissipadores */
+        for (let i = 0; i < 5; i++) s += planeY(F(2), BX1 + 28 + i * 16, BZ2 - 44, BX1 + 38 + i * 16, BZ2 - 26, '#4a535f', '');
+        s += planeY(F(2), BX1 + 18, BZ2 - 118, BX1 + 24, BZ2 - 50, 'url(#ci-met)', '#6b7682');
+        /* cooler, em volume */
+        const cx1 = BX1 + 36, cx2 = BX1 + 146, cz1 = BZ2 - 178, cz2 = BZ2 - 62, cd = 52;
+        s += planeY(F(cd), cx1, cz1, cx2, cz2, '#262d36', '#11151a');
+        s += quad(P(cx2, F(0), cz1), P(cx2, F(cd), cz1), P(cx2, F(cd), cz2), P(cx2, F(0), cz2), '#1b2129', '#11151a');
+        s += quad(P(cx1, F(cd), cz2), P(cx2, F(cd), cz2), P(cx2, F(0), cz2), P(cx1, F(0), cz2), '#2f3742', '#11151a');
+        s += `<g transform="${matY(F(cd + 1))}"><g transform="translate(${(cx1 + cx2) / 2} ${-(cz1 + cz2) / 2})">${fanShape(42, true, '#3b82f6', st.flow ? 'turbo' : 'fast')}</g></g>`;
+        /* memória: dois módulos de pé */
+        [0, 1].forEach(i => { const x1 = BX1 + 170 + i * 24, x2 = x1 + 12, z1 = BZ2 - 182, z2 = BZ2 - 56, dd = 34;
+          s += planeY(F(dd), x1, z1, x2, z2, '#2e5a70', '#16313e');
+          s += quad(P(x2, F(0), z1), P(x2, F(dd), z1), P(x2, F(dd), z2), P(x2, F(0), z2), '#1f4557', '#16313e');
+          for (let j = 0; j < 5; j++) s += planeY(F(dd + 1), x1 + 1, z1 + 14 + j * 22, x2 - 1, z1 + 28 + j * 22, '#15171b', ''); });
+        /* SSD M.2 */
+        s += planeY(F(3), BX1 + 34, BZ1 + 96, BX1 + 148, BZ1 + 108, '#145c32', '#0b3a1f');
+        /* pilha */
+        const bp = P(BX2 - 54, F(3), BZ1 + 54); s += `<circle cx="${bp[0]}" cy="${bp[1]}" r="7" fill="url(#ci-met)" stroke="#8e98a5"/>`;
+        /* placa gráfica, saliente na ranhura PCIe */
+        const gx1 = BX1 + 26, gx2 = BX2 - 40, gz = BZ1 + 44, gd = 44;
+        s += planeY(F(gd), gx1, gz, gx2, gz + 30, '#2b323c', '#11151a');
+        s += quad(P(gx1, F(0), gz + 30), P(gx2, F(0), gz + 30), P(gx2, F(gd), gz + 30), P(gx1, F(gd), gz + 30), '#1b2129', '#11151a');
+        s += quad(P(gx2, F(0), gz), P(gx2, F(gd), gz), P(gx2, F(gd), gz + 30), P(gx2, F(0), gz + 30), '#232a33', '#11151a');
+        s += `<g transform="${matY(F(gd + 1))}">${[0, 1].map(i => `<g transform="translate(${gx1 + 46 + i * 78} ${-(gz + 15)})">${fanShape(13, true, '#3b82f6', st.flow ? 'fast' : 'mid')}</g>`).join('')}</g>`;
+        /* conectores da borda */
+        s += planeY(F(2), BX1 + 24, BZ1 + 16, BX2 - 70, BZ1 + 26, '#11151a', '');
+        if (st.screws) NEED.slice(0, st.screws).forEach(i => { const [c, r] = SPOS[i], p = P(sx(c), BY + 3, sz(r)); s += `<circle cx="${p[0]}" cy="${p[1]}" r="6" fill="#22c55e" stroke="#15803d"/><path d="M${p[0] - 3} ${p[1]} h6" stroke="#0b3d20" stroke-width="1.8"/>`; });
+        /* fichas ligadas, sobre os conectores */
+        if (st.wires) { const W3 = st.wires, plug3 = (x, z, w, h, col) => planeY(F(4), x, z, x + w, z + h, col, '#0a0c0f');
+          if (W3.atx) s += plug3(BX2 - 26, BZ1 + 132, 14, 36, '#2a2f36');
+          if (W3.eps) s += plug3(BX1 + 38, BZ2 - 18, 26, 12, '#2a2f36');
+          if (W3.pcie) s += plug3(BX2 - 104, BZ1 + 66, 24, 12, '#2a2f36');
+          if (W3.dssd) s += plug3(BX2 - 28, BZ1 + 106, 14, 10, '#7f1d1d');
+          if (W3.ddvd) s += plug3(BX2 - 28, BZ1 + 84, 14, 10, '#7f1d1d');
+          if (W3.fan1) s += plug3(BX1 + 186, BZ2 - 14, 14, 9, '#cbd5e1');
+          if (W3.fan2) s += plug3(BX2 - 14, BZ2 - 28, 14, 9, '#cbd5e1');
+          if (W3.pwr) s += plug3(BX1 + 100, BZ1 + 10, 22, 9, '#9f1239');
+          if (W3.usb) s += plug3(BX1 + 166, BZ1 + 10, 20, 9, '#1e3a8a');
+          if (W3.aud) s += plug3(BX1 + 24, BZ1 + 10, 18, 9, '#065f46');
+        }
+        s += `</g>`;
+      }
+      /* fonte no fundo da caixa */
+      if (st.psu) { s += box(60, 20, 0, 250, 250, 86, '#1b1f26', '#262d36', '#2b323c');
+        const c = P(155, 250, 86); s += `<text x="${c[0]}" y="${c[1] + 34}" text-anchor="middle" style="font:700 11px var(--head);fill:#aab4c0">FONTE 650 W</text>`; }
+      /* leitor de DVD e SSD, nas baias da frente */
+      if (st.drives) {
+        /* leitor de DVD, na baia superior da frente */
+        s += box(26, 60, 352, 150, 250, 408, '#5b6573', '#424a56', '#737e8c');
+        s += planeX(26, 60, 352, 250, 408, '#2a303a', '#4a535f');      /* frente preta do leitor */
+        s += planeX(24, 80, 364, 230, 382, '#15191f', '');              /* gaveta */
+        /* SSD de 2,5", deitado sobre o suporte, junto à fonte */
+        s += box(186, 70, 94, 288, 206, 134, '#6f7a88', '#4d5663', '#8792a0');
+        s += planeZ(134, 192, 76, 282, 200, '#7d8794', '#4d5663');
+        label(90, 250, 408, 'LEITOR DE DVD', -150, -40);
+        label(237, 206, 134, 'SSD 2,5"', -120, 20);
+      }
+      /* cabos */
+      if (st.cables) {
+        const a = P(120, 180, 90), b = P(BX1 - 24, TY + 10, BZ1 + 100), c = P(BX1 + 180, TY + 20, BZ1 + 66);
+        s += `<path d="M${a[0]} ${a[1]} C ${a[0] - 60} ${a[1] - 60}, ${b[0] - 40} ${b[1] + 60}, ${b[0]} ${b[1]}" stroke="#11151a" stroke-width="11" fill="none" stroke-linecap="round"/>`;
+        s += `<path d="M${b[0]} ${b[1]} C ${b[0] + 40} ${b[1] - 20}, ${c[0] - 60} ${c[1] + 30}, ${c[0]} ${c[1]}" stroke="#11151a" stroke-width="11" fill="none" stroke-linecap="round"/>`;
+        const d2 = P(BX1 - 24, TY + 10, BZ2 - 40), e2 = P(BX1 + 40, TY + 20, BZ2 - 24);
+        s += `<path d="M${a[0] + 20} ${a[1]} C ${a[0] - 40} ${a[1] - 140}, ${d2[0] - 40} ${d2[1] + 60}, ${d2[0]} ${d2[1]}" stroke="#11151a" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+        s += `<path d="M${d2[0]} ${d2[1]} C ${d2[0] + 20} ${d2[1] - 20}, ${e2[0] - 30} ${e2[1] + 10}, ${e2[0]} ${e2[1]}" stroke="#11151a" stroke-width="8" fill="none" stroke-linecap="round"/>`;
+        if (!st.tidy) { const f2 = P(220, 180, 110); s += `<path d="M${a[0] + 50} ${a[1] - 10} C ${f2[0] - 40} ${f2[1] - 60}, ${f2[0] + 60} ${f2[1] + 20}, ${f2[0] + 90} ${f2[1] - 30}" stroke="#11151a" stroke-width="7" fill="none" stroke-linecap="round"/><text x="${f2[0] + 40}" y="${f2[1] + 26}" style="font:700 11px var(--ui);fill:#f59e0b">cabos por arrumar</text>`; }
+      }
+      if (st.front) { const a = P(6, 200, 150), b = P(BX1 + 120, TY + 18, BZ1 + 16);
+        ['#e11d48', '#facc15', '#22c55e', '#f8fafc'].forEach((c, i) => s += `<path d="M${a[0]} ${a[1] + i * 5} C ${a[0] + 120} ${a[1] + 120}, ${b[0] - 120} ${b[1] + 90}, ${b[0]} ${b[1] + i * 2}" stroke="${c}" stroke-width="2" fill="none"/>`); }
+      if (st.tidy) { const p = P(BX1 - 24, TY + 6, BZ1 + 165); s += `<text x="${p[0] - 90}" y="${p[1] + 60}" text-anchor="end" style="font:700 11px var(--ui);fill:#4ade80">cabos por trás</text><text x="${p[0] - 90}" y="${p[1] + 75}" text-anchor="end" style="font:700 11px var(--ui);fill:#4ade80">do tabuleiro</text>`; }
+      /* ventoinhas */
+      if (st.fans) s += fanISO(6, 270, 38, '#3b82f6', !!st.flow) + fanISO(6, 140, 38, '#3b82f6', !!st.flow) + fanISO(D - 6, 402, 34, '#ef4444', !!st.flow);
+      if (st.flow) { const a = P(30, 165, 270), b = P(D - 30, 165, 402);
+        s += `<path d="M${a[0]} ${a[1]} C ${a[0] + 150} ${a[1] - 30}, ${b[0] - 120} ${b[1] - 10}, ${b[0]} ${b[1]}" stroke="#3b82f6" stroke-width="3.5" fill="none" stroke-dasharray="11 9"><animate attributeName="stroke-dashoffset" values="40;0" dur=".9s" repeatCount="indefinite"/></path>`;
+        const c = P(30, 165, 140); s += `<path d="M${c[0]} ${c[1]} C ${c[0] + 160} ${c[1] - 40}, ${b[0] - 100} ${b[1] + 60}, ${b[0] - 6} ${b[1] + 14}" stroke="#3b82f6" stroke-width="3" fill="none" stroke-dasharray="11 9" opacity=".65"><animate attributeName="stroke-dashoffset" values="40;0" dur="1.3s" repeatCount="indefinite"/></path>`;
+        s += `<text x="${a[0] - 16}" y="${a[1] + 48}" text-anchor="end" style="font:700 11px var(--ui);fill:#3b82f6">ar frio</text><text x="${b[0] + 16}" y="${b[1] + 52}" style="font:700 11px var(--ui);fill:#ef4444">ar quente</text>`; }
+      /* arestas da caixa */
+      const E = [[[0,0,0],[D,0,0]], [[0,0,0],[0,W,0]], [[0,0,0],[0,0,H]], [[D,0,0],[D,W,0]], [[D,0,0],[D,0,H]], [[0,W,0],[D,W,0]], [[0,W,0],[0,W,H]], [[0,0,H],[D,0,H]], [[0,0,H],[0,W,H]], [[D,W,0],[D,W,H]], [[D,0,H],[D,W,H]], [[0,W,H],[D,W,H]]];
+      s += E.map(([a, b]) => { const p = P(...a), q = P(...b); return `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#5b6472" stroke-width="2.5" stroke-linecap="round"/>`; }).join('');
+      /* painel lateral: encostado ao lado, ou montado */
+      if (st.closed) { s += planeY(W, 0, 0, D, H, 'rgba(120,140,170,.30)', '#8b94a1'); const p = P(D / 2, W, 16); s += `<text x="${p[0]}" y="${p[1] + 40}" text-anchor="middle" style="font:700 12px var(--ui);fill:#475569">painel lateral fechado</text>`; }
+      else if (st.open) { s += planeY(W + 230, 40, 30, D - 40, H - 70, '#2b323c', '#5b6472'); const p = P(D / 2, W + 230, 10); s += `<text x="${p[0]}" y="${p[1] + 40}" text-anchor="middle" style="font:600 11px var(--ui);fill:#64748b">painel lateral</text>`; }
+      if (st.esd) { const a = P(D - 30, W - 20, H - 20); s += `<path d="M${a[0]} ${a[1]} q 60 40 120 10" stroke="#16a34a" stroke-width="4" fill="none"/><circle cx="${a[0]}" cy="${a[1]}" r="7" fill="url(#ci-met)"/><text x="${a[0] + 130}" y="${a[1] + 30}" style="font:700 10px var(--ui);fill:#16a34a">pulseira ESD</text>`; }
+      if (st.clean && !st.board) { const p = P(BX1 + 140, TY + 2, BZ1 + 185); s += `<text x="${p[0]}" y="${p[1]}" text-anchor="middle" style="font:600 11px var(--ui);fill:#5d6978">recorte do cooler</text>`; }
+      return s + LB.join('');
+    }
+    return { draw };
+  })();
 /* ===== 1. Escolher as peças ===== */
 const PCPARTS = {
   cpu: { n: 'Processador', ic: '🔲', o: [
@@ -934,88 +1714,92 @@ pcDraw();
 /* ===== 2. Montagem passo a passo ===== */
 (() => {
   const svg = $('#bd-svg');
-  const box = (x, y, w, h, f, s, r = 6) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${f}"${s ? ` stroke="${s}" stroke-width="1.6"` : ''}/>`;
-  const txt = (x, y, t, st = '') => `<text x="${x}" y="${y}" ${st}>${t}</text>`;
-  const T = (x, y, t, sz = 12, c = '#334155', a = 'middle', w = 600) => txt(x, y, t, `text-anchor="${a}" style="font:${w} ${sz}px var(--ui);fill:${c}"`);
-  const fan = (cx, cy, r, on) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#1b1f26" stroke="#39414c" stroke-width="2"/><g class="bfan${on ? ' run' : ''}" style="transform-origin:${cx}px ${cy}px">${Array.from({ length: 9 }, (_, i) => `<path d="M${cx + r * .18} ${cy - r * .05} C ${cx + r * .5} ${cy - r * .1}, ${cx + r * .8} ${cy - r * .36}, ${cx + r * .68} ${cy - r * .76} C ${cx + r * .48} ${cy - r * .9}, ${cx + r * .24} ${cy - r * .62}, ${cx + r * .1} ${cy - r * .22} Z" fill="${i % 2 ? '#78828f' : '#6b7686'}" transform="rotate(${i * 40} ${cx} ${cy})"/>`).join('')}</g><circle cx="${cx}" cy="${cy}" r="${r * .22}" fill="#8e98a5"/>`;
-  /* cena: placa na bancada ou dentro da caixa */
-  function scene(st){
-    let s = `<rect width="900" height="480" fill="#f3f6fb"/>`;
-    if (st.inCase) {
-      s += box(56, 36, 540, 410, '#262d36', '#4a535f', 10) + box(74, 54, 318, 376, '#1b212a', '#39414c');
-      s += T(230, 466, 'caixa, deitada na bancada', 11, '#64748b');
-      if (st.psu) { s += box(86, 352, 230, 62, '#2b323c', '#4a535f') + T(201, 389, 'FONTE', 11, '#cbd5e1'); }
-      if (st.stand) [[120, 96], [250, 96], [340, 96], [120, 200], [250, 200], [340, 200], [120, 300], [250, 300], [340, 300]].forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="6" fill="#aeb6c1" stroke="#6b7682"/>`);
-      if (st.shield) s += box(366, 84, 14, 86, '#cfd5dd', '#8e98a5', 3);
-    } else { s += box(56, 36, 540, 410, '#e3e9f2', '#cbd5e1', 10) + T(326, 466, 'tapete antiestático · caixa de cartão', 11, '#64748b'); }
-    /* motherboard */
-    if (st.mb) {
-      const bx = st.inCase ? 112 : 150, by = st.inCase ? 80 : 78, bw = 252, bh = 248;
-      s += box(bx, by, bw, bh, '#1b1f26', '#39414c');
-      s += box(bx + 16, by + 16, 70, 70, '#2a3038', '#4a535f', 4);       /* socket */
-      if (st.cpu) s += box(bx + 22, by + 22, 58, 58, 'url(#bd-ihs)', '#8e98a5', 4) + T(bx + 51, by + 54, 'CPU', 9, '#56606e');
-      if (st.paste) s += `<circle cx="${bx + 51}" cy="${by + 51}" r="7" fill="#e8ecf1" opacity=".85"/>`;
-      if (st.cooler) { s += box(bx + 8, by + 8, 86, 86, '#394150', '#1b2027', 6) + fan(bx + 51, by + 51, 32, !!st.on); }
-      [0, 1].forEach(i => { const x = bx + 106 + i * 18;
-        s += box(x, by + 14, 12, 92, '#11151a', '#2a3038', 2);
-        if (st.ram) s += box(x + 1, by + 16, 10, 88, '#2e5a70', '#16313e', 2); });
-      if (st.ssd) s += box(bx + 16, by + 128, 110, 12, '#145c32', '#0b3a1f', 2);
-      else s += box(bx + 16, by + 128, 110, 12, '#11151a', '#2a3038', 2);
-      s += box(bx + 16, by + 160, 200, 14, '#11151a', '#2a3038', 2);      /* PCIe */
-      if (st.gpu) { s += box(bx + 16, by + 152, 230, 44, '#2b323c', '#11151a', 4) + fan(bx + 60, by + 174, 17, !!st.on) + fan(bx + 150, by + 174, 17, !!st.on); }
-      if (st.bat) s += `<circle cx="${bx + 212}" cy="${by + 120}" r="10" fill="#cfd5dd" stroke="#8e98a5"/>`;
-      if (st.screws) [[bx + 10, by + 10], [bx + 240, by + 10], [bx + 10, by + 230], [bx + 240, by + 230]].forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="6" fill="#22c55e" stroke="#15803d"/>`);
-      if (st.c24) s += `<path d="M${bx + bw - 6} ${by + 110} C ${bx + bw + 14} ${by + 150}, ${bx + bw + 10} ${by + 250}, ${bx + 150} ${by + 290}" stroke="#23272e" stroke-width="9" fill="none" stroke-linecap="round"/>`;
-      if (st.c8) s += `<path d="M${bx + 40} ${by + 4} C ${bx - 24} ${by - 4}, ${bx - 30} ${by + 180}, ${bx + 40} ${by + 286}" stroke="#23272e" stroke-width="6" fill="none" stroke-linecap="round"/>`;
-      if (st.gpu && st.c24) s += `<path d="M${bx + 230} ${by + 174} C ${bx + 270} ${by + 200}, ${bx + 200} ${by + 260}, ${bx + 150} ${by + 288}" stroke="#23272e" stroke-width="6" fill="none" stroke-linecap="round"/>`;
-      if (st.front) ['#e11d48', '#facc15', '#22c55e', '#f1f5f9'].forEach((c, i) => s += `<path d="M${bx + 150 + i * 4} ${by + bh - 4} C ${bx + 90} ${by + bh + 26}, ${bx - 10} ${by + bh + 10}, ${bx - 26} ${by + 150}" stroke="${c}" stroke-width="2" fill="none"/>`);
-    }
-    /* ecrã */
-    if (st.screen) {
-      s += box(610, 60, 250, 170, '#0b0d12', '#2b313b', 8);
-      const L = st.screen === 'post' ? ['POST OK', 'CPU .... Intel Core i5', 'RAM .... 32 GB DDR5', 'NVMe ... 1 TB', '', 'Sem sistema operativo'] :
-                st.screen === 'uefi' ? ['UEFI · definições', '', 'XMP/EXPO ....... ATIVADO', 'Arranque ....... USB', 'Ventoinhas ..... AUTO'] :
-                st.screen === 'win' ? ['A instalar o sistema...', '', '[████████░░] 78%', '', 'Não desligues o computador'] :
-                ['Ambiente de trabalho', '', 'Sistema pronto a usar', 'Drivers atualizados'];
-      s += L.map((l, i) => T(626, 92 + i * 22, l, 12, st.screen === 'ok' ? '#7fd17f' : '#7fd17f', 'start', 600)).join('');
-      s += T(735, 250, 'monitor', 11, '#64748b');
-    }
-    if (st.tools) { s += T(735, 300, '🧰 chave de fendas · pulseira ESD', 11, '#475569'); }
-    return `<defs><linearGradient id="bd-ihs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3f6f9"/><stop offset=".5" stop-color="#c8d0da"/><stop offset="1" stop-color="#8e98a5"/></linearGradient></defs>` + s;
+  /* --- cena da bancada: a placa detalhada, com as peças a aparecerem --- */
+  function bench(st){
+    let s = `<rect x="-40" y="-20" width="700" height="680" fill="#eef2f8"/>`;
+    s += `<rect x="${OX - 26}" y="${OY - 26}" width="${BW + 52}" height="${BH + 52}" rx="14" fill="#e3e9f2" stroke="#cbd5e1" stroke-width="2"/>`;
+    s += `<rect x="${OX - 14}" y="${OY - 14}" width="${BW + 28}" height="${BH + 28}" rx="10" fill="none" stroke="#cbd5e1" stroke-dasharray="6 5"/>`;
+    s += `<text x="${OX + BW / 2}" y="${OY + BH + 42}" text-anchor="middle" style="font:600 12px var(--ui);fill:#64748b">caixa de cartão da motherboard · superfície isolante</text>`;
+    s += boardSVG('bd-', { noBat: !st.bat, noM2hs: !!st.ssd });
+    return s;
   }
-  const B = { mb: 1 };
+  /* --- peças sobrepostas na placa, conforme a etapa --- */
+  function parts(st){
+    const so = R('socket'), ra = R('ram'), m2 = R('m2'), pc = R('pcie'), K = (x, y) => `translate(${x} ${y})`;
+    let s = '';
+    if (st.cpu) s += `<g transform="${K(so.x + 19, so.y + 19)}"><rect width="100" height="118" rx="4" fill="url(#bd-ihs)" stroke="#8e98a5" stroke-width="1.5"/><rect x="7" y="8" width="86" height="102" rx="3" fill="none" stroke="rgba(255,255,255,.6)"/><text x="50" y="56" text-anchor="middle" style="font:800 12px var(--head);fill:#56606e">CORE i5</text><text x="50" y="72" text-anchor="middle" style="font:600 8px var(--mono);fill:#6b7280">14400F</text><path d="M4 114 l14 0 l-14 -14 z" fill="#f7dd94"/></g>`;
+    if (st.paste && !st.cooler) s += `<g transform="${K(so.x + so.w / 2 - 8, so.y + so.h / 2 - 8)}"><circle cx="8" cy="8" r="9" fill="#eef2f6" opacity=".9" stroke="#cbd5e1"/></g>`;
+    if (st.cooler) { const cx = so.x + so.w / 2, cy = so.y + so.h / 2, R2 = 62;
+      s += `<g><rect x="${cx - 80}" y="${cy - 80}" width="160" height="160" rx="10" fill="#333b47" stroke="#1b2027" stroke-width="2"/>`;
+      s += Array.from({ length: 15 }, (_, i) => `<rect x="${cx - 74 + i * 10}" y="${cy - 74}" width="5.5" height="148" rx="1" fill="#59636f"/><rect x="${cx - 74 + i * 10}" y="${cy - 74}" width="5.5" height="148" rx="1" fill="url(#bd-fin)" opacity=".5"/>`).join('');
+      s += `<circle cx="${cx}" cy="${cy}" r="${R2}" fill="#0f1319"/><circle cx="${cx}" cy="${cy}" r="${R2}" fill="none" stroke="#39414c" stroke-width="2"/>`;
+      s += `<g class="bfan${st.on ? ' run' : ''}" style="transform-origin:${cx}px ${cy}px">${Array.from({ length: 9 }, (_, i) => `<path d="M${cx + R2 * .2} ${cy - R2 * .06} C ${cx + R2 * .52} ${cy - R2 * .1}, ${cx + R2 * .84} ${cy - R2 * .36}, ${cx + R2 * .7} ${cy - R2 * .78} C ${cx + R2 * .5} ${cy - R2 * .92}, ${cx + R2 * .26} ${cy - R2 * .64}, ${cx + R2 * .12} ${cy - R2 * .24} Z" fill="${i % 2 ? '#78828f' : '#6b7686'}" stroke="#2b3038" stroke-width=".5" transform="rotate(${i * 40} ${cx} ${cy})"/>`).join('')}</g>`;
+      s += `<circle cx="${cx}" cy="${cy}" r="${R2 * .26}" fill="#1b2027" stroke="#49525d"/><circle cx="${cx}" cy="${cy}" r="${R2 * .19}" fill="#8e98a5"/><circle cx="${cx - 3}" cy="${cy - 3}" r="${R2 * .07}" fill="#cbd5e1" opacity=".7"/>`;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b2]) => s += `<circle cx="${cx + a * 70}" cy="${cy + b2 * 70}" r="5" fill="#161a20" stroke="#5b6472" stroke-width="1.4"/>`);
+      s += `</g>`; }
+    if (st.ram) [0, 1].forEach(i => { const x = ra.x + 10 + i * 30, y = ra.y + 14, w = 17, hh = ra.h - 28;
+      s += `<g><rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="2" fill="#2e5a70" stroke="#16313e"/><rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="2" fill="rgba(255,255,255,.25)"/>${Array.from({ length: 8 }, (_, j) => `<rect x="${x + 2}" y="${y + 12 + j * 32}" width="${w - 4}" height="22" rx="1" fill="#15171b"/>`).join('')}<rect x="${x + 2}" y="${y + hh - 8}" width="${w - 4}" height="6" fill="#e3b24a"/><text x="${x + w / 2}" y="${y + 8}" text-anchor="middle" style="font:600 4.5px var(--mono);fill:#cfe3ea">DDR5 16GB</text></g>`; });
+    if (st.ssd) s += `<g transform="${K(m2.x + 6, m2.y + 10)}"><rect width="${m2.w - 12}" height="${m2.h - 20}" rx="3" fill="#145c32" stroke="#0b3a1f"/>${[0, 1, 2].map(i => `<rect x="${12 + i * 46}" y="4" width="36" height="${m2.h - 28}" rx="2" fill="#0d0f12"/>`).join('')}</g>`;
+    if (st.gpu) s += `<g transform="${K(pc.x, pc.y - 46)}"><rect width="300" height="76" rx="6" fill="#2b323c" stroke="#11151a" stroke-width="1.5"/><rect x="8" y="8" width="284" height="60" rx="4" fill="#20262e"/>${[0, 1].map(i => `<g><circle cx="${80 + i * 130}" cy="38" r="30" fill="#11151a"/><g class="bfan${st.on ? ' run' : ''}" style="transform-origin:${80 + i * 130}px 38px">${Array.from({ length: 9 }, (_, j) => `<path d="M${86 + i * 130} 36 C ${98 + i * 130} 33, ${110 + i * 130} 20, ${106 + i * 130} 4 C ${94 + i * 130} -2, ${83 + i * 130} 12, ${79 + i * 130} 30 Z" fill="${j % 2 ? '#6b7686' : '#5b6472'}" transform="rotate(${j * 40} ${80 + i * 130} 38)"/>`).join('')}</g><circle cx="${80 + i * 130}" cy="38" r="7" fill="#8e98a5"/></g>`).join('')}<text x="258" y="44" text-anchor="middle" style="font:700 9px var(--mono);fill:#8b94a1">8 GB</text></g>`;
+    if (st.cfan) { const cf = R('cpufan');
+      s += `<path d="M${cf.x + 13} ${cf.y + 14} C ${cf.x - 30} ${cf.y + 70}, ${so.x + so.w / 2 + 70} ${so.y - 10}, ${so.x + so.w / 2 + 24} ${so.y + 36}" stroke="#6b7280" stroke-width="5.5" fill="none" stroke-linecap="round" opacity=".5"/><path d="M${cf.x + 13} ${cf.y + 14} C ${cf.x - 30} ${cf.y + 70}, ${so.x + so.w / 2 + 70} ${so.y - 10}, ${so.x + so.w / 2 + 24} ${so.y + 36}" stroke="#f3f5f8" stroke-width="3.2" fill="none" stroke-linecap="round"/>`;
+      s += `<g transform="${K(cf.x - 2, cf.y - 2)}"><rect width="30" height="18" rx="2" fill="#e8ecf1" stroke="#9aa3ae"/></g>`; }
+    return s;
+  }
+  /* --- monitor --- */
+  let MONX = 686, MONY = 60;
+  function monitor(mode){
+    const L = mode === 'post' ? [['POST OK · UEFI 2.8', 'ok'], ['CPU .... Intel Core i5-14400F', ''], ['RAM .... 32 GB DDR5 (dual channel)', ''], ['NVMe ... PCIe 4.0 ×4 · 1 TB', ''], ['GPU .... PCIe 4.0 ×16', ''], ['', ''], ['Reboot and select proper boot device', 'warn']]
+      : mode === 'uefi' ? [['UEFI · Definições avançadas', 'ok'], ['', ''], ['Memory Profile ..... XMP 6000 MT/s', ''], ['Boot Option #1 ..... USB: SanDisk', ''], ['Fan Profile ........ Standard', ''], ['Secure Boot ........ Enabled', '']]
+      : mode === 'win' ? [['A instalar o sistema operativo…', 'ok'], ['', ''], ['[████████████░░░░] 78%', ''], ['', ''], ['O computador vai reiniciar algumas vezes.', ''], ['Não desligues a corrente.', 'warn']]
+      : [['Sistema pronto', 'ok'], ['', ''], ['Drivers da gráfica .... instalados', ''], ['Atualizações .......... concluídas', ''], ['CPU em carga .......... 68 °C', ''], ['Teste de 10 min ....... sem falhas', 'ok']];
+    let s = `<g transform="translate(${MONX} ${MONY})"><rect x="-6" y="-6" width="272" height="196" rx="12" fill="#2b313b"/><rect width="260" height="184" rx="6" fill="#070b0f"/>`;
+    s += `<rect width="260" height="184" rx="6" fill="url(#bd-scan)" opacity=".5"/>`;
+    s += L.map(([t, c], i) => `<text x="14" y="${26 + i * 22}" style="font:600 11.5px var(--mono);fill:${c === 'warn' ? '#facc15' : c === 'ok' ? '#7fd17f' : '#5aa05a'}">${t}</text>`).join('');
+    s += `<rect x="96" y="190" width="68" height="10" fill="#2b313b"/><rect x="60" y="200" width="140" height="7" rx="3" fill="#232a34"/>`;
+    s += `<text x="130" y="224" text-anchor="middle" style="font:600 11px var(--ui);fill:#64748b">monitor</text></g>`;
+    return s;
+  }
+  const C = (k, t) => ({ cap: k, t });
   const STEPS = [
-    ['Preparação', 'Preparar a bancada', { tools: 1 }, 'Mesa estável, boa luz e espaço. Liga a <b>pulseira antiestática</b> a uma parte metálica da caixa. Tem à mão uma chave de fendas Philips n.º 2 e um recipiente para os parafusos. Abre as caixas por ordem e confirma que não falta nada.'],
-    ['Bancada', 'Pousar a motherboard na caixa de cartão', { mb: 1, tools: 1 }, 'A placa monta-se <b>fora da caixa</b>, em cima da própria caixa de cartão, que serve de superfície isolante. É muito mais fácil encaixar o processador, o cooler e a memória com a placa à vista.'],
-    ['Bancada', 'Instalar o processador', { mb: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.'],
-    ['Bancada', 'Aplicar a pasta térmica', { mb: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já vier com pasta aplicada de fábrica, não acrescentes mais.'],
-    ['Bancada', 'Montar o cooler', { mb: 1, cpu: 1, paste: 1, cooler: 1 }, 'Assenta o cooler a direito, sem o arrastar, e aperta os parafusos <b>em cruz</b>, um pouco de cada vez. Liga a ficha da ventoinha ao conector <b>CPU_FAN</b>: muitas placas recusam arrancar sem ele.'],
-    ['Bancada', 'Instalar a memória', { mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1 }, 'Abre as patilhas, alinha o <b>entalhe</b> e carrega nas duas pontas até ouvires o clique. Com dois módulos, usa as ranhuras que o manual indica (normalmente a 2.ª e a 4.ª) para ativares o <b>dual channel</b>.'],
-    ['Bancada', 'Instalar o SSD M.2', { mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1 }, 'Retira o dissipador do M.2 se existir, encaixa o SSD a cerca de 30° e baixa-o até ao suporte. Aperta o parafuso ou fecha o trinco. Não te esqueças de tirar a película do dissipador.'],
-    ['Caixa', 'Preparar a caixa', { inCase: 1, tools: 1 }, 'Retira os dois painéis laterais e tudo o que vem dentro. Repara no tabuleiro, nos orifícios de passagem de cabos e no recorte traseiro por trás do socket.'],
-    ['Caixa', 'Espaçadores e espelho de E/S', { inCase: 1, stand: 1, shield: 1 }, 'Aperta um <b>espaçador por cada furo</b> da placa, e <b>nenhum a mais</b>: um espaçador a sobrar faz curto-circuito. Encaixa o espelho de E/S por dentro, até fazer clique nos quatro cantos.'],
-    ['Caixa', 'Montar a fonte', { inCase: 1, stand: 1, shield: 1, psu: 1 }, 'A fonte vai ao compartimento inferior. Se a caixa tiver filtro por baixo, a ventoinha da fonte fica <b>virada para baixo</b>. Aperta os quatro parafusos próprios, que são diferentes dos da placa.'],
-    ['Caixa', 'Pousar e aparafusar a placa', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1 }, 'Encosta primeiro as fichas traseiras ao espelho e baixa a placa sobre os espaçadores. Aperta <b>em cruz</b>, firme mas sem forçar: o parafuso trava no espaçador, não na placa.'],
-    ['Caixa', 'Instalar a placa gráfica', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1 }, 'Retira as tampas das ranhuras traseiras, encaixa a gráfica na ranhura <b>PCIe ×16</b> ligada ao processador até o trinco fazer clique e aparafusa-a à caixa.'],
-    ['Cabos', 'Ligar a alimentação', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1, c24: 1, c8: 1 }, 'O <b>24 pinos</b> na placa, o <b>8 pinos</b> no canto superior (processador) e o cabo <b>PCIe</b> na placa gráfica. Passa-os pelos orifícios de borracha, por trás do tabuleiro.'],
-    ['Cabos', 'Painel frontal, USB e ventoinhas', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1, c24: 1, c8: 1, front: 1 }, 'POWER SW, RESET SW e os LED (com polaridade) no <b>F_PANEL</b>; depois os cabos USB, o HD Audio e as ventoinhas da caixa nos SYS_FAN. O manual tem o desenho dos pinos.'],
-    ['Arranque', 'Primeiro arranque e POST', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1, c24: 1, c8: 1, front: 1, on: 1, screen: 'post' }, 'Liga o monitor <b>à placa gráfica</b>, não à motherboard. Carrega no botão: as ventoinhas arrancam e o <b>POST</b> deteta o processador, a memória e o disco. Ainda não há sistema operativo, e isso é normal.'],
-    ['Arranque', 'Afinar a UEFI', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1, c24: 1, c8: 1, front: 1, on: 1, screen: 'uefi' }, 'Entra na UEFI (Del ou F2) e ativa o perfil <b>XMP</b> (Intel) ou <b>EXPO</b> (AMD), para a memória correr à velocidade anunciada. Confirma a data, a ordem de arranque e a curva das ventoinhas.'],
-    ['Sistema', 'Instalar o sistema operativo', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1, c24: 1, c8: 1, front: 1, on: 1, screen: 'win' }, 'Arranca da <b>pen USB</b> com o instalador, escolhe o SSD, cria as partições e espera. O computador reinicia algumas vezes: retira a pen quando ele pedir.'],
-    ['Sistema', 'Drivers, atualizações e testes', { inCase: 1, stand: 1, shield: 1, psu: 1, mb: 1, cpu: 1, paste: 1, cooler: 1, ram: 1, ssd: 1, screws: 1, gpu: 1, bat: 1, c24: 1, c8: 1, front: 1, on: 1, screen: 'ok' }, 'Instala o <b>driver da placa gráfica</b> e o do chipset, corre as atualizações e verifica as temperaturas com uma carga de alguns minutos. Fecha os painéis e está pronto.']
+    ['Preparação', '5 min', 'Preparar a bancada', { tools: 1 }, 'Mesa estável, boa luz e espaço livre. Liga a <b>pulseira antiestática</b> a uma parte metálica da caixa. Tem à mão uma chave Philips n.º 2 e um recipiente para os parafusos. Abre as caixas por ordem e confere as peças pela fatura.', ''],
+    ['Bancada', '1 min', 'Pousar a motherboard', { board: 1 }, 'A placa monta-se <b>fora da caixa</b>, sobre a própria caixa de cartão, que serve de superfície isolante. Dentro da caixa há pouco espaço e pouca luz, e é fácil forçar uma peça.', ''],
+    ['Bancada', '2 min', 'Instalar o processador', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
+    ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
+    ['Bancada', '5 min', 'Montar o cooler e ligar a ventoinha', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1 }, 'Assenta o cooler a direito, sem o arrastar, e aperta os parafusos <b>em cruz</b>, um pouco de cada vez. Liga a ficha da ventoinha ao <b>CPU_FAN</b>: muitas placas recusam arrancar sem ela.', 'socket'],
+    ['Bancada', '2 min', 'Instalar a memória', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1, ram: 1 }, 'Abre as patilhas, alinha o <b>entalhe</b> e carrega nas duas pontas até ouvires o clique dos dois lados. Com dois módulos, usa as ranhuras que o manual indica para ativares o <b>dual channel</b>.', 'ram'],
+    ['Bancada', '3 min', 'Instalar o SSD M.2', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1, ram: 1, ssd: 1 }, 'Retira o dissipador do M.2, encaixa o SSD a cerca de 30° e baixa-o até ao suporte. Aperta o parafuso ou fecha o trinco, e não te esqueças de tirar a película da almofada térmica.', 'm2'],
+    ['Bancada', '1 min', 'Colocar a pilha CMOS', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1, ram: 1, ssd: 1, bat: 1 }, 'A pilha <b>CR2032 de 3 V</b> costuma vir já colocada. Se a placa é usada ou esteve muito tempo em armazém, convém trocá-la: é ela que mantém a hora e as definições.', 'bios'],
+    ['Caixa', '5 min', 'Preparar a caixa', { iso: { open: 1, clean: 1, esd: 1 } }, 'Deita a caixa de lado e retira os dois painéis laterais. Tira tudo o que vem dentro e repara no <b>tabuleiro</b>, nos orifícios de passagem e no recorte traseiro, por trás do socket.', ''],
+    ['Caixa', '6 min', 'Espaçadores e espelho de E/S', { iso: { open: 1, clean: 1, stand: 1, shield: 1 } }, 'Aperta <b>um espaçador por cada furo</b> da placa e nenhum a mais: um espaçador a sobrar encosta às soldas e faz curto-circuito. Encaixa o espelho de E/S por dentro, até clicar nos quatro cantos.', ''],
+    ['Caixa', '4 min', 'Montar a fonte', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1 } }, 'A fonte vai ao compartimento inferior. Com filtro por baixo, a ventoinha fica <b>virada para baixo</b>. Aperta os quatro parafusos próprios, que têm rosca diferente dos da placa.', ''],
+    ['Caixa', '6 min', 'Pousar e aparafusar a placa', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8 } }, 'Encosta primeiro as fichas traseiras ao espelho e baixa a placa sobre os espaçadores. Aperta dois parafusos em cantos opostos e depois os restantes, <b>em cruz</b>, firme mas sem forçar.', ''],
+    ['Caixa', '3 min', 'Instalar a placa gráfica', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8 } }, 'Retira as tampas das ranhuras traseiras, encaixa a gráfica na <b>PCIe ×16</b> ligada ao processador até o trinco fazer clique e aparafusa-a à caixa. É a peça mais pesada: segura-a enquanto encaixas.', ''],
+    ['Cabos', '12 min', 'Alimentação: 24 pinos, CPU e gráfica', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8, drives: 1, wires: { atx: 1, eps: 1, pcie: 1 } } }, 'O <b>24 pinos</b> na placa, o <b>8 pinos</b> no canto superior (processador) e o cabo <b>PCIe</b> na gráfica. Passa-os por trás do tabuleiro, pelos orifícios de borracha.', ''],
+    ['Cabos', '8 min', 'Discos, painel frontal e ventoinhas', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8, drives: 1, fans: 1, wires: { atx: 1, eps: 1, pcie: 1, sata1: 1, sata2: 1, dssd: 1, ddvd: 1, fan1: 1, fan2: 1, pwr: 1, usb: 1, aud: 1 } } }, 'Alimentação e dados de cada disco; POWER SW, RESET e os LED no <b>F_PANEL</b> (os LED têm polaridade); depois os cabos USB, o HD Audio e as ventoinhas nos SYS_FAN.', ''],
+    ['Arranque', '5 min', 'Primeiro arranque e POST', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8, drives: 1, fans: 1, flow: 1, wires: { atx: 1, eps: 1, pcie: 1, sata1: 1, sata2: 1, dssd: 1, ddvd: 1, fan1: 1, fan2: 1, pwr: 1, usb: 1, aud: 1 } }, screen: 'post' }, 'Liga o monitor <b>à placa gráfica</b>, não à motherboard. Carrega no botão: as ventoinhas arrancam e o POST deteta o processador, a memória e os discos. A mensagem de que falta o sistema operativo é normal.', ''],
+    ['Arranque', '5 min', 'Afinar a UEFI', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8, drives: 1, fans: 1, flow: 1, wires: { atx: 1, eps: 1, pcie: 1, sata1: 1, sata2: 1, dssd: 1, ddvd: 1, fan1: 1, fan2: 1, pwr: 1, usb: 1, aud: 1 } }, screen: 'uefi' }, 'Entra na UEFI (Del ou F2) e ativa o perfil <b>XMP</b> ou <b>EXPO</b>, para a memória correr à velocidade anunciada. Confirma a data, a ordem de arranque e a curva das ventoinhas.', ''],
+    ['Sistema', '30 min', 'Instalar o sistema operativo', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8, drives: 1, fans: 1, flow: 1, wires: { atx: 1, eps: 1, pcie: 1, sata1: 1, sata2: 1, dssd: 1, ddvd: 1, fan1: 1, fan2: 1, pwr: 1, usb: 1, aud: 1 } }, screen: 'win' }, 'Arranca da <b>pen USB</b> com o instalador, escolhe o SSD, cria as partições e espera. O computador reinicia algumas vezes: retira a pen quando ele pedir.', ''],
+    ['Sistema', '15 min', 'Drivers, atualizações e testes', { iso: { open: 1, clean: 1, stand: 1, shield: 1, psu: 1, board: 1, screws: 8, drives: 1, fans: 1, flow: 1, closed: 1, wires: { atx: 1, eps: 1, pcie: 1, sata1: 1, sata2: 1, dssd: 1, ddvd: 1, fan1: 1, fan2: 1, pwr: 1, usb: 1, aud: 1 } }, screen: 'ok' }, 'Instala o driver da <b>placa gráfica</b> e o do chipset, corre as atualizações e verifica as temperaturas com uma carga de dez minutos. Fecha os painéis e está pronto.', '']
   ];
-  const sel = $('#bd-sel'), log = $('#montar-log');
-  sel.innerHTML = STEPS.map((s, i) => `<option value="${i}">${String(i + 1).padStart(2, '0')} · ${s[1]}</option>`).join('');
+  const sel = $('#bd-sel'), log = $('#montar-log'), call = $('#bd-call');
+  sel.innerHTML = STEPS.map((s, i) => `<option value="${i}">${String(i + 1).padStart(2, '0')} · ${s[2]}</option>`).join('');
   let k = 0;
   function render(){
-    const s = STEPS[k];
-    svg.innerHTML = scene(s[2]);
-    $('#bd-lv').textContent = s[0];
+    const s = STEPS[k], st = s[3];
+    let h = '';
+    if (st.iso) h = ISOC.draw(st.iso);
+    else { h = bench(st); h += parts(st); }
+    if (st.screen) { MONX = st.iso ? 686 : OX + BW + 40; MONY = st.iso ? 60 : OY + 20; h += monitor(st.screen); }
+    if (st.tools) h += `<g transform="translate(${OX + BW + 70} ${OY + 120})"><rect x="-20" y="-20" width="230" height="190" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="95" y="8" text-anchor="middle" style="font:700 12px var(--head);fill:#334155">Antes de começar</text>${['🧰  Chave Philips n.º 2', '⚡  Pulseira antiestática', '🥣  Recipiente para parafusos', '💡  Luz direta sobre a mesa', '📄  Manual da motherboard'].map((t, i) => `<text x="0" y="${38 + i * 26}" style="font:500 12px var(--ui);fill:#475569">${t}</text>`).join('')}</g>`;
+    svg.setAttribute('viewBox', st.iso ? '0 0 980 620' : `${OX - 44} ${OY - 42} ${BW + 300} ${BH + 96}`);
+    svg.innerHTML = `<defs><linearGradient id="bd-ihs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#ccd4de"/><stop offset=".7" stop-color="#eef2f6"/><stop offset="1" stop-color="#8e98a5"/></linearGradient><linearGradient id="bd-fin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient><pattern id="bd-scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="rgba(255,255,255,.05)"/></pattern></defs>` + h;
+    $('#bd-lv').textContent = s[0]; $('#bd-time').textContent = '⏱ ' + s[1];
     sel.value = k;
-    $('#bd-verdict').innerHTML = `<div class="verdict">${s[3]}</div>`;
+    $('#bd-verdict').innerHTML = `<div class="verdict"><b>${k + 1}. ${s[2]}</b><br>${s[4]}</div>`;
   }
-  function reset(){ k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; render(); logTo(log, [STEPS[0][3]], '1.'); }
-  function step(){ if (k >= STEPS.length - 1) return false; k++; render(); logTo(log, [STEPS[k][3]], (k + 1) + '.'); return k < STEPS.length - 1; }
+  function reset(){ k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; render(); logTo(log, [STEPS[0][4]], '1.'); }
+  function step(){ if (k >= STEPS.length - 1) return false; k++; render(); logTo(log, [STEPS[k][4]], (k + 1) + '.'); return k < STEPS.length - 1; }
   sel.onchange = () => { k = +sel.value; render(); };
   makePlayer('montar', { step, reset, pos: () => k });
   reset();
