@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O sistema de ficheiros · Laboratório animado</title>
+<style>
+:root{
+  --head:"Bahnschrift","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --ui:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,Menlo,monospace;
+  --bg:#EEF1F7; --card:#FFFFFF; --ink:#172033; --muted:#5A6577; --line:#D8DEE9; --soft:#F5F7FB;
+  --accent:#2F5BD3; --on-accent:#FFFFFF; --good:#1E8A5A; --good-soft:#E3F4EB; --bad:#C8402B; --bad-soft:#FCE8E4; --warn-soft:#FFF4D6;
+  --p1:#2F6FED; --p2:#E0533D; --p3:#1E9E6A; --p4:#C98A00; --p5:#8B5CF6; --p6:#0E9AA7;
+  --arrow:#9AA6B8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0F141C; --card:#171E29; --ink:#E3E8F0; --muted:#97A3B6; --line:#2A3443; --soft:#1D2531;
+    --accent:#7FA2FF; --on-accent:#0F141C; --good:#5CCB92; --good-soft:rgba(92,203,146,.14); --bad:#F07C68; --bad-soft:rgba(240,124,104,.15); --warn-soft:rgba(255,196,64,.14);
+    --p1:#5B8EFF; --p2:#F07560; --p3:#3DC08A; --p4:#E5AA2B; --p5:#A585FF; --p6:#2CC0CC;
+    --arrow:#5E6B7E;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:1rem 1.5rem 0;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:.9rem;max-width:80rem;margin:0 auto}
+.chipico{width:44px;height:44px;flex:none}
+.brand h1{font:700 1.45rem/1.15 var(--head);margin:0;letter-spacing:.01em}
+.brand p{margin:.1rem 0 0;color:var(--muted);font-size:.9rem}
+.tabs{display:flex;gap:.25rem;max-width:80rem;margin:.8rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.6rem .9rem .7rem;border-bottom:3px solid transparent;font:600 .95rem var(--ui);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button span{display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--soft);font-size:.78rem;margin-right:.4rem;color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button[aria-selected="true"] span{background:var(--accent);color:var(--on-accent)}
+
+main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
+.intro{margin:0 0 1.2rem;max-width:52rem}
+.intro h2{font:700 1.35rem/1.25 var(--head);margin:0 0 .35rem}
+.intro p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1.2rem;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.card h3{font:700 1rem var(--head);margin:0 0 .6rem;letter-spacing:.01em}
+.side .card+.card{margin-top:1rem}
+.side ul{margin:.2rem 0 0;padding-left:1.1rem}
+.side li{margin:.35rem 0;font-size:.93rem}
+.side p{font-size:.93rem;margin:.3rem 0}
+
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:600 .9rem var(--ui);padding:.5rem .95rem;border-radius:8px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.speed{display:flex;align-items:center;gap:.4rem;margin-left:auto;font-size:.85rem;color:var(--muted)}
+.speed input{accent-color:var(--accent);width:7rem}
+.clock{font:600 .9rem var(--mono);background:var(--soft);border-radius:6px;padding:.3rem .6rem}
+
+.log,.side .log{list-style:none;margin:0;padding:0;max-height:16rem;overflow:auto;font-size:.88rem}
+.log li{padding:.45rem 0;border-bottom:1px solid var(--line);display:flex;gap:.6rem}
+.log li:first-child{font-weight:600}
+.log time{font:600 .8rem var(--mono);color:var(--muted);flex:none;min-width:2.6rem;padding-top:.1rem}
+.log code{word-break:break-all}
+.log .empty{color:var(--muted);font-style:italic}
+
+.pchip{display:inline-flex;align-items:center;justify-content:center;min-width:2.1rem;height:1.6rem;padding:0 .45rem;border-radius:999px;color:#fff;font:700 .78rem var(--mono)}
+
+/* 1. Estados */
+.stage{position:relative;width:100%;aspect-ratio:2/1;background:var(--soft);border-radius:10px;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.sbox{fill:var(--card);stroke:var(--line);stroke-width:2}
+.sbox.exec{stroke:var(--accent);stroke-width:3}
+.stitle{font:700 22px var(--head);fill:var(--ink)}
+.ssub{font:500 15px var(--ui);fill:var(--muted)}
+.arr{fill:none;stroke:var(--arrow);stroke-width:3;transition:stroke .25s}
+.arr.on{stroke:var(--accent);stroke-width:5}
+.alab{font:600 15px var(--ui);fill:var(--muted)}
+.alab.on{fill:var(--accent)}
+.tok{position:absolute;width:4.4%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 clamp(.6rem,1.4vw,.9rem) var(--mono);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .55s cubic-bezier(.5,0,.3,1),top .55s cubic-bezier(.5,0,.3,1),opacity .4s,transform .3s}
+.tok.out{opacity:0;transform:scale(.4)}
+.tok.run{transform:scale(1.2);box-shadow:0 0 0 4px var(--card),0 0 0 7px var(--c)}
+.ptable{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.9rem}
+.ptable th{text-align:left;color:var(--muted);font-weight:600;font-size:.8rem;padding:.3rem .4rem;border-bottom:1px solid var(--line)}
+.ptable td{padding:.45rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.ph{display:inline-block;padding:.15rem .5rem;border-radius:5px;font:600 .78rem var(--mono);margin:.1rem .2rem .1rem 0;background:var(--soft);border:1px solid var(--line)}
+.ph.cur{background:var(--warn-soft);border-color:var(--p4)}
+.ph.done{opacity:.4;text-decoration:line-through}
+.stlab{font-size:.82rem;font-weight:600}
+
+/* 2. Escalonamento */
+.cfg{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;margin-bottom:1rem}
+.cfg label{display:flex;flex-direction:column;gap:.25rem;font-size:.82rem;font-weight:600;color:var(--muted)}
+.cfg select,.cfg input{padding:.45rem .55rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.ptab input{width:4.2rem;padding:.3rem .4rem;border:1px solid var(--line);border-radius:6px;background:var(--soft);text-align:center}
+.ptab td,.ptab th{padding:.3rem .4rem}
+.ptab .rm{border:0;background:none;color:var(--bad);cursor:pointer;font-size:1.1rem}
+.cpu-row{display:grid;grid-template-columns:9rem minmax(0,1fr);gap:1rem;align-items:center;margin:1.2rem 0}
+.cpu{border:3px solid var(--accent);border-radius:12px;height:6.2rem;display:grid;place-items:center;text-align:center;background:var(--card);position:relative}
+.cpu small{position:absolute;top:.35rem;left:0;right:0;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.cpu .big{font:700 1.6rem var(--mono);margin-top:.6rem}
+.queue{border:2px dashed var(--line);border-radius:12px;min-height:6.2rem;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;position:relative}
+.queue::before{content:"Fila dos prontos";position:absolute;top:.35rem;left:.7rem;font:700 .75rem var(--head);color:var(--muted);letter-spacing:.06em}
+.queue .pchip{margin-top:1rem;height:2.2rem;min-width:2.8rem;font-size:.9rem;animation:pop .3s}
+@keyframes pop{from{transform:scale(.5);opacity:0}}
+.gantt-wrap{overflow-x:auto}
+.gantt{display:grid;gap:2px;min-width:30rem}
+.gcell{height:2.6rem;background:var(--soft);border-radius:3px;display:flex;align-items:center;padding-left:.3rem;color:#fff;font:700 .78rem var(--mono);transition:background .2s}
+.gaxis{display:grid;gap:2px;min-width:30rem;font:500 .7rem var(--mono);color:var(--muted)}
+.gaxis span{text-align:left}
+.results{margin-top:1.2rem;overflow-x:auto}
+.results table{border-collapse:collapse;width:100%;font-size:.9rem}
+.results th,.results td{padding:.4rem .6rem;border-bottom:1px solid var(--line);text-align:center}
+.results th{font-size:.8rem;color:var(--muted)}
+.results tfoot td{font-weight:700}
+.best{background:var(--good-soft);font-weight:700}
+
+.alg{padding:.7rem .8rem;border-radius:9px;margin:0 -.4rem .3rem;cursor:pointer;transition:background .2s}
+.alg:hover{background:var(--soft)}
+.alg.on{background:var(--warn-soft);box-shadow:inset 0 0 0 1px var(--p4)}
+.alg h4{margin:0 0 .3rem;font:700 .98rem var(--head);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .5rem}
+.alg h4 span{font:500 .8rem var(--ui);color:var(--muted)}
+.alg.on h4::after{content:"em uso";margin-left:auto;font:700 .7rem var(--ui);background:var(--p4);color:#fff;padding:.1rem .45rem;border-radius:999px}
+.alg p{margin:.2rem 0;font-size:.88rem}
+.alg .pc{color:var(--muted)}
+.alg:not(.on) .pc{display:none}
+/* 3. Condição de corrida */
+.race{display:grid;grid-template-columns:1fr 12rem 1fr;gap:1rem;align-items:start}
+.proc{border:2px solid var(--line);border-radius:12px;padding:.8rem;background:var(--card)}
+.proc h4{margin:0 0 .5rem;display:flex;align-items:center;gap:.5rem;font:700 1rem var(--head)}
+.proc .st{margin-left:auto;font:600 .75rem var(--ui);padding:.15rem .5rem;border-radius:999px;background:var(--soft);color:var(--muted)}
+.proc .st.blk{background:var(--bad-soft);color:var(--bad)}
+.proc .st.end{background:var(--good-soft);color:var(--good)}
+.code{list-style:none;margin:0;padding:0;font:500 .86rem/1.5 var(--mono)}
+.code li{display:flex;gap:.5rem;padding:.3rem .45rem;border-radius:6px;align-items:center}
+.code li .pc{width:1rem;flex:none;color:var(--accent);font-weight:700}
+.code li.next{background:var(--warn-soft)}
+.code li.ran{color:var(--muted)}
+.code li.lk{color:var(--p5);font-weight:700}
+.reg{margin-top:.7rem;font:600 .9rem var(--mono);background:var(--soft);padding:.4rem .6rem;border-radius:7px}
+.mem{border:3px solid var(--ink);border-radius:12px;text-align:center;padding:.8rem .5rem;background:var(--card)}
+.mem small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.06em}
+.mem .val{font:700 2.6rem/1.2 var(--mono);transition:transform .3s}
+.mem .val.bump{transform:scale(1.3)}
+.mutex{margin-top:.8rem;padding:.4rem;border-radius:8px;font:600 .82rem var(--ui);background:var(--soft)}
+.mutex.held{background:var(--warn-soft)}
+.verdict{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.verdict.bad{background:var(--bad-soft)}
+.verdict.good{background:var(--good-soft)}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.mode button{border:0;background:transparent;padding:.45rem .8rem;font:600 .86rem var(--ui);cursor:pointer;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.bars{margin-top:.8rem}
+.bar{display:grid;grid-template-columns:7rem 1fr 3.5rem;gap:.5rem;align-items:center;margin:.35rem 0;font-size:.88rem}
+.bar i{display:block;height:1.1rem;border-radius:4px;background:var(--accent);transition:width .6s}
+.bar i.bad{background:var(--bad)}
+
+/* 4. Impasse */
+#dl-svg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.node-p{stroke-width:4}
+.node-r{fill:var(--card);stroke:var(--ink);stroke-width:3}
+.ntext{font:700 22px var(--head);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.rtext{font:700 18px var(--head);fill:var(--ink);text-anchor:middle}
+.edge{stroke-width:4;fill:none;transition:opacity .3s}
+.edge.req{stroke:var(--muted);stroke-dasharray:10 7}
+.edge.own{stroke:var(--ink)}
+.edge.cyc{stroke:var(--bad)!important}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin-top:.6rem}
+.legend span{display:inline-flex;align-items:center;gap:.4rem}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.cond{list-style:none;padding:0;margin:0}
+.cond li{display:flex;gap:.5rem;align-items:flex-start;padding:.35rem 0;font-size:.9rem}
+.cond li i{flex:none;width:1.2rem;height:1.2rem;border-radius:50%;border:2px solid var(--line);margin-top:.15rem}
+.cond li.on i{background:var(--bad);border-color:var(--bad)}
+
+/* 5. Testa-te */
+.quiz{max-width:46rem}
+.q{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:1rem 1.1rem;margin:0 0 1rem}
+.q legend{font:700 1rem var(--head);padding:0 .3rem;margin-left:-.3rem}
+.q label{display:flex;gap:.6rem;padding:.45rem .5rem;border-radius:7px;cursor:pointer;align-items:flex-start}
+.q label:hover{background:var(--soft)}
+.q label.right{background:var(--good-soft)}
+.q label.wrong{background:var(--bad-soft)}
+.q input{accent-color:var(--accent);margin-top:.3rem}
+.q .fb{margin:.6rem 0 0;font-size:.92rem}
+.score{font:700 1.1rem var(--head);margin:.5rem 0 1rem}
+
+
+/* Núcleo */
+.ksvg .layer{stroke:none}
+.kbox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s}
+.kbox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.kbox.bad{stroke:var(--bad);stroke-width:4;fill:var(--bad-soft)}
+.ktxt{font:600 17px var(--ui);fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.klab{font:700 15px var(--head);letter-spacing:.06em;fill:var(--muted)}
+.kline{stroke:var(--bad);stroke-width:3;stroke-dasharray:10 8}
+.mode-ind{display:inline-flex;align-items:center;gap:.5rem;font:700 .85rem var(--ui);padding:.35rem .8rem;border-radius:999px;background:var(--soft)}
+.mode-ind i{width:.7rem;height:.7rem;border-radius:50%;background:var(--good)}
+.mode-ind.k i{background:var(--bad)}
+.pkt{position:absolute;width:3.4%;aspect-ratio:1;border-radius:8px;background:var(--accent);box-shadow:0 4px 10px rgba(0,0,0,.3);transition:left .6s cubic-bezier(.5,0,.3,1),top .6s cubic-bezier(.5,0,.3,1),background .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.pkt.k{background:var(--bad)}
+.kstage{position:relative;width:100%;aspect-ratio:1000/520;background:var(--soft);border-radius:10px;overflow:hidden}
+.kstage svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Memória contígua */
+.membar{position:relative;height:5.5rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px);margin-top:.4rem}
+.seg{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:700 .85rem var(--mono);border-right:2px solid var(--card);transition:left .6s cubic-bezier(.5,0,.3,1),width .6s cubic-bezier(.5,0,.3,1),box-shadow .2s;overflow:hidden;white-space:nowrap;cursor:pointer}
+.seg small{font:500 .72rem var(--mono);opacity:.9}
+.seg.os{background:#4B5568;cursor:default}
+.seg.hole{background:transparent;color:var(--muted);cursor:default}
+.seg.fit{box-shadow:inset 0 0 0 4px var(--good)}
+.seg.nofit{box-shadow:inset 0 0 0 4px var(--bad)}
+.seg.pick{box-shadow:inset 0 0 0 6px var(--good);background:var(--good-soft)}
+.seg.new{animation:pop .5s}
+.addr{position:relative;height:1.3rem;font:500 .7rem var(--mono);color:var(--muted)}
+.addr span{position:absolute;transform:translateX(-50%)}
+.reqs{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;min-height:2.2rem}
+.reqs .op{font:600 .8rem var(--ui);padding:.3rem .6rem;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.reqs .op.cur{background:var(--warn-soft);border-color:var(--p4)}
+.reqs .op.ok{opacity:.5}
+.reqs .op.fail{background:var(--bad-soft);border-color:var(--bad)}
+.stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.9rem}
+.stat{background:var(--soft);border-radius:8px;padding:.45rem .8rem;font-size:.85rem}
+.stat b{font:700 1.05rem var(--mono);display:block}
+.manual{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.9rem}
+.manual input{width:5.5rem;padding:.45rem .5rem;border:1px solid var(--line);border-radius:7px;background:var(--soft);text-align:center}
+
+/* Paginação */
+.pg{display:grid;grid-template-columns:1fr 11rem 1fr;gap:1.2rem;align-items:start}
+.pg h4{margin:0 0 .5rem;font:700 .9rem var(--head);color:var(--muted);letter-spacing:.03em}
+.cells{display:flex;flex-direction:column;gap:3px}
+.cell{display:flex;justify-content:space-between;align-items:center;padding:.45rem .7rem;border-radius:6px;background:var(--soft);font:600 .82rem var(--mono);border:2px solid transparent;transition:border-color .3s,background .3s;position:relative}
+.cell small{font:500 .7rem var(--mono);color:var(--muted)}
+.cell.mine{background:color-mix(in srgb,var(--p1) 18%,var(--card))}
+.cell.other{background:color-mix(in srgb,var(--muted) 18%,var(--card))}
+.cell.on{border-color:var(--accent);background:var(--warn-soft)}
+.cell.miss{border-color:var(--bad);background:var(--bad-soft)}
+.cell .mark{position:absolute;top:2px;bottom:2px;width:3px;background:var(--bad);border-radius:2px}
+.ptbl{width:100%;border-collapse:collapse;font:600 .85rem var(--mono)}
+.ptbl th{font:600 .72rem var(--ui);color:var(--muted);padding:.3rem;border-bottom:1px solid var(--line)}
+.ptbl td{text-align:center;padding:.42rem .3rem;border-bottom:1px solid var(--line);transition:background .3s}
+.ptbl tr.on td{background:var(--warn-soft)}
+.ptbl tr.miss td{background:var(--bad-soft)}
+.calc{margin-top:1rem;font:500 .95rem/1.7 var(--mono);background:var(--soft);border-radius:10px;padding:.8rem 1rem;min-height:5rem}
+.calc div{animation:pop .3s}
+.calc .res{font-weight:700;color:var(--accent)}
+.calc .err{font-weight:700;color:var(--bad)}
+
+/* Substituição de páginas */
+.refgrid{overflow-x:auto}
+.refgrid table{border-collapse:separate;border-spacing:3px;font:600 .9rem var(--mono)}
+.refgrid th{min-width:2.4rem;height:2.4rem;background:var(--soft);border-radius:6px}
+.refgrid th.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.refgrid td{height:2.4rem;text-align:center;border-radius:6px;background:var(--card);border:1px solid var(--line);transition:background .3s}
+.refgrid td.lbl{border:0;background:none;font:600 .72rem var(--ui);color:var(--muted);text-align:right;padding-right:.4rem;white-space:nowrap}
+.refgrid td.in{background:var(--bad-soft);border-color:var(--bad)}
+.refgrid td.hitc{background:var(--good-soft);border-color:var(--good)}
+.refgrid td.res{border:0;font:700 .8rem var(--ui)}
+.refgrid td.res.f{color:var(--bad)}
+.refgrid td.res.h{color:var(--good)}
+.refgrid td.hide{visibility:hidden}
+
+
+/* E/S: técnicas */
+.iostage{position:relative;width:100%;aspect-ratio:1000/430;background:var(--soft);border-radius:10px;overflow:hidden}
+.iostage svg{position:absolute;inset:0;width:100%;height:100%}
+.iobox{fill:var(--card);stroke:var(--line);stroke-width:2;transition:stroke .3s,fill .3s,opacity .3s}
+.iobox.on{stroke:var(--accent);stroke-width:4;fill:var(--warn-soft)}
+.iobox.off{opacity:.3}
+.iot{font:700 19px var(--head);fill:var(--ink);text-anchor:middle}
+.ios{font:500 14px var(--ui);fill:var(--muted);text-anchor:middle}
+.bus{stroke:var(--muted);stroke-width:8;stroke-linecap:round}
+.byte{position:absolute;width:3%;aspect-ratio:1;border-radius:6px;background:var(--p2);box-shadow:0 3px 8px rgba(0,0,0,.25);transition:left .35s ease-in-out,top .35s ease-in-out,opacity .3s;display:grid;place-items:center;color:#fff;font:700 .7rem var(--mono)}
+.cpubar{display:flex;gap:2px;height:1.7rem;margin-top:.4rem}
+.cpubar i{flex:1;border-radius:3px;background:var(--soft)}
+.cpubar i.u{background:var(--good)}
+.cpubar i.h{background:var(--p4)}
+.cpubar i.w{background:var(--bad)}
+.leg{display:flex;flex-wrap:wrap;gap:.9rem;font-size:.8rem;color:var(--muted);margin-top:.45rem}
+.leg span{display:inline-flex;align-items:center;gap:.35rem}
+.leg i{width:.9rem;height:.9rem;border-radius:3px;display:inline-block}
+
+/* Interrupção */
+.intg{display:grid;grid-template-columns:1fr 13rem 1fr;gap:1rem;align-items:start}
+.kbd{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:10px;background:var(--soft);font:600 .85rem var(--ui);transition:background .3s}
+.kbd.on{background:var(--bad-soft);box-shadow:inset 0 0 0 2px var(--bad)}
+.kbd kbd{font:700 1rem var(--mono);background:var(--card);border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:.2rem .55rem}
+.stack{border:2px solid var(--ink);border-radius:10px;padding:.5rem;min-height:5.5rem;margin-top:.8rem;background:var(--card)}
+.stack small,.vec small{display:block;font:700 .72rem var(--head);color:var(--muted);letter-spacing:.05em;margin-bottom:.35rem}
+.stack div{font:600 .8rem var(--mono);background:var(--warn-soft);border-radius:5px;padding:.25rem .45rem;margin-top:3px;animation:pop .3s}
+.vec{margin-top:.8rem}
+.vec table{width:100%;border-collapse:collapse;font:600 .8rem var(--mono)}
+.vec td{padding:.3rem .4rem;border-bottom:1px solid var(--line);transition:background .3s}
+.vec tr.on td{background:var(--warn-soft)}
+.bufbox{margin-top:.6rem;font:600 .85rem var(--mono);background:var(--soft);border-radius:7px;padding:.4rem .6rem}
+
+/* Buffer */
+.stream{display:grid;grid-template-columns:8rem 1fr 8rem;gap:1rem;align-items:center}
+.node{border:2px solid var(--line);border-radius:12px;background:var(--card);text-align:center;padding:.8rem .4rem;font:700 .9rem var(--head)}
+.node small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-top:.2rem}
+.node.stall{border-color:var(--bad);background:var(--bad-soft)}
+.node.play{border-color:var(--good);background:var(--good-soft)}
+.bufmeter{position:relative;height:3.4rem;border:2px dashed var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.bufmeter i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 35%,var(--card));transition:width .4s}
+.bufmeter span{position:absolute;inset:0;display:grid;place-items:center;font:700 .9rem var(--mono)}
+.vbar{position:relative;height:.7rem;border-radius:999px;background:var(--line);margin-top:1.2rem;overflow:hidden}
+.vbar .bf{position:absolute;left:0;top:0;bottom:0;background:var(--muted);opacity:.55;transition:width .4s}
+.vbar .pl{position:absolute;left:0;top:0;bottom:0;background:var(--bad);transition:width .4s}
+.screen{margin-top:1rem;aspect-ratio:16/6;border-radius:10px;background:#11161e;display:grid;place-items:center;color:#fff;font:700 1.1rem var(--head);position:relative;overflow:hidden}
+.screen .spin{width:2.6rem;height:2.6rem;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.screen .frame{font-size:2.6rem;animation:pop .4s}
+.chart{display:flex;align-items:flex-end;gap:2px;height:5rem;margin-top:1rem;border-bottom:1px solid var(--line)}
+.chart i{flex:1;background:var(--accent);border-radius:2px 2px 0 0;min-height:1px;opacity:.75}
+.chart i.st{background:var(--bad);opacity:1}
+
+/* Disco */
+.dsvg{width:100%;height:auto;display:block;background:var(--soft);border-radius:10px}
+.dpath{fill:none;stroke:var(--accent);stroke-width:3}
+.dret{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-dasharray:7 6}
+.dreq{fill:var(--card);stroke:var(--p2);stroke-width:3}
+.dreq.done{fill:var(--p2)}
+.dhead{fill:var(--accent)}
+.dax{font:500 13px var(--mono);fill:var(--muted)}
+.dlab{font:700 13px var(--mono);fill:var(--ink)}
+
+
+/* Funções em ação */
+.banner{min-height:3.4rem;padding:.8rem 1rem;border-radius:10px;background:var(--soft);font:600 1rem/1.45 var(--ui);margin-bottom:1rem}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.7rem}
+.fcard{position:relative;border:2px solid var(--line);border-radius:12px;padding:.8rem .9rem;background:var(--card);transition:border-color .3s,background .3s,transform .3s}
+.fcard .ic{font-size:1.6rem;line-height:1}
+.fcard h4{margin:.4rem 0 .2rem;font:700 .95rem var(--head)}
+.fcard p{margin:0;font-size:.8rem;color:var(--muted);line-height:1.4}
+.fcard .cnt{position:absolute;top:.6rem;right:.7rem;min-width:1.6rem;height:1.6rem;border-radius:999px;background:var(--soft);display:grid;place-items:center;font:700 .78rem var(--mono);color:var(--muted)}
+.fcard.used .cnt{background:var(--good-soft);color:var(--good)}
+.fcard.on{border-color:var(--accent);background:var(--warn-soft);transform:translateY(-3px)}
+.fcard.on .cnt{background:var(--accent);color:var(--on-accent)}
+
+/* Arranque */
+.bootg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:1.2rem;align-items:start}
+.stepper{list-style:none;margin:0;padding:0;counter-reset:s}
+.stepper li{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem .5rem;border-radius:8px;font-size:.88rem;color:var(--muted);transition:background .3s}
+.stepper li::before{counter-increment:s;content:counter(s);flex:none;width:1.5rem;height:1.5rem;border-radius:50%;display:grid;place-items:center;background:var(--soft);font:700 .75rem var(--mono);color:var(--muted)}
+.stepper li.done{color:var(--ink)}
+.stepper li.done::before{background:var(--good);color:#fff;content:"✓"}
+.stepper li.cur{background:var(--warn-soft);color:var(--ink);font-weight:600}
+.stepper li.cur::before{background:var(--accent);color:var(--on-accent)}
+.scr{position:relative;aspect-ratio:16/10;border-radius:10px;background:#000;border:8px solid #2b313b;overflow:hidden;color:#fff;display:grid;place-items:center;text-align:center;font:600 1rem var(--ui);transition:background .4s}
+.scr .brandlogo{font:800 1.6rem var(--head);letter-spacing:.1em;opacity:.9}
+.scr .small{font:500 .78rem var(--mono);opacity:.75;margin-top:.5rem}
+.scr .oslogo{font:700 1.4rem var(--head)}
+.scr .spin{width:2rem;height:2rem;border-radius:50%;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite;margin:.8rem auto 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scr.login{background:linear-gradient(135deg,#1d3b6e,#3b6fb6)}
+.scr .lbox{background:rgba(255,255,255,.15);border-radius:10px;padding:.8rem 1.2rem;font-size:.85rem}
+.scr .lbox i{display:block;width:9rem;height:1.4rem;border-radius:5px;background:rgba(255,255,255,.85);margin:.5rem auto 0}
+.scr.desk{background:linear-gradient(160deg,#2f6f73,#1e3d59);place-items:stretch}
+.scr .icons{display:flex;flex-direction:column;gap:.6rem;padding:.8rem;font-size:.72rem;align-items:flex-start}
+.scr .icons span{display:flex;flex-direction:column;align-items:center;gap:.15rem}
+.scr .icons b{font-size:1.5rem}
+.scr .taskbar{position:absolute;left:0;right:0;bottom:0;height:1.8rem;background:rgba(0,0,0,.55);display:flex;align-items:center;gap:.6rem;padding:0 .6rem;font-size:.8rem}
+.ram{display:flex;gap:2px;height:2.6rem;border:2px solid var(--ink);border-radius:8px;overflow:hidden;margin-top:1rem;background:repeating-linear-gradient(45deg,var(--soft) 0 8px,var(--card) 8px 16px)}
+.ram i{display:grid;place-items:center;color:#fff;font:700 .7rem var(--ui);font-style:normal;padding:0 .3rem;text-align:center;line-height:1.1;animation:pop .4s}
+.ramlab{font-size:.8rem;color:var(--muted);margin-top:.3rem}
+
+/* Interfaces */
+.ifg{display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch}
+.ifg h4{margin:0 0 .45rem;font:700 .9rem var(--head);color:var(--muted)}
+.win{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);height:19rem;display:flex;flex-direction:column;position:relative}
+.win .tb{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--soft);font:600 .8rem var(--ui);border-bottom:1px solid var(--line)}
+.win .tb i{width:.6rem;height:.6rem;border-radius:50%;background:var(--line)}
+.win .addr{font:500 .78rem var(--mono);color:var(--muted);padding:.35rem .6rem;border-bottom:1px solid var(--line)}
+.win .items{display:flex;flex-wrap:wrap;gap:.6rem;padding:.8rem;align-content:flex-start;flex:1}
+.win .it{width:5.6rem;text-align:center;font-size:.75rem;padding:.4rem .2rem;border-radius:7px;word-break:break-word;animation:pop .3s}
+.win .it b{display:block;font-size:1.8rem;font-weight:400}
+.win .it.sel{background:color-mix(in srgb,var(--accent) 22%,var(--card));box-shadow:inset 0 0 0 1px var(--accent)}
+.win .it.gone{opacity:.25;text-decoration:line-through}
+.win .menu{position:absolute;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.2);font-size:.8rem;padding:.3rem 0;min-width:9rem;animation:pop .2s}
+.win .menu div{padding:.3rem .8rem}
+.win .menu div.on{background:var(--accent);color:var(--on-accent)}
+.win .tbl{width:100%;border-collapse:collapse;font:500 .76rem var(--mono)}
+.win .tbl td,.win .tbl th{padding:.25rem .5rem;border-bottom:1px solid var(--line);text-align:left}
+.win .cursor{position:absolute;font-size:1.3rem;transition:left .5s,top .5s;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+.term{border-radius:10px;background:#0c0f14;color:#d6dde6;font:500 .82rem/1.55 var(--mono);padding:.7rem .8rem;height:19rem;overflow:auto;white-space:pre-wrap}
+.term .pr{color:#7fd17f}
+.term .cmd{color:#fff;font-weight:600}
+.term .out{color:#9fb0c3}
+.term .caret{display:inline-block;width:.55rem;height:1em;background:#d6dde6;vertical-align:text-bottom;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pros{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;font-size:.86rem}
+.pros div{background:var(--soft);border-radius:9px;padding:.6rem .8rem}
+.pros div>b:first-child{display:block;margin-bottom:.2rem}
+
+/* Tipos de SO */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.8rem}
+.scard{border:2px solid var(--line);border-radius:12px;padding:.8rem .9rem;background:var(--card);transition:border-color .3s,background .3s}
+.scard h4{margin:0 0 .5rem;font:700 1rem var(--head);display:flex;gap:.5rem;align-items:center}
+.scard h4 b{font-size:1.5rem;font-weight:400}
+.scard .opts{display:flex;flex-wrap:wrap;gap:.3rem}
+.scard .opts button{border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 .76rem var(--ui);padding:.3rem .55rem;border-radius:999px;cursor:pointer}
+.scard .opts button:hover{border-color:var(--accent)}
+.scard.ok{border-color:var(--good);background:var(--good-soft)}
+.scard.no{border-color:var(--bad);background:var(--bad-soft)}
+.scard .fb{font-size:.82rem;margin:.5rem 0 0;line-height:1.45}
+.scard .opts button.right{background:var(--good);color:#fff;border-color:var(--good)}
+.scard .opts button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+
+
+/* Caminhos */
+.tree{list-style:none;margin:0;padding:0;font:500 .9rem/1.3 var(--mono)}
+.tree ul{list-style:none;margin:0;padding-left:1.4rem;border-left:1px dashed var(--line);margin-left:.55rem}
+.tree li>span{display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .5rem;border-radius:6px;margin:.08rem 0;transition:background .3s,box-shadow .3s}
+.tree li>span.cwd{box-shadow:inset 0 0 0 2px var(--accent)}
+.tree li>span.cwd::after{content:"estás aqui";font:700 .65rem var(--ui);background:var(--accent);color:var(--on-accent);padding:.1rem .4rem;border-radius:999px}
+.tree li>span.vis{background:var(--soft)}
+.tree li>span.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.tree li>span.tgt{background:var(--good-soft);box-shadow:inset 0 0 0 2px var(--good)}
+.pathbox{font:600 1.05rem var(--mono);background:var(--soft);border-radius:10px;padding:.7rem 1rem;margin-bottom:1rem;word-break:break-all}
+.pathbox span{padding:.1rem .15rem;border-radius:4px}
+.pathbox span.on{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.pathbox span.done{color:var(--muted)}
+.pathbox small{display:block;font:500 .78rem var(--ui);color:var(--muted);margin-bottom:.2rem}
+
+/* Blocos */
+.disk{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.blk{position:relative;aspect-ratio:1.25;border-radius:6px;background:var(--soft);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 .82rem var(--mono);color:var(--ink);transition:background .3s,box-shadow .3s}
+.blk small{position:absolute;top:2px;left:4px;font:500 .62rem var(--mono);color:var(--muted)}
+.blk.f{color:#fff}
+.blk.f small{color:rgba(255,255,255,.8)}
+.blk .nx{font:600 .62rem var(--mono);opacity:.9}
+.blk.new{animation:pop .4s}
+.blk.rd{box-shadow:0 0 0 3px var(--ink)}
+.blk .acc{position:absolute;top:-8px;right:-6px;background:var(--ink);color:var(--card);border-radius:999px;font:700 .65rem var(--mono);padding:.05rem .35rem}
+.blk.idx{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 4px,transparent 4px 8px)}
+.dir{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:1rem}
+.dir th{font-size:.75rem;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.dir td{padding:.35rem .5rem;border-bottom:1px solid var(--line);font-family:var(--mono)}
+
+/* Permissões */
+.perm{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin:1rem 0}
+.pgrp{border:2px solid var(--line);border-radius:12px;padding:.7rem;text-align:center;transition:border-color .3s,background .3s}
+.pgrp h4{margin:0 0 .5rem;font:700 .85rem var(--head)}
+.pgrp h4 small{display:block;font:500 .72rem var(--ui);color:var(--muted)}
+.pgrp.on{border-color:var(--p4);background:var(--warn-soft)}
+.bits{display:flex;justify-content:center;gap:.35rem}
+.bit{width:2.4rem;height:2.4rem;border-radius:8px;border:1px solid var(--line);background:var(--soft);font:700 1rem var(--mono);cursor:pointer;color:var(--muted)}
+.bit.set{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.bit.chk{box-shadow:0 0 0 3px var(--p4)}
+.lsline{font:600 1.1rem var(--mono);background:#0c0f14;color:#d6dde6;border-radius:10px;padding:.7rem 1rem}
+.lsline b{color:#7fd17f}
+.attempts{display:grid;gap:.5rem;margin-top:1rem}
+.att{display:flex;gap:.7rem;align-items:center;padding:.55rem .8rem;border-radius:10px;background:var(--soft);font-size:.9rem;transition:background .3s}
+.att.cur{background:var(--warn-soft);box-shadow:inset 0 0 0 2px var(--p4)}
+.att .res{margin-left:auto;font-weight:700;white-space:nowrap}
+.att.ok .res{color:var(--good)}
+.att.no .res{color:var(--bad)}
+
+/* Apagar */
+.dtab{width:100%;border-collapse:collapse;font-size:.88rem}
+.dtab th{font-size:.75rem;color:var(--muted);text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line)}
+.dtab td{padding:.4rem .5rem;border-bottom:1px solid var(--line)}
+.dtab tr.del td{color:var(--muted);text-decoration:line-through}
+.dtab tr.new td{font-weight:600}
+.disk2{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:1rem}
+.disk2 .blk{aspect-ratio:1;font-size:1.3rem}
+.blk.free{background:var(--card);border-style:dashed}
+.blk.ghost{opacity:.55}
+.blk.zero{font:700 .8rem var(--mono);color:var(--muted)}
+.recover{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;font-weight:600}
+.recover.good{background:var(--good-soft)}
+.recover.bad{background:var(--bad-soft)}
+.recover.half{background:var(--warn-soft)}
+
+
+/* Permissões no Windows */
+.wprops{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);margin-top:.4rem}
+.wtitle{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem;padding:.5rem .8rem;background:var(--soft);font:600 .88rem var(--ui);border-bottom:1px solid var(--line)}
+.wtabs{margin-left:auto;display:flex;gap:.2rem;font-weight:500;font-size:.8rem}
+.wtabs span{padding:.2rem .6rem;border-radius:6px 6px 0 0;color:var(--muted)}
+.wtabs span.on{background:var(--card);color:var(--ink);font-weight:700}
+.wbody{padding:.8rem}
+.wlab{font-size:.82rem;font-weight:600;margin:.2rem 0 .35rem}
+.wlist{border:1px solid var(--line);border-radius:8px;margin-bottom:.9rem}
+.wlist button{display:flex;align-items:center;gap:.5rem;width:100%;border:0;background:transparent;text-align:left;padding:.42rem .6rem;font:500 .88rem var(--ui);color:var(--ink);cursor:pointer;border-bottom:1px solid var(--line)}
+.wlist button:last-child{border-bottom:0}
+.wlist button.sel{background:color-mix(in srgb,var(--accent) 16%,var(--card))}
+.wlist button.app{box-shadow:inset 4px 0 0 var(--p4)}
+.wlist small{margin-left:auto;color:var(--muted);font-size:.75rem}
+.wperm{width:100%;border-collapse:collapse;font-size:.86rem}
+.wperm th{font-size:.75rem;color:var(--muted);padding:.3rem .5rem;border-bottom:1px solid var(--line);text-align:center}
+.wperm th:first-child,.wperm td:first-child{text-align:left}
+.wperm td{padding:.32rem .5rem;border-bottom:1px solid var(--line);text-align:center}
+.wperm tr.need td{background:var(--warn-soft)}
+.wperm input{width:1.05rem;height:1.05rem;accent-color:var(--accent);cursor:pointer}
+.wperm input.deny{accent-color:var(--bad)}
+.whint{font-size:.78rem;color:var(--muted);margin-top:.6rem}
+@media (max-width:960px){
+  .perm{grid-template-columns:1fr}
+  .bootg,.ifg,.pros{grid-template-columns:1fr}
+  .intg,.stream{grid-template-columns:1fr}
+  .pg{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .race{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+}
+.credit{max-width:80rem;margin:0 auto;padding:1.2rem 1.5rem 2rem;border-top:1px solid var(--line);text-align:center;font-size:.85rem;color:var(--muted)}
+body.instant *,body.instant *::before,body.instant *::after{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="chipico" viewBox="0 0 44 44" aria-hidden="true"><path d="M5 12a3 3 0 0 1 3-3h9l4 4h15a3 3 0 0 1 3 3v17a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" fill="var(--accent)"/><rect x="11" y="19" width="22" height="3" rx="1.5" fill="var(--card)"/><rect x="11" y="25" width="15" height="3" rx="1.5" fill="var(--card)"/></svg>
+    <div><h1>O sistema de ficheiros</h1><p>Laboratório animado · Sistemas Operativos</p></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Temas">
+    <button role="tab" aria-selected="true" data-tab="caminhos"><span>1</span>Pastas e caminhos</button>
+    <button role="tab" aria-selected="false" data-tab="blocos"><span>2</span>Como se guardam os ficheiros</button>
+    <button role="tab" aria-selected="false" data-tab="permissoes"><span>3</span>Permissões</button>
+    <button role="tab" aria-selected="false" data-tab="apagar"><span>4</span>Apagar e recuperar</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+  </nav>
+</header>
+<main>
+
+<!-- 1. CAMINHOS -->
+<section id="caminhos" role="tabpanel">
+  <div class="intro"><h2>Uma árvore de pastas</h2>
+  <p>O sistema de ficheiros organiza os ficheiros em <b>pastas</b> (diretórios) dentro de pastas, como os ramos de uma árvore. Para chegar a um ficheiro indica-se o seu <b>caminho</b>. Segue cada caminho, pasta a pasta.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Sistema<select id="c-os"><option value="win">Windows</option><option value="lin">Linux</option></select></label>
+        <label>Exemplo<select id="c-ex"></select></label>
+      </div>
+      <div class="pathbox" id="c-path"></div>
+      <ul class="tree" id="c-tree"></ul>
+      <div class="controls" data-ctl="caminhos"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="c-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Palavras-chave</h3><ul>
+        <li><b>Raiz</b>: a pasta de topo. No Windows é a unidade (<code>C:\</code>); no Linux é <code>/</code>.</li>
+        <li><b>Caminho absoluto</b>: começa na raiz. Funciona esteja onde estiver.</li>
+        <li><b>Caminho relativo</b>: começa na pasta atual.</li>
+        <li><code>..</code> significa «a pasta acima» (a pasta mãe) e <code>.</code> significa «a pasta atual».</li>
+        <li>No Linux, <code>~</code> é a pasta pessoal do utilizador.</li>
+        <li>O Windows separa as pastas com <code>\</code>; o Linux e os endereços web usam <code>/</code>.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. BLOCOS -->
+<section id="blocos" role="tabpanel" hidden>
+  <div class="intro"><h2>Onde ficam os ficheiros no disco?</h2>
+  <p>O disco está dividido em <b>blocos</b> numerados, todos do mesmo tamanho. Cada ficheiro ocupa um ou mais blocos. O sistema de ficheiros tem de decidir que blocos usar e registar onde ficou cada ficheiro. Compara as três formas de o fazer.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Método<select id="k-alg"><option value="cont">Atribuição contígua</option><option value="link">Atribuição ligada (encadeada)</option><option value="idx">Atribuição indexada</option></select></label></div>
+      <div class="reqs" id="k-ops"></div>
+      <div class="disk" id="k-disk" style="margin-top:.8rem"></div>
+      <table class="dir" id="k-dir"></table>
+      <div class="stats" id="k-stats"></div>
+      <div class="controls" data-ctl="blocos"><button class="btn ghost" id="k-cmp" type="button">Comparar os 3 métodos</button></div>
+      <div class="results" id="k-res"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="k-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Os métodos</h3><div class="algs" id="k-algs">
+        <div class="alg" data-alg="cont"><h4>Contígua</h4><p>Cada ficheiro ocupa blocos <b>seguidos</b>. Basta saber o bloco inicial e o tamanho.</p><p class="pc"><b>Vantagem:</b> leitura muito rápida e acesso direto a qualquer bloco. <b>Desvantagem:</b> fragmentação externa; um ficheiro grande pode não caber, mesmo havendo espaço livre.</p></div>
+        <div class="alg" data-alg="link"><h4>Ligada <span>encadeada</span></h4><p>Cada bloco guarda o número do <b>bloco seguinte</b>, como uma corrente. Os blocos podem estar em qualquer lado.</p><p class="pc"><b>Vantagem:</b> aproveita todos os blocos livres. <b>Desvantagem:</b> para chegar ao bloco 7 é preciso ler os 6 anteriores. O sistema <b>FAT</b> (pens USB) usa uma variante deste método.</p></div>
+        <div class="alg" data-alg="idx"><h4>Indexada</h4><p>Cada ficheiro tem um <b>bloco de índice</b> com a lista de todos os seus blocos.</p><p class="pc"><b>Vantagem:</b> aproveita os blocos livres e tem acesso direto: lê-se o índice e salta-se para o bloco certo. <b>Desvantagem:</b> gasta um bloco extra por ficheiro. O <b>NTFS</b> (Windows) e o <b>ext4</b> (Linux) usam ideias parecidas.</p></div>
+      </div></div>
+      <div class="card"><h3>Sistemas de ficheiros reais</h3><ul>
+        <li><b>FAT32</b>: pens e cartões antigos. Funciona em todo o lado, mas cada ficheiro pode ter no máximo 4 GB.</li>
+        <li><b>exFAT</b>: pens e cartões modernos, sem o limite dos 4 GB.</li>
+        <li><b>NTFS</b>: discos do Windows; tem permissões, encriptação e registo de alterações (journaling).</li>
+        <li><b>ext4</b>: o mais usado no Linux. <b>APFS</b>: o do macOS e iOS.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. PERMISSÕES -->
+<section id="permissoes" role="tabpanel" hidden>
+  <div class="intro"><h2>Quem pode fazer o quê?</h2>
+  <p id="p-intro"></p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Sistema<select id="p-os"><option value="win">Windows (NTFS)</option><option value="lin">Linux</option></select></label>
+        <label>Exemplo<select id="p-ex"></select></label>
+      </div>
+      <div id="p-lin">
+        <div class="lsline" id="p-ls"></div>
+        <div class="perm" id="p-perm"></div>
+      </div>
+      <div id="p-win">
+        <div class="wprops">
+          <div class="wtitle">Propriedades de <span id="pw-file"></span><span class="wtabs"><span>Geral</span><span class="on">Segurança</span><span>Detalhes</span></span></div>
+          <div class="wbody">
+            <div class="wlab">Grupos ou nomes de utilizador:</div>
+            <div class="wlist" id="pw-list"></div>
+            <div class="wlab" id="pw-for"></div>
+            <table class="wperm" id="pw-tab"></table>
+            <div class="whint">Clica num utilizador ou grupo para ver as suas permissões, e clica nas caixas para as alterar.</div>
+          </div>
+        </div>
+      </div>
+      <div class="attempts" id="p-att"></div>
+      <div class="controls" data-ctl="permissoes"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="p-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card" id="p-help-win"><h3>Como funciona no Windows</h3><ul>
+        <li>Abre-se com o botão direito no ficheiro → <b>Propriedades → Segurança</b>.</li>
+        <li>Cada ficheiro tem uma lista de <b>utilizadores e grupos</b>, e para cada um as permissões que tem: <b>Permitir</b> ou <b>Negar</b>.</li>
+        <li>Um utilizador recebe as permissões que lhe foram dadas a ele <b>e</b> aos grupos a que pertence (por exemplo, «Alunos» e «Todos»).</li>
+        <li><b>Negar tem prioridade</b>: se alguma entrada nega, o acesso é negado, mesmo que outra permita.</li>
+        <li>Se ninguém permite, o acesso também é negado.</li>
+        <li>Normalmente, as permissões são <b>herdadas</b> da pasta onde o ficheiro está.</li></ul>
+        <p><b>Ler</b>: abrir e ver. <b>Escrever</b>: alterar o conteúdo. <b>Modificar</b>: ler, escrever e apagar. <b>Controlo total</b>: tudo, incluindo mudar as permissões.</p></div>
+      <div class="card" id="p-help-lin"><h3>Como se lê</h3><ul>
+        <li><code>-rw-r-----</code>: o primeiro carácter diz o tipo (<code>-</code> ficheiro, <code>d</code> pasta). Depois vêm três grupos de três: <b>dono</b>, <b>grupo</b> e <b>outros</b>.</li>
+        <li>Em números: r = 4, w = 2, x = 1, e somam-se. <code>rw-</code> = 6, <code>r--</code> = 4, <code>---</code> = 0, por isso <code>rw-r-----</code> = <b>640</b>.</li>
+        <li>Muda-se com o comando <code>chmod 640 ficheiro</code>.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. APAGAR -->
+<section id="apagar" role="tabpanel" hidden>
+  <div class="intro"><h2>Quando apagas um ficheiro, ele desaparece mesmo?</h2>
+  <p>Na maioria dos sistemas de ficheiros, apagar um ficheiro não apaga os dados: só marca a entrada no diretório como apagada e os blocos como livres. Os dados continuam lá até serem escritos por cima. Experimenta os vários casos.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg"><label>Caso<select id="a-ex">
+        <option value="now">Apagaste por engano e recuperas logo</option>
+        <option value="later">Continuaste a usar o disco antes de tentar recuperar</option>
+        <option value="secure">Apagamento seguro (antes de vender o computador)</option>
+        <option value="ssd">Disco SSD (com TRIM)</option></select></label></div>
+      <table class="dtab" id="a-dir"></table>
+      <div class="disk2" id="a-disk"></div>
+      <div id="a-res"></div>
+      <div class="controls" data-ctl="apagar"></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="a-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
+      <div class="card"><h3>Lições práticas</h3><ul>
+        <li>Se apagaste algo por engano, <b>para de usar esse disco</b> e tenta recuperar quanto antes.</li>
+        <li>A melhor proteção é a <b>cópia de segurança</b> (backup): numa pen, num disco externo ou na nuvem.</li>
+        <li>Antes de vender ou oferecer um computador, faz um <b>apagamento seguro</b> ou repõe o sistema com a opção de limpar a unidade.</li>
+        <li>Num SSD, o comando <b>TRIM</b> limpa depressa os blocos libertados: recuperar é quase sempre impossível.</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TESTA-TE -->
+<section id="teste" role="tabpanel" hidden>
+  <div class="intro"><h2>Testa-te</h2><p>Responde às perguntas e vê logo se acertaste. As opções mudam de ordem cada vez que abres o teste.</p></div>
+  <div class="quiz" id="quiz"></div>
+</section>
+</main>
+<footer class="credit">© 2026 | Nuno Gonçalves - Equipa de Apoio Técnico</footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = i => `var(--p${(i % 6) + 1})`;
+const fmt = x => x.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+
+const players = [];
+/* Comandos: anterior, reproduzir, seguinte, recomeçar e velocidade.
+   «Anterior» repõe o início e repete, sem animação, todos os passos menos o último. */
+function makePlayer(name, { step, reset, pos, rewind, back }){
+  const box = document.querySelector(`[data-ctl="${name}"]`);
+  box.insertAdjacentHTML('beforeend', `<button class="btn ghost" data-a="back" title="Voltar ao passo anterior">⏮ Anterior</button><button class="btn" data-a="play">▶ Reproduzir</button><button class="btn ghost" data-a="step" title="Avançar um passo">Seguinte ⏭</button><button class="btn ghost" data-a="reset">↺ Recomeçar</button><label class="speed">Velocidade<input type="range" min="1" max="5" value="3" aria-label="Velocidade"></label>`);
+  const play = box.querySelector('[data-a=play]'), sp = box.querySelector('input[type=range]'), backBtn = box.querySelector('[data-a=back]');
+  let timer = null, finished = false;
+  const ms = () => [2200, 2200 * .7, 2200 * .5, 2200 * .32, 2200 * .18][sp.value - 1];
+  const sync = () => { backBtn.disabled = !(pos && pos() > 0); };
+  const stop = () => { clearInterval(timer); timer = null; play.textContent = '▶ Reproduzir'; };
+  const tick = () => { const more = step(); finished = !more; if (!more) stop(); sync(); };
+  const start = () => { play.textContent = '⏸ Pausa'; tick(); if (!finished) timer = setInterval(tick, ms()); else stop(); };
+  play.onclick = () => { if (timer) return stop(); if (finished) { reset(); finished = false; } start(); };
+  sp.oninput = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, ms()); } };
+  box.querySelector('[data-a=step]').onclick = () => { stop(); tick(); };
+  box.querySelector('[data-a=reset]').onclick = () => { stop(); finished = false; reset(); sync(); };
+  backBtn.onclick = () => {
+    stop(); if (!(pos && pos() > 0)) return;
+    document.body.classList.add('instant'); window.FAST = true;
+    try {
+      if (back) back();
+      else { const target = pos() - 1; (rewind || reset)(); let g = 0; while (pos() < target && g++ < 3000) step(); }
+    } finally {
+      window.FAST = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('instant')));
+    }
+    finished = false; sync();
+  };
+  const p = { stop, ms, sync, setFinished: v => finished = v, start: () => { stop(); finished = false; start(); } };
+  players.push(p); setTimeout(sync);
+  return p;
+}
+['click', 'change'].forEach(ev => document.addEventListener(ev, () => setTimeout(() => players.forEach(p => p.sync())), true));
+function logTo(el, msgs, t){
+  if (el.querySelector('.empty')) el.innerHTML = '';
+  msgs.slice().reverse().forEach(m => el.insertAdjacentHTML('afterbegin', `<li>${t != null ? `<time>${t}</time>` : ''}<span>${m}</span></li>`));
+}
+function algCards(boxSel, select, onPick){
+  const mark = () => document.querySelectorAll(boxSel + ' .alg').forEach(el => el.classList.toggle('on', el.dataset.alg === select.value));
+  $(boxSel).addEventListener('click', e => { const el = e.target.closest('.alg'); if (!el || el.dataset.alg === select.value) return; select.value = el.dataset.alg; select.onchange(); });
+  mark(); return mark;
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  players.forEach(p => p.stop());
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== b.dataset.tab);
+  window.scrollTo(0, 0);
+});
+
+/* ================= 1. CAMINHOS ================= */
+(() => {
+  const T = {
+    win: ['C:\\', [['Users', [['ana', [['Documentos', [['Trabalhos', [['relatorio.docx']]], ['notas.txt']]], ['Imagens', [['praia.jpg']]], ['Música', []]]], ['rui', [['Documentos', [['jogo.txt']]]]]]], ['Program Files', [['Mozilla Firefox', [['firefox.exe']]]]], ['Windows', [['System32', []]]]]],
+    lin: ['/', [['home', [['ana', [['Documentos', [['Trabalhos', [['relatorio.odt']]], ['notas.txt']]], ['Imagens', [['praia.jpg']]], ['Música', []]]], ['rui', [['Documentos', [['jogo.txt']]]]]]], ['usr', [['bin', [['firefox']]]]], ['etc', [['hosts']]]]]
+  };
+  const EX = {
+    win: [
+      { cwd: ['Users', 'ana', 'Documentos'], p: 'C:\\Users\\ana\\Imagens\\praia.jpg', t: 'Caminho absoluto' },
+      { cwd: ['Users', 'ana', 'Documentos'], p: 'Trabalhos\\relatorio.docx', t: 'Caminho relativo: descer' },
+      { cwd: ['Users', 'ana', 'Documentos', 'Trabalhos'], p: '..\\..\\Imagens\\praia.jpg', t: 'Caminho relativo: subir com ..' },
+      { cwd: ['Users', 'ana'], p: '..\\rui\\Documentos\\jogo.txt', t: 'Ir à pasta de outro utilizador' },
+      { cwd: ['Users', 'ana', 'Documentos'], p: 'Imagens\\praia.jpg', t: 'Um caminho errado' }],
+    lin: [
+      { cwd: ['home', 'ana', 'Documentos'], p: '/home/ana/Imagens/praia.jpg', t: 'Caminho absoluto' },
+      { cwd: ['home', 'ana', 'Documentos'], p: 'Trabalhos/relatorio.odt', t: 'Caminho relativo: descer' },
+      { cwd: ['home', 'ana', 'Documentos', 'Trabalhos'], p: '../../Imagens/praia.jpg', t: 'Caminho relativo: subir com ..' },
+      { cwd: ['usr', 'bin'], p: '~/Imagens/praia.jpg', t: 'A pasta pessoal: ~' },
+      { cwd: ['home', 'ana', 'Documentos'], p: 'Imagens/praia.jpg', t: 'Um caminho errado' }]
+  };
+  const os = $('#c-os'), ex = $('#c-ex'), log = $('#c-log');
+  let st, k, steps;
+  const SEP = () => os.value === 'win' ? '\\' : '/';
+  const ROOT = () => T[os.value][0];
+  const find = path => { let n = T[os.value]; for (const p of path) { const c = (n[1] || []).find(x => x[0] === p); if (!c) return null; n = c; } return n; };
+  const abs = path => os.value === 'win' ? 'C:\\' + path.join('\\') : '/' + path.join('/');
+  const icon = n => n[1] ? '📁' : /\.(jpg|png)$/.test(n[0]) ? '🖼️' : /(exe|firefox)$/.test(n[0]) ? '⚙️' : '📄';
+  function fillEx(){ ex.innerHTML = EX[os.value].map((e, i) => `<option value="${i}">${e.t}: ${esc(e.p)}</option>`).join(''); }
+  function plan(){
+    const e = EX[os.value][+ex.value], sep = SEP(), out = [];
+    let p = e.p, cur, comps, rest;
+    if (os.value === 'win' && p.startsWith('C:\\')) { cur = []; rest = p.slice(3); out.push({ cur: [], on: 0, msg: `O caminho começa por <code>C:\\</code>, a raiz da unidade: é um <b>caminho absoluto</b>. Não interessa onde estás.` }); }
+    else if (os.value === 'lin' && p.startsWith('/')) { cur = []; rest = p.slice(1); out.push({ cur: [], on: 0, msg: 'O caminho começa por <code>/</code>, a raiz: é um <b>caminho absoluto</b>. Não interessa onde estás.' }); }
+    else if (p.startsWith('~')) { cur = ['home', 'ana']; rest = p.slice(2); out.push({ cur: cur.slice(), on: 0, msg: 'O <code>~</code> é um atalho para a tua pasta pessoal, <code>/home/ana</code>, estejas onde estiveres.' }); }
+    else { cur = e.cwd.slice(); rest = p; out.push({ cur: cur.slice(), on: -1, msg: `O caminho não começa na raiz: é um <b>caminho relativo</b>. Parte da pasta onde estás: <code>${esc(abs(e.cwd))}</code>.` }); }
+    comps = rest.split(sep).filter(Boolean);
+    const prefixLen = p.length - rest.length;
+    comps.forEach((c, i) => {
+      if (cur === null) return;
+      if (c === '..') { const up = cur.pop(); out.push({ cur: cur.slice(), comp: i, msg: `<code>..</code>: sobe da pasta <b>${esc(up)}</b> para a pasta mãe, <b>${esc(cur.length ? cur[cur.length - 1] : ROOT())}</b>.` }); return; }
+      const nxt = cur.concat([c]), node = find(nxt);
+      if (!node) { out.push({ cur: cur.slice(), comp: i, err: true, msg: `<b>Erro!</b> Dentro de <b>${esc(cur.length ? cur[cur.length - 1] : ROOT())}</b> não existe <b>${esc(c)}</b>. O sistema responde: «${os.value === 'win' ? 'O sistema não consegue localizar o caminho especificado' : 'No such file or directory'}». A pasta Imagens não está dentro de Documentos, está ao lado: o caminho certo seria <code>..${sep}Imagens${sep}praia.jpg</code>.` }); cur = null; return; }
+      cur = nxt;
+      const last = i === comps.length - 1;
+      out.push({ cur: cur.slice(), comp: i, tgt: last, msg: last ? `Encontra o ficheiro <b>${esc(c)}</b>. O seu caminho absoluto é <code>${esc(abs(cur))}</code>.` : `Entra na pasta <b>${esc(c)}</b>.` });
+    });
+    const stop = out.findIndex(s => s.err);
+    return { e, comps, prefix: p.slice(0, prefixLen), steps: stop >= 0 ? out.slice(0, stop + 1) : out };
+  }
+  function draw(){
+    const s = k ? steps.steps[k - 1] : null, visited = new Set();
+    steps.steps.slice(0, k).forEach(x => { if (x.cur) for (let i = 0; i <= x.cur.length; i++) visited.add(x.cur.slice(0, i).join('/')); });
+    const curId = s && s.cur ? s.cur.join('/') : null, cwdId = steps.e.cwd.join('/');
+    const node = (n, path) => {
+      const id = path.join('/'), cls = [id === cwdId ? 'cwd' : '', visited.has(id) ? 'vis' : '', id === curId ? (s.tgt ? 'tgt' : 'cur') : ''].join(' ');
+      return `<li><span class="${cls}">${icon(n)} ${esc(n[0])}</span>${n[1] && n[1].length ? `<ul>${n[1].map(c => node(c, path.concat([c[0]]))).join('')}</ul>` : ''}</li>`;
+    };
+    $('#c-tree').innerHTML = node(T[os.value], []);
+    const sep = SEP();
+    $('#c-path').innerHTML = `<small>Caminho a seguir</small>${steps.prefix ? `<span class="${s && s.on === 0 ? 'on' : k ? 'done' : ''}">${esc(steps.prefix)}</span>` : ''}${steps.comps.map((c, i) => `<span class="${s && s.comp === i ? 'on' : s && s.comp > i ? 'done' : ''}">${esc(c)}</span>`).join(`<span class="${k ? 'done' : ''}">${esc(sep)}</span>`)}`;
+  }
+  function reset(){ steps = plan(); k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ if (k >= steps.steps.length) return false; k++; const s = steps.steps[k - 1]; draw(); logTo(log, [s.msg], k + '.'); return k < steps.steps.length; }
+  os.onchange = () => { fillEx(); player.stop(); reset(); };
+  ex.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('caminhos', { step, reset, pos: () => k });
+  fillEx(); reset();
+})();
+
+/* ================= 2. BLOCOS ================= */
+(() => {
+  const N = 30, OPS = [['new', 'A', 4], ['new', 'B', 5], ['new', 'C', 4], ['new', 'D', 5], ['new', 'F', 3], ['del', 'B'], ['del', 'D'], ['new', 'E', 10], ['read', 'E', 7]];
+  const NAMES = { cont: 'Contígua', link: 'Ligada', idx: 'Indexada' };
+  const CI = { A: 0, B: 1, C: 2, D: 3, E: 4, F: 5 };
+  const alg = $('#k-alg'), log = $('#k-log');
+  function fresh(){ return { b: Array(N).fill(null), dir: {}, acc: null, last: null }; }
+  const free = s => s.b.map((x, i) => x ? -1 : i).filter(i => i >= 0);
+  const run = s => { let best = 0, c = 0; s.b.forEach(x => { c = x ? 0 : c + 1; best = Math.max(best, c); }); return best; };
+  function apply(s, op, m){
+    s.acc = null; s.last = null;
+    if (op[0] === 'del') { const f = s.dir[op[1]]; f.all.forEach(i => s.b[i] = null); delete s.dir[op[1]]; return { ok: true, msg: `O ficheiro <b>${op[1]}</b> foi apagado: os seus ${f.all.length} blocos ficam livres.` }; }
+    if (op[0] === 'read') {
+      const f = s.dir[op[1]], n = op[2];
+      if (!f) return { ok: false, msg: `O ficheiro ${op[1]} não existe (não coube no disco), por isso não se pode ler.` };
+      let acc;
+      if (m === 'cont') acc = [f.data[n - 1]];
+      else if (m === 'link') acc = f.data.slice(0, n);
+      else acc = [f.index, f.data[n - 1]];
+      s.acc = acc;
+      return { ok: true, msg: m === 'cont' ? `Para ler o ${n}.º bloco de ${op[1]}, calcula-se: início ${f.data[0]} + ${n - 1} = bloco ${f.data[n - 1]}. <b>1 acesso</b> ao disco.`
+        : m === 'link' ? `Para chegar ao ${n}.º bloco de ${op[1]}, é preciso ler os blocos um a um e seguir as ligações: ${acc.join(' → ')}. <b>${acc.length} acessos</b> ao disco!`
+        : `Lê-se o bloco de índice (${f.index}), que diz que o ${n}.º bloco é o ${f.data[n - 1]}, e salta-se para lá. <b>2 acessos</b> ao disco.` };
+    }
+    const [, name, size] = op, fr = free(s);
+    let data = null, index = null;
+    if (m === 'cont') { let c = 0; for (let i = 0; i < N; i++) { c = s.b[i] ? 0 : c + 1; if (c === size) { data = Array.from({ length: size }, (_, j) => i - size + 1 + j); break; } } }
+    else if (m === 'link') { if (fr.length >= size) data = fr.slice(0, size); }
+    else { if (fr.length >= size + 1) { index = fr[0]; data = fr.slice(1, size + 1); } }
+    if (!data) {
+      const need = m === 'idx' ? size + 1 : size;
+      return { ok: false, msg: fr.length >= need ? `<b>${name}</b> precisa de ${size} blocos <b>seguidos</b>. Há ${fr.length} blocos livres, mas a maior zona seguida só tem ${run(s)}. É a <b>fragmentação externa</b>: o ficheiro não cabe!` : `<b>${name}</b> precisa de ${need} blocos, mas só há ${fr.length} livres.` };
+    }
+    data.forEach((bi, j) => s.b[bi] = { f: name, k: j + 1, nx: m === 'link' ? (data[j + 1] ?? -1) : null });
+    if (index !== null) s.b[index] = { f: name, idx: true, list: data };
+    s.dir[name] = { data, index, all: index !== null ? [index, ...data] : data.slice() };
+    s.last = name;
+    return { ok: true, msg: m === 'cont' ? `<b>${name}</b> ocupa ${size} blocos seguidos: do ${data[0]} ao ${data[size - 1]}. O diretório guarda o início e o tamanho.`
+      : m === 'link' ? `<b>${name}</b> usa os primeiros ${size} blocos livres (${data.join(', ')}). Cada bloco aponta para o seguinte; o diretório guarda só o primeiro.`
+      : `<b>${name}</b> usa o bloco ${index} como <b>índice</b> e os blocos ${data.join(', ')} para os dados. O índice tem a lista de todos.` };
+  }
+  let S, k, res;
+  function reset(){ S = fresh(); k = 0; res = []; log.innerHTML = `<li class="empty">${NAMES[alg.value]}. Carrega em Reproduzir ou em Seguinte.</li>`; $('#k-res').innerHTML = ''; draw(); }
+  function draw(){
+    const m = alg.value;
+    $('#k-ops').innerHTML = OPS.map((o, j) => `<span class="op ${j === k - 1 ? 'cur' : ''} ${res[j] === false ? 'fail' : res[j] ? 'ok' : ''}">${o[0] === 'new' ? `criar ${o[1]} (${o[2]} blocos)` : o[0] === 'del' ? `apagar ${o[1]}` : `ler o ${o[2]}.º bloco de ${o[1]}`}${res[j] === false ? ' ✗' : res[j] ? ' ✓' : ''}</span>`).join('');
+    $('#k-disk').innerHTML = S.b.map((x, i) => {
+      const a = S.acc ? S.acc.indexOf(i) : -1;
+      if (!x) return `<div class="blk"><small>${i}</small></div>`;
+      return `<div class="blk f${x.idx ? ' idx' : ''}${S.last === x.f ? ' new' : ''}${a >= 0 ? ' rd' : ''}" style="background-color:${COL(CI[x.f])}"><small>${i}</small>${x.idx ? 'índice' : x.f + x.k}${x.nx !== null && x.nx !== undefined ? `<span class="nx">→ ${x.nx < 0 ? 'fim' : x.nx}</span>` : ''}${a >= 0 ? `<span class="acc">${a + 1}</span>` : ''}</div>`;
+    }).join('');
+    const names = Object.keys(S.dir).sort();
+    const head = m === 'cont' ? '<th>Ficheiro</th><th>Bloco inicial</th><th>Tamanho</th>' : m === 'link' ? '<th>Ficheiro</th><th>Primeiro bloco</th><th>Último bloco</th>' : '<th>Ficheiro</th><th>Bloco de índice</th><th>Conteúdo do índice</th>';
+    $('#k-dir').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${names.length ? names.map(n => { const f = S.dir[n]; return `<tr><td>${n}</td>${m === 'cont' ? `<td>${f.data[0]}</td><td>${f.data.length}</td>` : m === 'link' ? `<td>${f.data[0]}</td><td>${f.data[f.data.length - 1]}</td>` : `<td>${f.index}</td><td>${f.data.join(', ')}</td>`}</tr>`; }).join('') : '<tr><td colspan="3" style="font-family:var(--ui);color:var(--muted)">O diretório está vazio.</td></tr>'}</tbody>`;
+    $('#k-stats').innerHTML = `<div class="stat">Blocos livres<b>${free(S).length} de ${N}</b></div><div class="stat">Maior zona livre seguida<b>${run(S)}</b></div>${S.acc ? `<div class="stat">Acessos na leitura<b>${S.acc.length}</b></div>` : ''}`;
+  }
+  function step(){
+    if (k >= OPS.length) return false;
+    const r = apply(S, OPS[k], alg.value); res[k] = r.ok; k++; draw(); logTo(log, [r.msg], k + '.');
+    if (k >= OPS.length) { logTo(log, ['Fim. Compara com os outros métodos.']); return false; }
+    return true;
+  }
+  $('#k-cmp').onclick = () => {
+    const rows = Object.keys(NAMES).map(m => { const s = fresh(); const r = OPS.map(o => apply(s, o, m)); return { m, ok: r[7].ok, acc: s.acc ? s.acc.length : null }; });
+    $('#k-res').innerHTML = `<h3>Comparação</h3><table><thead><tr><th>Método</th><th>O ficheiro E (10 blocos) coube?</th><th>Acessos para ler o 7.º bloco de E</th></tr></thead><tbody>${rows.map(r => `<tr><td>${NAMES[r.m]}</td><td>${r.ok ? '✓ sim' : '<span style="color:var(--bad)">✗ não (fragmentação)</span>'}</td><td class="${r.acc === 2 ? 'best' : ''}">${r.acc ?? '—'}</td></tr>`).join('')}</tbody></table><p style="font-size:.88rem;color:var(--muted)">A indexada junta o melhor das outras duas: aproveita os blocos espalhados e chega depressa a qualquer bloco.</p>`;
+  };
+  const mark = algCards('#k-algs', alg);
+  alg.onchange = () => { mark(); player.stop(); reset(); };
+  const player = makePlayer('blocos', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 3. PERMISSÕES ================= */
+(() => {
+  /* ---- Linux ---- */
+  const CLS = [['Dono', 'nuno'], ['Grupo', 'professores'], ['Outros', 'todos os restantes']];
+  const AT = {
+    640: { f: 'pauta.ods', t: 'Pauta com as notas: o grupo dos professores pode ler (640)', a: [['O Nuno (o dono)', 0, 'w', 'alterar a pauta'], ['A Ana, professora (grupo professores)', 1, 'r', 'ler a pauta'], ['A Ana, professora', 1, 'w', 'alterar a pauta'], ['O Rui, aluno (outros)', 2, 'r', 'ler a pauta']] },
+    600: { f: 'diario.txt', t: 'Ficheiro privado: só o dono (600)', a: [['O Nuno (o dono)', 0, 'w', 'escrever no diário'], ['A Ana, professora (grupo professores)', 1, 'r', 'ler o diário'], ['O Rui, aluno (outros)', 2, 'r', 'ler o diário']] },
+    755: { f: 'copia_seguranca.sh', t: 'Programa que todos podem executar (755)', a: [['O Nuno (o dono)', 0, 'w', 'alterar o programa'], ['A Ana, professora (grupo professores)', 1, 'x', 'executar o programa'], ['O Rui, aluno (outros)', 2, 'x', 'executar o programa'], ['O Rui, aluno (outros)', 2, 'w', 'alterar o programa']] },
+    666: { f: 'pauta.ods', t: 'Toda a gente pode alterar (666), perigoso!', a: [['O Rui, aluno (outros)', 2, 'w', 'alterar a sua nota na pauta'], ['A Ana, professora (grupo professores)', 1, 'w', 'alterar a pauta'], ['O Nuno (o dono)', 0, 'x', 'executar a pauta como se fosse um programa']] }
+  };
+  const L = ['r', 'w', 'x'], WORD = { r: 'ler', w: 'escrever', x: 'executar' };
+  let bits;
+  const octal = () => [0, 1, 2].map(c => (bits[c * 3] ? 4 : 0) + (bits[c * 3 + 1] ? 2 : 0) + (bits[c * 3 + 2] ? 1 : 0)).join('');
+  const lstr = () => '-' + bits.map((b, i) => b ? L[i % 3] : '-').join('');
+  function setFrom(o){ bits = String(o).split('').flatMap(d => { d = +d; return [!!(d & 4), !!(d & 2), !!(d & 1)]; }); }
+
+  /* ---- Windows ---- */
+  const PR = { Nuno: ['👤', 'professor, dono do ficheiro'], Professores: ['👥', 'grupo'], Alunos: ['👥', 'grupo'], Rui: ['👤', 'aluno'], Todos: ['👥', 'todos os utilizadores'] };
+  const MEMB = { Nuno: ['Nuno', 'Professores', 'Todos'], Ana: ['Professores', 'Todos'], Rui: ['Rui', 'Alunos', 'Todos'], Maria: ['Alunos', 'Todos'] };
+  const WHO = { Nuno: 'O Nuno, professor e dono', Ana: 'A Ana, professora', Rui: 'O Rui, aluno', Maria: 'A Maria, aluna' };
+  const WP = ['Controlo total', 'Modificar', 'Ler e executar', 'Ler', 'Escrever'];
+  const GIVES = { 'Controlo total': 'RXWDP', 'Modificar': 'RXWD', 'Ler e executar': 'RX', 'Ler': 'R', 'Escrever': 'W' };
+  const RNAME = { R: 'Ler', W: 'Escrever', D: 'Modificar (para apagar)', P: 'Controlo total (para mudar permissões)', X: 'Ler e executar' };
+  const WEX = {
+    pauta: { f: 'pauta.xlsx', t: 'Pauta: os professores só podem ler', acl: { Nuno: { a: ['Controlo total'] }, Professores: { a: ['Ler'] }, Alunos: {} },
+      at: [['Nuno', 'W', 'alterar a pauta'], ['Ana', 'R', 'ler a pauta'], ['Ana', 'W', 'alterar a pauta'], ['Rui', 'R', 'ler a pauta']] },
+    turma: { f: 'Trabalhos da turma (pasta)', t: 'Pasta da turma: os alunos podem modificar', acl: { Professores: { a: ['Controlo total'] }, Alunos: { a: ['Modificar'] } },
+      at: [['Maria', 'W', 'guardar o seu trabalho na pasta'], ['Rui', 'D', 'apagar o trabalho de um colega'], ['Rui', 'P', 'mudar as permissões da pasta'], ['Ana', 'P', 'mudar as permissões da pasta']] },
+    negar: { f: 'teste_enunciado.docx', t: 'Negar tem prioridade: o Rui faz o teste noutro dia', acl: { Professores: { a: ['Controlo total'] }, Alunos: { a: ['Ler'] }, Rui: { d: ['Ler'] } },
+      at: [['Maria', 'R', 'ler o enunciado'], ['Rui', 'R', 'ler o enunciado'], ['Ana', 'W', 'alterar o enunciado']] },
+    todos: { f: 'pauta.xlsx', t: 'Todos com controlo total, perigoso!', acl: { Todos: { a: ['Controlo total'] } },
+      at: [['Rui', 'W', 'alterar a sua nota na pauta'], ['Maria', 'P', 'mudar as permissões da pauta'], ['Nuno', 'R', 'ler a pauta']] }
+  };
+  let acl, wsel;
+  function loadAcl(){ const src = WEX[$('#p-ex').value].acl; acl = {}; Object.keys(src).forEach(p => acl[p] = { a: new Set(src[p].a || []), d: new Set(src[p].d || []) }); wsel = Object.keys(acl)[0]; }
+  const gives = (set, r) => [...set].some(p => GIVES[p].includes(r));
+  function decide(u, r){
+    const app = MEMB[u].filter(p => acl[p]);
+    const den = app.filter(p => gives(acl[p].d, r)), al = app.filter(p => gives(acl[p].a, r));
+    return { app, den, al, ok: !den.length && al.length > 0 };
+  }
+
+  const os = $('#p-os'), sel = $('#p-ex'), log = $('#p-log');
+  let k, P, view = {};
+  const isWin = () => os.value === 'win';
+  function fillEx(){
+    sel.innerHTML = isWin() ? Object.entries(WEX).map(([v, e]) => `<option value="${v}">${e.t}</option>`).join('') : ['640', '600', '755', '666'].map(v => `<option value="${v}">${AT[v].t}</option>`).join('');
+    $('#p-intro').innerHTML = isWin()
+      ? 'Num sistema multiutilizador, cada ficheiro diz quem lhe pode aceder. No Windows (sistema de ficheiros <b>NTFS</b>), isso está em <b>Propriedades → Segurança</b>: uma lista de utilizadores e grupos, cada um com permissões <b>Permitir</b> ou <b>Negar</b>. Escolhe um exemplo, ou muda as caixas, e vê quem consegue aceder.'
+      : 'Num sistema multiutilizador, cada ficheiro tem um <b>dono</b> e um <b>grupo</b>, e <b>permissões</b> para três classes de utilizadores. No Linux, cada classe tem três permissões: <b>r</b> (ler), <b>w</b> (escrever) e <b>x</b> (executar). Clica nas letras para as ligar e desligar, ou escolhe um exemplo, e vê quem consegue aceder.';
+    $('#p-lin').hidden = isWin(); $('#p-win').hidden = !isWin();
+    $('#p-help-lin').hidden = isWin(); $('#p-help-win').hidden = !isWin();
+  }
+  function planLin(){
+    const out = [];
+    AT[sel.value].a.forEach(([who, c, act, what], j) => {
+      const bi = c * 3 + L.indexOf(act);
+      out.push({ j, c, bi, msg: `${who} quer <b>${what}</b>. ${c === 0 ? 'É o dono do ficheiro' : c === 1 ? 'Não é o dono, mas pertence ao grupo «professores»' : 'Não é o dono nem pertence ao grupo'}: conta como <b>${CLS[c][0].toLowerCase()}</b>. Precisa da permissão <b>${act}</b> (${WORD[act]}).` });
+      out.push({ j, c, bi, done: true, ok: bits[bi], msg: bits[bi] ? `A permissão ${act} de «${CLS[c][0].toLowerCase()}» está ligada: <b>acesso permitido</b>.${sel.value === '666' && c === 2 && act === 'w' ? ' Um aluno pode alterar a pauta: é por isso que 666 é perigoso!' : ''}` : `A permissão ${act} de «${CLS[c][0].toLowerCase()}» está desligada: <b>acesso negado</b>. O sistema responde «Permission denied».` });
+    });
+    return out;
+  }
+  function planWin(){
+    const out = [];
+    WEX[sel.value].at.forEach(([u, r, what], j) => {
+      const d = decide(u, r), groups = MEMB[u].filter(p => p !== u);
+      out.push({ j, u, r, app: d.app, msg: `${WHO[u]} quer <b>${what}</b>. Precisa de <b>${RNAME[r]}</b>. ${u === 'Nuno' || u === 'Rui' ? `Contam as entradas para o próprio ${u} e` : 'Contam'} as dos grupos a que pertence (${groups.join(', ')}). Neste ficheiro aplicam-se: <b>${d.app.join(', ') || 'nenhuma'}</b>.` });
+      let msg;
+      if (d.den.length) msg = `A entrada <b>${d.den[0]}</b> tem <b>Negar</b> nessa permissão. Negar tem prioridade sobre Permitir: <b>acesso negado</b>${d.al.length ? `, mesmo que «${d.al[0]}» o permita` : ''}.`;
+      else if (d.al.length) msg = `A entrada <b>${d.al[0]}</b> permite-o: <b>acesso permitido</b>.${sel.value === 'turma' && r === 'D' ? ' Atenção: com «Modificar», qualquer aluno consegue apagar o trabalho dos colegas!' : ''}${sel.value === 'todos' && u !== 'Nuno' ? ' Com «Todos: Controlo total», qualquer pessoa pode fazer tudo. É por isso que é perigoso!' : ''}`;
+      else msg = `Nenhuma das entradas que se aplicam dá essa permissão. Sem permissão, o Windows <b>nega o acesso</b> («Acesso negado»).`;
+      out.push({ j, u, r, app: d.app, done: true, ok: d.ok, decider: d.den[0] || d.al[0] || null, msg });
+    });
+    return out;
+  }
+  function drawWin(s){
+    const E = WEX[sel.value];
+    $('#pw-file').textContent = E.f;
+    $('#pw-list').innerHTML = Object.keys(acl).map(p => `<button data-p="${p}" class="${p === wsel ? 'sel' : ''}${s && s.app.includes(p) ? ' app' : ''}">${PR[p][0]} ${p}<small>${PR[p][1]}</small></button>`).join('');
+    $('#pw-for').textContent = `Permissões para ${wsel}:`;
+    const need = s ? s.r : null;
+    $('#pw-tab').innerHTML = `<thead><tr><th>Permissão</th><th>Permitir</th><th>Negar</th></tr></thead><tbody>${WP.map(w => `<tr class="${need && GIVES[w].includes(need) ? 'need' : ''}"><td>${w}</td><td><input type="checkbox" data-w="${w}" data-t="a" ${acl[wsel].a.has(w) ? 'checked' : ''} aria-label="Permitir ${w}"></td><td><input type="checkbox" class="deny" data-w="${w}" data-t="d" ${acl[wsel].d.has(w) ? 'checked' : ''} aria-label="Negar ${w}"></td></tr>`).join('')}</tbody>`;
+  }
+  function draw(){
+    const s = k ? P[k - 1] : null;
+    const res = {}; P.slice(0, k).forEach(x => { if (x.done) res[x.j] = x.ok; });
+    if (isWin()) {
+      if (s && s.done && s.decider) wsel = s.decider;
+      drawWin(s);
+      $('#p-att').innerHTML = WEX[sel.value].at.map(([u, r, what], j) => `<div class="att${s && s.j === j ? ' cur' : ''}${j in res ? (res[j] ? ' ok' : ' no') : ''}"><span>${WHO[u]} quer ${what}</span><span class="res">${j in res ? (res[j] ? '✓ permitido' : '✗ negado') : `precisa de ${RNAME[r].replace(/ \(.*\)/, '')}`}</span></div>`).join('');
+      return;
+    }
+    const A = AT[sel.value];
+    $('#p-ls').innerHTML = `$ ls -l ${A.f}<br><b>${lstr()}</b> 1 nuno professores 2048 nov 8 ${A.f}<br><span style="color:#9fb0c3">Em números: chmod ${octal()} ${A.f}</span>`;
+    $('#p-perm').innerHTML = CLS.map(([n, d], c) => `<div class="pgrp${s && s.c === c ? ' on' : ''}"><h4>${n}<small>${d}</small></h4><div class="bits">${L.map((l, i) => `<button class="bit${bits[c * 3 + i] ? ' set' : ''}${s && s.bi === c * 3 + i ? ' chk' : ''}" data-b="${c * 3 + i}" aria-pressed="${bits[c * 3 + i]}" title="${WORD[l]}">${l}</button>`).join('')}</div></div>`).join('');
+    $('#p-att').innerHTML = A.a.map(([who, c, act, what], j) => `<div class="att${s && s.j === j ? ' cur' : ''}${j in res ? (res[j] ? ' ok' : ' no') : ''}"><span>${who} quer ${what}</span><span class="res">${j in res ? (res[j] ? '✓ permitido' : '✗ negado') : `precisa de ${act}`}</span></div>`).join('');
+  }
+  function reset(){ P = isWin() ? planWin() : planLin(); k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ if (k >= P.length) return false; k++; draw(); logTo(log, [P[k - 1].msg], null); return k < P.length; }
+  $('#p-perm').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (!b) return; bits[+b.dataset.b] = !bits[+b.dataset.b]; player.stop(); reset(); logTo(log, [`Mudaste as permissões para <b>${lstr()}</b> (${octal()}). Carrega em Reproduzir para ver quem consegue aceder agora.`]); });
+  $('#pw-list').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; wsel = b.dataset.p; drawWin(k ? P[k - 1] : null); });
+  $('#pw-tab').addEventListener('change', e => {
+    const x = e.target; if (!x.dataset.w) return;
+    const set = acl[wsel][x.dataset.t]; if (x.checked) set.add(x.dataset.w); else set.delete(x.dataset.w);
+    player.stop(); const keep = wsel; reset(); wsel = keep; drawWin(null);
+    logTo(log, [`Mudaste as permissões de <b>${wsel}</b>: ${x.dataset.t === 'a' ? 'Permitir' : 'Negar'} «${x.dataset.w}» ${x.checked ? 'ligado' : 'desligado'}. Carrega em Reproduzir para ver quem consegue aceder agora.`]);
+  });
+  sel.onchange = () => { if (isWin()) loadAcl(); else setFrom(sel.value); player.stop(); reset(); };
+  os.onchange = () => { fillEx(); sel.onchange(); };
+  const player = makePlayer('permissoes', { step, reset, pos: () => k });
+  fillEx(); setFrom(640); loadAcl(); reset();
+})();
+
+/* ================= 4. APAGAR E RECUPERAR ================= */
+(() => {
+  const NB = 16;
+  const sel = $('#a-ex'), log = $('#a-log');
+  let S, k, P;
+  function fresh(){
+    const b = Array(NB).fill(null).map(() => ({ c: null, free: true }));
+    [[0, 1, 2], [4, 5, 6], [9, 10]].forEach((bl, f) => bl.forEach(i => b[i] = { c: ['📄', '🖼️', '🎵'][f], f, free: false }));
+    return { b, dir: [{ n: 'trabalho.docx', bl: [0, 1, 2] }, { n: 'foto_praia.jpg', bl: [4, 5, 6] }, { n: 'musica.mp3', bl: [9, 10] }], res: null, hl: [] };
+  }
+  function plan(){
+    const c = sel.value, out = [];
+    out.push({ msg: 'O ficheiro <b>foto_praia.jpg</b> está guardado nos blocos 4, 5 e 6. O diretório é a «tabela» que diz onde está cada ficheiro.', f: s => { s.hl = [4, 5, 6]; } });
+    if (c === 'secure') out.push({ msg: 'Usas um programa de <b>apagamento seguro</b>: primeiro escreve zeros por cima dos blocos 4, 5 e 6, e só depois apaga a entrada no diretório.', f: s => { [4, 5, 6].forEach(i => s.b[i] = { c: '0', zero: true, free: true }); s.dir[1].del = true; s.hl = [4, 5, 6]; } });
+    else out.push({ msg: 'Apagas a foto e esvazias a Reciclagem. O SO só marca a entrada como <b>apagada</b> e os blocos 4, 5 e 6 como <b>livres</b>. Os dados continuam lá!', f: s => { [4, 5, 6].forEach(i => s.b[i].free = true); s.dir[1].del = true; s.hl = [4, 5, 6]; } });
+    if (c === 'later') out.push({ msg: 'Continuas a trabalhar e guardas um vídeo novo. O SO usa os primeiros blocos livres que encontra: <b>3, 4 e 5</b>. Os blocos 4 e 5 da foto são escritos por cima!', f: s => { [3, 4, 5].forEach(i => s.b[i] = { c: '🎬', f: 3, free: false }); s.dir.push({ n: 'video.mp4', bl: [3, 4, 5], isNew: true }); s.hl = [3, 4, 5]; } });
+    if (c === 'ssd') out.push({ msg: 'Pouco depois, o SO envia o comando <b>TRIM</b> ao SSD. O SSD apaga de vez os blocos libertados, para os poder reutilizar mais depressa.', f: s => { [4, 5, 6].forEach(i => s.b[i] = { c: '0', zero: true, free: true }); s.hl = [4, 5, 6]; } });
+    out.push({ msg: 'Usas um programa de recuperação, que procura nos blocos livres dados que pareçam ficheiros…', f: s => { s.hl = s.b.map((x, i) => x.free ? i : -1).filter(i => i >= 0); } });
+    if (c === 'now') out.push({ msg: 'Os blocos 4, 5 e 6 ainda têm a foto inteira: a entrada volta ao diretório e o ficheiro é <b>recuperado</b>!', f: s => { [4, 5, 6].forEach(i => s.b[i].free = false); s.dir[1].del = false; s.res = ['good', '✓ Foto recuperada por inteiro.']; s.hl = [4, 5, 6]; } });
+    if (c === 'later') out.push({ msg: 'Só o bloco 6 ainda tem dados da foto; os blocos 4 e 5 já têm o vídeo. A foto recuperada fica <b>estragada</b>: só aparece a parte de baixo.', f: s => { s.res = ['half', '⚠ Só se recuperou um terço da foto.']; s.hl = [6]; } });
+    if (c === 'secure' || c === 'ssd') out.push({ msg: 'Os blocos só têm zeros. É <b>impossível</b> recuperar a foto.', f: s => { s.res = ['bad', `✗ Nada a recuperar: ${c === 'ssd' ? 'o TRIM do SSD' : 'o apagamento seguro'} limpou os dados.`]; s.hl = [4, 5, 6]; } });
+    return out;
+  }
+  function draw(){
+    $('#a-dir').innerHTML = `<thead><tr><th>Diretório: nome</th><th>Blocos</th><th>Estado</th></tr></thead><tbody>${S.dir.map(d => `<tr class="${d.del ? 'del' : ''}${d.isNew ? ' new' : ''}"><td>${d.n}</td><td>${d.bl.join(', ')}</td><td>${d.del ? 'apagado' : 'ativo'}</td></tr>`).join('')}</tbody>`;
+    $('#a-disk').innerHTML = S.b.map((x, i) => `<div class="blk ${x.c === null ? 'free' : ''}${x.free && x.c && !x.zero ? ' ghost' : ''}${x.zero ? ' zero' : ''}${S.hl.includes(i) ? ' rd' : ''}"${x.f !== undefined && !x.free ? ` style="background:color-mix(in srgb,${COL(x.f)} 25%,var(--card))"` : ''}><small>${i}</small>${x.c ?? ''}</div>`).join('');
+    $('#a-res').innerHTML = S.res ? `<div class="recover ${S.res[0]}">${S.res[1]}</div>` : '';
+  }
+  function reset(){ S = fresh(); P = plan(); k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; draw(); }
+  function step(){ if (k >= P.length) return false; P[k].f(S); k++; draw(); logTo(log, [P[k - 1].msg], k + '.'); return k < P.length; }
+  sel.onchange = () => { player.stop(); reset(); };
+  const player = makePlayer('apagar', { step, reset, pos: () => k });
+  reset();
+})();
+
+/* ================= 5. TESTA-TE ================= */
+(() => {
+  const Q = [
+    { q: 'Qual destes é um caminho absoluto no Windows?', o: ['C:\\Users\\ana\\Imagens\\praia.jpg', 'Imagens\\praia.jpg', '..\\Imagens\\praia.jpg', 'praia.jpg'], c: 0, e: 'Começa na raiz da unidade (C:\\), por isso funciona esteja onde estiver.' },
+    { q: 'Estás na pasta /home/ana/Documentos. Para onde aponta o caminho ../Imagens?', o: ['/home/ana/Documentos/Imagens', '/home/ana/Imagens', '/Imagens', '/home/Imagens'], c: 1, e: 'O .. sobe para a pasta mãe (/home/ana) e depois entra em Imagens.' },
+    { q: 'Na atribuição ligada (encadeada), o que é preciso para ler o 5.º bloco de um ficheiro?', o: ['Ler só esse bloco', 'Ler os blocos anteriores, seguindo as ligações', 'Ler o bloco de índice', 'Desfragmentar o disco'], c: 1, e: 'Cada bloco só sabe qual é o seguinte, por isso é preciso percorrer a corrente desde o início.' },
+    { q: 'O que significam as permissões rw-r----- ?', o: ['Todos podem ler e escrever', 'O dono lê e escreve, o grupo só lê e os outros não têm acesso', 'Só o grupo pode escrever', 'O ficheiro é um programa executável'], c: 1, e: 'Três grupos de três: dono rw-, grupo r--, outros ---. Em números: 640.' },
+    { q: 'Apagas um ficheiro e esvazias a Reciclagem. O que acontece aos dados no disco?', o: ['São logo apagados com zeros', 'Ficam lá até serem escritos por cima', 'Vão para a nuvem', 'São comprimidos'], c: 1, e: 'O SO só marca os blocos como livres. Por isso é possível recuperar ficheiros, se se agir depressa.' },
+    { q: 'Um ficheiro de 6 GB não copia para uma pen, apesar de ela ter 32 GB livres. Qual a causa mais provável?', o: ['A pen está avariada', 'A pen usa FAT32, que não aceita ficheiros com mais de 4 GB', 'O ficheiro tem vírus', 'Falta memória RAM'], c: 1, e: 'Formatando a pen em exFAT (ou NTFS), o problema desaparece.' }
+  ];
+  const ans = {};
+  /* Baralha a ordem das opções de cada pergunta (de novo em cada tentativa) */
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  let ord = Q.map(x => shuffle(x.o.map((_, j) => j)));
+  function draw(){
+    const n = Object.keys(ans).length, right = Object.keys(ans).filter(i => ans[i] === Q[i].c).length;
+    $('#quiz').innerHTML = (n ? `<p class="score">Acertaste ${right} de ${Q.length}${n < Q.length ? ` (respondeste a ${n})` : ''}.</p>` : '')
+      + Q.map((x, i) => `<fieldset class="q"><legend>${i + 1}. ${x.q}</legend>${ord[i].map(j => `<label class="${i in ans ? (j === x.c ? 'right' : j === ans[i] ? 'wrong' : '') : ''}"><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? ' checked' : ''}${i in ans ? ' disabled' : ''}><span>${x.o[j]}</span></label>`).join('')}${i in ans ? `<p class="fb"><b>${ans[i] === x.c ? 'Certo!' : 'Ainda não.'}</b> ${x.e}</p>` : ''}</fieldset>`).join('')
+      + (n === Q.length ? '<button class="btn" id="qz-again">Responder de novo</button>' : '');
+    const again = $('#qz-again'); if (again) again.onclick = () => { Object.keys(ans).forEach(k => delete ans[k]); ord = Q.map(x => shuffle(x.o.map((_, j) => j))); draw(); };
+  }
+  $('#quiz').addEventListener('change', e => { const m = e.target.name.match(/^q(\d+)$/); if (!m) return; ans[+m[1]] = +e.target.value; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
