@@ -610,6 +610,13 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
 .iso .cl polyline{fill:none;stroke:#334155;stroke-width:1.4}
 .iso .cl circle{fill:#334155}
 .iso .cl text{font:700 12px var(--ui);fill:var(--ink)}
+.iso .cpudrop{animation:cpudrop 1.5s cubic-bezier(.55,.06,.3,1) forwards}
+@keyframes cpudrop{0%{transform:translateY(-106px)}72%{transform:translateY(0)}80%{transform:translateY(-3px)}100%{transform:translateY(0)}}
+.iso .cpush{animation:cpush 1.5s cubic-bezier(.55,.06,.3,1) forwards;transform-box:fill-box;transform-origin:center}
+@keyframes cpush{0%{transform:scale(1.3);opacity:.2}72%{transform:scale(1);opacity:.38}100%{transform:scale(1);opacity:.38}}
+.iso .cpuguide{animation:cpuguide 2s ease-out forwards}
+@keyframes cpuguide{0%,60%{opacity:.85}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.iso .cpudrop,.iso .cpush,.iso .cpuguide{animation:none}}
 .mb .hl{fill:none;stroke:#ffd84d;stroke-width:4;opacity:0;transition:opacity .3s;pointer-events:none}
 .mb .hl.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.45}}
@@ -663,7 +670,7 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
   <div class="grid">
     <div class="card">
       <div class="cfg"><label>Etapa<select id="bd-sel"></select></label><label id="bd-vwrap">Vista<select id="bd-view"><option value="3d">3D em perspetiva</option><option value="2d">De cima</option></select></label><span class="pill" id="bd-lv"></span><span class="pill" id="bd-time"></span></div>
-      <div class="controls" id="bd-rot" style="margin:0 0 .5rem"><button class="btn ghost" data-r="-1" type="button">↺ Rodar</button><button class="btn ghost" data-r="1" type="button">↻ Rodar</button><span style="font-size:.8rem;color:var(--muted);align-self:center">vista 3D: roda a placa para ver de outro ângulo</span></div>
+      <div class="controls" id="bd-rot" style="margin:0 0 .5rem"><button class="btn ghost" data-r="-1" type="button">↺ Rodar</button><button class="btn ghost" data-r="1" type="button">↻ Rodar</button><button class="btn" id="bd-replay" type="button" hidden>▶ Repetir a animação</button><span style="font-size:.8rem;color:var(--muted);align-self:center">vista 3D: roda a placa para ver de outro ângulo</span></div>
       <div class="bdwrap"><svg class="mb" id="bd-svg" viewBox="0 0 980 620" aria-label="Montagem passo a passo"></svg><div class="callout off" id="bd-call"></div></div>
       <div id="bd-verdict"></div>
       <div class="controls" data-ctl="montar"></div>
@@ -1907,19 +1914,30 @@ pcDraw();
       const piv = P3(lx, ly1 - 2, 4), tip = P3(lx + 54, ly0 - 4, 40);
       pre += `<circle cx="${piv[0]}" cy="${piv[1]}" r="5" fill="#8e98a5" stroke="#5b6472"/><circle cx="${tip[0]}" cy="${tip[1]}" r="4.5" fill="#dfe4ea" stroke="#6b7682"/>`;
     }
-    /* processador a pairar sobre o socket, ou já assente */
-    const hov = st.cpuDown ? 12 : 120;
+    /* processador: paira, desce em animação, ou já assente */
+    const Z0 = 12, ZH = 118, drop = !!st.cpuAnim;
     let extra = '';
-    if (st.cpuHover || st.cpuDown) {
+    if (st.cpuHover || st.cpuDown || drop) {
+      const hov = st.cpuHover ? ZH : Z0;
       const sh = P3(so.x + so.w / 2, so.y + so.h / 2, 4);
-      extra += `<ellipse cx="${sh[0]}" cy="${sh[1]}" rx="${58 * (st.cpuDown ? 1 : 1.3)}" ry="${33 * (st.cpuDown ? 1 : 1.3)}" fill="#000" opacity="${st.cpuDown ? .38 : .22}"/>`;
       const cx0 = so.x + 20, cy0 = so.y + 20, cw = so.w - 40, cd = so.h - 40;
-      const bx = ISO.box(cx0, cy0, cw, cd, 9, '#c8d0da', { z: hov, topFill: 'url(#i3-ihs2)' });
-      extra += bx.svg;
-      extra += `<polygon points="${ISO.pts([P3(cx0 + 4, cy0 + cd - 4, hov + 9.2), P3(cx0 + 22, cy0 + cd - 4, hov + 9.2), P3(cx0 + 4, cy0 + cd - 22, hov + 9.2)])}" fill="#f7dd94" stroke="#8a6a1a" stroke-width=".8"/>`;
-      const lt = P3(cx0 + cw / 2, cy0 + cd / 2, hov + 9);
-      extra += `<text x="${lt[0]}" y="${lt[1]}" text-anchor="middle" style="font:700 11px var(--head);fill:#56606e">CORE i5</text>`;
-      if (!st.cpuDown) { const a = P3(so.x + so.w / 2, so.y - 8, hov), b2 = P3(so.x + so.w / 2, so.y - 8, 18);
+      /* sombra */
+      extra += `<ellipse class="${drop ? 'cpush' : ''}" cx="${sh[0]}" cy="${sh[1]}" rx="${58 * (st.cpuHover ? 1.3 : 1)}" ry="${33 * (st.cpuHover ? 1.3 : 1)}" fill="#000" opacity="${st.cpuHover ? .22 : .38}"/>`;
+      /* guias de alinhamento nos quatro cantos */
+      if (st.cpuHover || drop) {
+        [[cx0, cy0], [cx0 + cw, cy0], [cx0 + cw, cy0 + cd], [cx0, cy0 + cd]].forEach(([x, y]) => {
+          const a = P3(x, y, Z0), c = P3(x, y, ZH);
+          extra += `<line class="${drop ? 'cpuguide' : ''}" x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#e11d48" stroke-width="2" stroke-dasharray="5 4" opacity=".85"><animate attributeName="stroke-dashoffset" values="18;0" dur=".7s" repeatCount="indefinite"/></line><circle cx="${a[0]}" cy="${a[1]}" r="3" fill="#e11d48" class="${drop ? 'cpuguide' : ''}"/>`;
+        });
+      }
+      /* o processador: uma alteração de altura é uma translação vertical na projeção */
+      const bx = ISO.box(cx0, cy0, cw, cd, 9, '#c8d0da', { z: Z0, topFill: 'url(#i3-ihs2)' });
+      const tri = `<polygon points="${ISO.pts([P3(cx0 + 4, cy0 + cd - 4, Z0 + 9.2), P3(cx0 + 22, cy0 + cd - 4, Z0 + 9.2), P3(cx0 + 4, cy0 + cd - 22, Z0 + 9.2)])}" fill="#f7dd94" stroke="#8a6a1a" stroke-width=".8"/>`;
+      const lt = P3(cx0 + cw / 2, cy0 + cd / 2, Z0 + 9);
+      const lab2 = `<text x="${lt[0]}" y="${lt[1]}" text-anchor="middle" style="font:700 11px var(--head);fill:#56606e">CORE i5</text>`;
+      const dy = st.cpuHover ? -(ZH - Z0) : 0;
+      extra += `<g class="${drop ? 'cpudrop' : ''}" transform="translate(0 ${dy})">${bx.svg}${tri}${lab2}</g>`;
+      if (st.cpuHover) { const a = P3(so.x + so.w / 2, so.y - 8, ZH), b2 = P3(so.x + so.w / 2, so.y - 8, 24);
         extra += `<path d="M${a[0]} ${a[1] + 18} L${b2[0]} ${b2[1] - 10}" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 6" fill="none"><animate attributeName="stroke-dashoffset" values="26;0" dur=".8s" repeatCount="indefinite"/></path><path d="M${b2[0] - 6} ${b2[1] - 16} l6 8 l6 -8" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }
     }
     /* etiquetas próprias do grande plano */
@@ -1955,6 +1973,7 @@ pcDraw();
     ['Bancada', '1 min', 'Aproximar o foco do socket', { zoom: 1 }, 'A câmara aproxima-se do <b>socket</b>, o encaixe do processador. Vês a <b>moldura metálica de retenção</b> (ILM), a <b>alavanca</b> que a prende e os milhares de <b>contactos dourados</b> no fundo. Repara no triângulo gravado num dos cantos.', 'socket'],
     ['Bancada', '1 min', 'Abrir o socket', { zoom: 1, openILM: 1 }, 'Empurra a <b>alavanca</b> para o lado, para a libertar do gancho, e levanta-a. A <b>moldura de retenção</b> sobe com ela e deixa os contactos à vista. A tampa de plástico preta só deve sair depois de o processador estar instalado.', 'socket'],
     ['Bancada', '2 min', 'Pousar o processador no socket', { zoom: 1, openILM: 1, cpuHover: 1 }, 'O processador desce <b>a direito</b> sobre o socket, com o <b>triângulo dourado</b> alinhado com o do canto. Pega-lhe sempre pelas bordas, nunca nos contactos nem na tampa.', 'socket'],
+    ['Bancada', '1 min', 'Assentar o processador', { zoom: 1, openILM: 1, cpuAnim: 1 }, 'O processador <b>desce a direito</b> e entra sozinho, guiado pelas duas chaves laterais. Repara nas guias vermelhas: os quatro cantos descem ao mesmo tempo, sem inclinar. Se não assentar, levanta-o e verifica a orientação em vez de forçar.', 'socket'],
     ['Bancada', '1 min', 'Fechar a alavanca', { zoom: 1, cpuDown: 1 }, 'Assentou pelo próprio peso: <b>nunca se força</b>. Baixa a alavanca, que faz alguma pressão sobre os contactos, e a tampa de proteção salta sozinha.', 'socket'],
     ['Bancada', '0 min', 'Processador instalado', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
     ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
@@ -1984,6 +2003,7 @@ pcDraw();
     $('#bd-vwrap').style.display = bare ? '' : 'none';
     $('#bd-rot').style.display = v3 || st.zoom ? '' : 'none';
     let h = '';
+    $('#bd-replay').hidden = !st.cpuAnim;
     if (st.zoom) { closeup(st, true); h = null; }
     else if (st.iso) h = ISOC.draw(st.iso);
     else if (v3) { svg.classList.add('iso'); svg.classList.remove('nolbl'); ISO.render(svg, 'i3-'); h = null; }
@@ -2004,6 +2024,7 @@ pcDraw();
   sel.onchange = () => { k = +sel.value; render(); };
   $('#bd-view').onchange = render;
   $('#bd-rot').addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; ISO.rotate(+b.dataset.r); render(); });
+  $('#bd-replay').onclick = () => render();
   makePlayer('montar', { step, reset, pos: () => k });
   reset();
 })();
