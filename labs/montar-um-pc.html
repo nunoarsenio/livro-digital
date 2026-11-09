@@ -599,6 +599,13 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
 .cxfan.run.mid{animation-duration:1.05s}
 .cxfan.run.turbo{animation-duration:.45s}
 .bdwrap{position:relative}
+.iso{background:linear-gradient(180deg,var(--soft),var(--card));border-radius:12px}
+.iso .hot3{fill:transparent}
+.iso .hl3{fill:rgba(255,216,77,.25);stroke:#ffd84d;stroke-width:3;opacity:0;pointer-events:none}
+.iso .hl3.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
+.iso .lbl3 text{font:600 12.5px var(--ui);fill:var(--ink)}
+.iso .lbl3 line,.iso .lbl3 polyline{stroke:#e11d48;stroke-width:1.3;fill:none}
+.iso .lbl3 circle{fill:#e11d48}
 .mb .hl{fill:none;stroke:#ffd84d;stroke-width:4;opacity:0;transition:opacity .3s;pointer-events:none}
 .mb .hl.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.45}}
@@ -651,7 +658,8 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
   <p>As 18 etapas de uma montagem completa, pela ordem em que se fazem: da bancada à caixa, dos cabos ao primeiro arranque e à instalação do sistema. Carrega em Reproduzir para ver tudo seguido, ou escolhe uma etapa.</p></div>
   <div class="grid">
     <div class="card">
-      <div class="cfg"><label>Etapa<select id="bd-sel"></select></label><span class="pill" id="bd-lv"></span><span class="pill" id="bd-time"></span></div>
+      <div class="cfg"><label>Etapa<select id="bd-sel"></select></label><label id="bd-vwrap">Vista<select id="bd-view"><option value="3d">3D em perspetiva</option><option value="2d">De cima</option></select></label><span class="pill" id="bd-lv"></span><span class="pill" id="bd-time"></span></div>
+      <div class="controls" id="bd-rot" style="margin:0 0 .5rem"><button class="btn ghost" data-r="-1" type="button">↺ Rodar</button><button class="btn ghost" data-r="1" type="button">↻ Rodar</button><span style="font-size:.8rem;color:var(--muted);align-self:center">vista 3D: roda a placa para ver de outro ângulo</span></div>
       <div class="bdwrap"><svg class="mb" id="bd-svg" viewBox="0 0 980 620" aria-label="Montagem passo a passo"></svg><div class="callout off" id="bd-call"></div></div>
       <div id="bd-verdict"></div>
       <div class="controls" data-ctl="montar"></div>
@@ -1436,6 +1444,114 @@ const FIG = {
    <text x="92" y="166" style="font:600 10px var(--ui);fill:var(--ink)">Pilha CMOS</text><text x="92" y="180" style="font:500 10px var(--ui);fill:var(--muted)">mantém o relógio e as definições</text>
    <defs><linearGradient id="lr-met" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef1f4"/><stop offset="1" stop-color="#8e98a5"/></linearGradient></defs></svg>`
 };
+/* ===== Vista isométrica 3D ===== */
+const ISO = (() => {
+  const C = Math.cos(Math.PI / 6), Sn = Math.sin(Math.PI / 6), cx = OX + BW / 2, cy = OY + BH / 2;
+  let rot = 0;
+  const rp = (x, y) => { const u = x - cx, v = y - cy; return [[u, v], [-v, u], [-u, -v], [v, -u]][rot]; };
+  const pr = (x, y, z) => { const [u, v] = rp(x, y); return [(u - v) * C, (u + v) * Sn - z]; };
+  const depth = (x, y) => { const [u, v] = rp(x, y); return u + v; };
+  const pts = a => a.map(q => q.map(n => n.toFixed(1)).join(',')).join(' ');
+  const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16); const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(v * f)))); return `rgb(${c.join(',')})`; };
+  /* caixa: devolve {d, svg} */
+  function box(x, y, w, d, h, col, o = {}){
+    const z0 = o.z || 0, z1 = z0 + h, sides = [];
+    const faces = [[[x + w, y], [x + w, y + d], 1, 0], [[x, y + d], [x + w, y + d], 0, 1], [[x, y], [x, y + d], -1, 0], [[x, y], [x + w, y], 0, -1]];
+    faces.forEach(([p1, p2, nx, ny]) => {
+      const [nu, nv] = [[nx, ny], [-ny, nx], [-nx, -ny], [ny, -nx]][rot];
+      if (nu + nv <= 0) return;
+      const f = nu > 0 ? .78 : .6;
+      sides.push(`<polygon points="${pts([pr(...p1, z0), pr(...p2, z0), pr(...p2, z1), pr(...p1, z1)])}" fill="${shade(col, f)}" stroke="${shade(col, .45)}" stroke-width=".5"/>`);
+    });
+    const top = `<polygon points="${pts([pr(x, y, z1), pr(x + w, y, z1), pr(x + w, y + d, z1), pr(x, y + d, z1)])}" fill="${o.topFill || col}" stroke="${shade(col, 1.25)}" stroke-width=".5"/>`;
+    return { d: depth(x + w / 2, y + d / 2) + (o.dz || 0), svg: sides.join('') + top + (o.extra ? o.extra(z1) : '') };
+  }
+  function cyl(x, y, r, h, col, top = '#c9cfd6', o = {}){
+    const z0 = o.z || 0, [X0, Y0] = pr(x, y, z0), [X1, Y1] = pr(x, y, z0 + h), rx = r * 1.2247, ry = r * .7071;
+    return { d: depth(x, y) + (o.dz || 0), svg: `<path d="M${X0 - rx} ${Y0} A${rx} ${ry} 0 0 0 ${X0 + rx} ${Y0} L${X1 + rx} ${Y1} L${X1 - rx} ${Y1} Z" fill="${col}"/><ellipse cx="${X1}" cy="${Y1}" rx="${rx}" ry="${ry}" fill="${top}" stroke="${shade(col, .6)}" stroke-width=".5"/>${o.cross === false ? '' : `<path d="M${X1 - rx * .5} ${Y1} h${rx} M${X1} ${Y1 - ry * .5} v${ry}" stroke="#4b5563" stroke-width=".7"/>`}` };
+  }
+  /* matriz do plano a uma altura z (para desenhar pormenores planos) */
+  function plane(z){ const [ex, ey] = pr(0, 0, z), [ax, ay] = pr(1, 0, z), [bx, by] = pr(0, 1, z); return `matrix(${ax - ex} ${ay - ey} ${bx - ex} ${by - ey} ${ex} ${ey})`; }
+  const H = { io: 38, eps: 18, vrm: 16, socket: 8, cpufan: 10, ram: 18, atx: 18, m2: MODEL === 'A' ? 10 : 2, pcie: 13, m2b: 2, pciex1: 11, pcie2: 11, chipset: 18, sio: 3, sata: 16, bios: 5, front: 10, usbh: 10, audio: 10 };
+  function scene(){
+    const L = [], A = MODEL === 'A', T = 6;
+    const add = o => L.push(o);
+    /* portas traseiras */
+    const io = R('io');
+    const ports = A ? [[4, 40, '#2c4d86'], [52, 26, '#c3cad3'], [84, 26, '#c3cad3'], [116, 50, '#c3cad3'], [172, 62, '#c3cad3'], [240, 70, '#e5e7eb']] : [[4, 44, '#c3cad3'], [54, 44, '#e8eaee'], [104, 56, '#c3cad3'], [166, 46, '#c3cad3'], [218, 74, '#c3cad3'], [298, 64, '#e5e7eb']];
+    ports.forEach(([y, h, c], i) => add(box(io.x, io.y + y, 64, h - 2, 34 + (i % 2) * 4, c.startsWith('#') ? (c.length === 7 ? c : '#c3cad3') : '#c3cad3', { extra: z => i === ports.length - 1 ? [0, 1, 2].map(j => cyl(io.x + 30, io.y + y + 12 + j * 19, 6, 1, ['#3a9fc9', '#5cae3e', '#d9607c'][j], ['#7cc9e8', '#8fd16a', '#f08aa0'][j], { z, cross: false }).svg).join('') : (ports[i][2] === '#2c4d86' || (!A && i === 3) ? '' : '') })));
+    /* alimentação */
+    const e = R('eps'); add(box(e.x, e.y, e.w, e.h, H.eps, '#1b1d21', { extra: z => `<g transform="${plane(z)}">${Array.from({ length: 8 }, (_, i) => `<rect x="${e.x + 5 + (i % 4) * 11.5}" y="${e.y + 4 + Math.floor(i / 4) * 11}" width="8" height="8" rx="1.5" fill="#050506"/>`).join('')}</g>` }));
+    const at = R('atx'); add(box(at.x, at.y, at.w, at.h, H.atx, '#1b1d21', { extra: z => `<g transform="${plane(z)}">${Array.from({ length: 24 }, (_, i) => `<rect x="${at.x + 4 + (i % 2) * 11}" y="${at.y + 6 + Math.floor(i / 2) * (at.h - 8) / 12}" width="8" height="7" rx="1.5" fill="#050506"/>`).join('')}</g>` }));
+    const cf = R('cpufan'); add(box(cf.x, cf.y, cf.w, cf.h, H.cpufan, A ? '#1b1d21' : '#1b1d21'));
+    /* VRM: bobinas, MOSFET e condensadores */
+    const chokes = A ? [...Array.from({ length: 6 }, (_, i) => [150, 60 + i * 34, 20]), ...Array.from({ length: 3 }, (_, i) => [210 + i * 40, 44, 22])] : [...Array.from({ length: 4 }, (_, i) => [232 + i * 32, 52, 22]), ...Array.from({ length: 4 }, (_, i) => [168, 120 + i * 36, 22])];
+    chokes.forEach(([x, y, w]) => add(box(OX + x, OY + y, w, w, 14, A ? '#80868f' : '#3a3e45', { topFill: A ? '#9aa0a8' : '#43474f' })));
+    const caps = A ? [...Array.from({ length: 6 }, (_, i) => [182, 70 + i * 34, 5]), ...Array.from({ length: 5 }, (_, i) => [222 + i * 22, 82, 6])] : [...Array.from({ length: 4 }, (_, i) => [243 + i * 32, 90, 6]), ...Array.from({ length: 4 }, (_, i) => [205, 130 + i * 36, 6]), ...Array.from({ length: 4 }, (_, i) => [128, 112 + i * 34, 6.5]), [162, 16, 6.5], [176, 16, 6.5]];
+    const misc = A ? [[440, 330], [454, 330], [440, 344], [430, 500], [444, 500], [330, 380], [344, 380], [214, 500], [228, 500], [300, 470], [470, 112], [484, 112]] : [[440, 70], [454, 70], [440, 300], [454, 520], [370, 300], [180, 300], [194, 300], [300, 520]];
+    caps.forEach(([x, y, r]) => add(cyl(OX + x, OY + y, r, 14, '#2b2e33')));
+    misc.forEach(([x, y]) => add(cyl(OX + x, OY + y, 4.6, 11, '#2b2e33')));
+    const gold = A ? [[34, 380], [48, 392], [34, 410], [48, 422], [34, 440]] : [[30, 436], [30, 452], [30, 468], [30, 484]];
+    gold.forEach(([x, y]) => add(cyl(OX + x, OY + y, 6, 12, '#a07818', '#d4ad4a')));
+    /* socket: base, moldura e alavanca */
+    const so = R('socket');
+    [[so.x, so.y, so.w, 9], [so.x, so.y + so.h - 9, so.w, 9], [so.x, so.y, 9, so.h], [so.x + so.w - 9, so.y, 9, so.h]].forEach(([x, y, w, d]) => add(box(x, y, w, d, 7, '#b8c0ca', { z: 3, topFill: '#dfe4ea' })));
+    add(box(so.x + so.w + 6, so.y - 2, 6, so.h + 4, 9, '#cfd5dd'));
+    /* memória */
+    const ra = R('ram'), ns = A ? 4 : 2;
+    for (let i = 0; i < ns; i++) {
+      const x = ra.x + 6 + i * (A ? 21 : 28);
+      add(box(x, ra.y + 10, 13, ra.h - 14, 15, '#16181c', { extra: z => `<g transform="${plane(z)}"><rect x="${x + 5}" y="${ra.y + 16}" width="3" height="${ra.h - 26}" fill="#000"/></g>` }));
+      add(box(x - 1, ra.y, 15, 11, 19, A ? '#7b8089' : '#2a2d33'));
+    }
+    /* M.2, PCIe, chipset */
+    const m2 = R('m2');
+    if (A) { add(box(m2.x, m2.y, m2.w, m2.h, 3, '#1b1d21')); for (let i = 0; i < 26; i++) add(box(m2.x + 4 + i * 8, m2.y + 2, 4, m2.h - 4, 7, '#3a3f47', { z: 3 })); }
+    else add(box(m2.x + 2, m2.y, m2.w - 4, 10, 6, '#1b1d21'));
+    const pc = R('pcie');
+    add(box(pc.x, pc.y, pc.w, pc.h, H.pcie, A ? '#b8c0ca' : '#1b1d21', { topFill: A ? '#dfe4ea' : '#2a2d33', extra: z => `<g transform="${plane(z)}"><rect x="${pc.x + 4}" y="${pc.y + pc.h / 2 - 2}" width="${pc.w - 8}" height="4" fill="#000"/></g>` }));
+    add(box(pc.x + pc.w + 2, pc.y - 3, 10, pc.h + 6, H.pcie + 2, '#2a2d33'));
+    ['pciex1', 'pcie2'].filter(k => P[k]).forEach(k => { const r = R(k); add(box(r.x, r.y, r.w, r.h, 11, '#1b1d21', { extra: z => `<g transform="${plane(z)}"><rect x="${r.x + 4}" y="${r.y + r.h / 2 - 1.5}" width="${r.w - 8}" height="3" fill="#000"/></g>` })); });
+    const ch = R('chipset');
+    add(box(ch.x, ch.y, ch.w, ch.h, 4, '#1b1d21'));
+    for (let i = 0; i < 11; i++) add(box(ch.x + 3 + i * 8, ch.y + 2, 4, ch.h - 4, 14, '#3a3f47', { z: 4 }));
+    /* SATA, pilha, chips, conectores */
+    const sa = R('sata');
+    (A ? [[0, 0], [24, 0], [0, 40], [24, 40]] : [[0, 0], [0, 110]]).forEach(([dx, dy]) => add(box(sa.x + dx, sa.y + dy, A ? 22 : sa.w, A ? 36 : 40, 15, '#1b1d21', { extra: z => `<g transform="${plane(z)}"><rect x="${sa.x + dx + 6}" y="${sa.y + dy + 6}" width="10" height="${(A ? 36 : 40) - 12}" fill="#050506"/><rect x="${sa.x + dx + 9}" y="${sa.y + dy + 9}" width="4" height="${(A ? 36 : 40) - 18}" fill="#d4ad4a"/></g>` })));
+    const bi = R('bios'); add(cyl(bi.x + bi.w / 2, bi.y + bi.h / 2, bi.w / 2, 5, '#9aa3ae', '#dfe4ea', { cross: false }));
+    const si = R('sio'); add(box(si.x, si.y, si.w, si.h, 3, '#111316'));
+    ['front', 'usbh', 'audio'].forEach(k => { const r = R(k); add(box(r.x, r.y, r.w, r.h, 9, '#1b1d21', { extra: z => `<g transform="${plane(z)}">${Array.from({ length: Math.floor((r.w - 6) / 6) * 2 }, (_, i) => { const n = Math.floor((r.w - 6) / 6); return `<rect x="${r.x + 4 + (i % n) * 6}" y="${r.y + 4 + Math.floor(i / n) * 6}" width="2.5" height="2.5" fill="#e8c766"/>`; }).join('')}</g>` })); });
+    L.sort((a, b) => a.d - b.d);
+    return L.map(o => o.svg).join('');
+  }
+  const NAMES = { io: 'Portas traseiras (E/S)', eps: 'Conector de 8 pinos do CPU', vrm: 'VRM (alimentação do CPU)', socket: 'Socket do processador', cpufan: 'Conector CPU_FAN', ram: 'Ranhuras de memória', atx: 'Conector ATX de 24 pinos', m2: 'Ranhura M.2 (SSD)', pcie: 'Ranhura PCI Express x16', pciex1: 'Ranhura PCIe x1', chipset: 'Chipset', sata: 'Portas SATA', bios: 'Pilha CMOS', front: 'Painel frontal', sio: 'Super I/O', usbh: 'USB interno', audio: 'Som frontal' };
+  function render(svg, pre){
+    const corners = [[OX, OY], [OX + BW, OY], [OX + BW, OY + BH], [OX, OY + BH]];
+    /* placa: espessura + desenho plano por cima */
+    let s = defsSVG(pre).replace('</defs>', '') + `<filter id="${pre}soft"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-opacity=".35"/></filter></defs>`;
+    const top = corners.map(([x, y]) => pr(x, y, 4)), bot = corners.map(([x, y]) => pr(x, y, 0));
+    s += `<polygon points="${pts(bot)}" fill="#000" filter="url(#${pre}soft)" opacity=".7"/>`;
+    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4, [x1, y1] = corners[i], [x2, y2] = corners[j], nx = Math.sign(y2 - y1) , ny = -Math.sign(x2 - x1); const [nu, nv] = [[nx, ny], [-ny, nx], [-nx, -ny], [ny, -nx]][rot]; if (nu + nv > 0) s += `<polygon points="${pts([bot[i], bot[j], top[j], top[i]])}" fill="${nu > 0 ? '#2a2d33' : '#1c1e22'}"/>`; }
+    s += `<g transform="${plane(4)}">${boardSVG(pre).replace(/<defs>[\s\S]*?<\/defs>/, '')}</g>`;
+    s += `<g transform="translate(0 -4)">${scene()}</g>`;
+    /* zonas clicáveis e realce */
+    Object.keys(P).forEach(k => { const r = R(k), z = (H[k] || 4) + 5, q = [pr(r.x, r.y, z), pr(r.x + r.w, r.y, z), pr(r.x + r.w, r.y + r.h, z), pr(r.x, r.y + r.h, z)]; s += `<polygon class="hl3" id="${pre}h3-${k}" points="${pts(q)}"/><polygon class="hot3" data-k="${k}" points="${pts(q)}"/>`; });
+    /* etiquetas */
+    const all = corners.map(([x, y]) => pr(x, y, 0)), minX = Math.min(...all.map(q => q[0])), maxX = Math.max(...all.map(q => q[0])), minY = Math.min(...all.map(q => q[1])) - 50, maxY = Math.max(...all.map(q => q[1])), mid = (minX + maxX) / 2;
+    const items = Object.keys(NAMES).filter(k => P[k]).map(k => { const r = R(k), q = pr(r.x + r.w / 2, r.y + r.h / 2, (H[k] || 4) + 5); return { k, q, side: q[0] < mid ? -1 : 1 }; });
+    let lab = '';
+    [-1, 1].forEach(side => {
+      const g = items.filter(i => i.side === side).sort((a, b) => a.q[1] - b.q[1]);
+      const step = (maxY - minY + 10) / Math.max(g.length, 1); let y = minY + step / 2;
+      g.forEach(it => { const lx = side < 0 ? minX - 30 : maxX + 30, tx = side < 0 ? lx - 6 : lx + 6;
+        lab += `<g class="lbl3"><polyline points="${tx - side * 2},${y - 4} ${lx},${y - 4} ${it.q[0]},${it.q[1]}"/><circle cx="${it.q[0]}" cy="${it.q[1]}" r="3"/><text x="${tx}" y="${y}" text-anchor="${side < 0 ? 'end' : 'start'}" data-k="${it.k}">${NAMES[it.k]}</text></g>`; y += step; });
+    });
+    s += lab;
+    svg.innerHTML = s;
+    const pad = 250; svg.setAttribute('viewBox', `${minX - pad} ${minY - 10} ${maxX - minX + pad * 2} ${maxY - minY + 40}`);
+  }
+  return { render, rotate: d => { rot = (rot + d + 4) % 4; }, H };
+})();
 const ISOC = (() => {
     const S = .70, CX = 505, CY = 300;
     /* x: frente→trás · y: lado aberto→tabuleiro · z: altura */
@@ -1763,7 +1879,7 @@ pcDraw();
   const C = (k, t) => ({ cap: k, t });
   const STEPS = [
     ['Preparação', '5 min', 'Preparar a bancada', { tools: 1 }, 'Mesa estável, boa luz e espaço livre. Liga a <b>pulseira antiestática</b> a uma parte metálica da caixa. Tem à mão uma chave Philips n.º 2 e um recipiente para os parafusos. Abre as caixas por ordem e confere as peças pela fatura.', ''],
-    ['Bancada', '1 min', 'Pousar a motherboard', { board: 1 }, 'A placa monta-se <b>fora da caixa</b>, sobre a própria caixa de cartão, que serve de superfície isolante. Dentro da caixa há pouco espaço e pouca luz, e é fácil forçar uma peça.', ''],
+    ['Bancada', '1 min', 'Pousar a motherboard', { board: 1 }, 'Antes de montar, conhece a placa. Em <b>3D</b> vês o relevo de cada componente e podes rodá-la; na vista <b>de cima</b> acompanhas a montagem peça a peça. A placa monta-se <b>fora da caixa</b>, sobre a própria caixa de cartão, que serve de superfície isolante.', ''],
     ['Bancada', '2 min', 'Instalar o processador', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
     ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
     ['Bancada', '5 min', 'Montar o cooler e ligar a ventoinha', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1 }, 'Assenta o cooler a direito, sem o arrastar, e aperta os parafusos <b>em cruz</b>, um pouco de cada vez. Liga a ficha da ventoinha ao <b>CPU_FAN</b>: muitas placas recusam arrancar sem ela.', 'socket'],
@@ -1787,11 +1903,19 @@ pcDraw();
   let k = 0;
   function render(){
     const s = STEPS[k], st = s[3];
+    const bare = st.board && !st.cpu && !st.cooler && !st.ram && !st.ssd;
+    const v3 = $('#bd-view').value === '3d' && !st.iso && bare;
+    $('#bd-vwrap').style.display = bare ? '' : 'none';
+    $('#bd-rot').style.display = v3 ? '' : 'none';
     let h = '';
     if (st.iso) h = ISOC.draw(st.iso);
+    else if (v3) { svg.classList.add('iso'); ISO.render(svg, 'i3-'); h = null; }
     else { h = bench(st); h += parts(st); }
     if (st.screen) { MONX = st.iso ? 686 : OX + BW + 40; MONY = st.iso ? 60 : OY + 20; h += monitor(st.screen); }
     if (st.tools) h += `<g transform="translate(${OX + BW + 70} ${OY + 120})"><rect x="-20" y="-20" width="230" height="190" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="95" y="8" text-anchor="middle" style="font:700 12px var(--head);fill:#334155">Antes de começar</text>${['🧰  Chave Philips n.º 2', '⚡  Pulseira antiestática', '🥣  Recipiente para parafusos', '💡  Luz direta sobre a mesa', '📄  Manual da motherboard'].map((t, i) => `<text x="0" y="${38 + i * 26}" style="font:500 12px var(--ui);fill:#475569">${t}</text>`).join('')}</g>`;
+    if (h === null) { $('#bd-lv').textContent = s[0]; $('#bd-time').textContent = '⏱ ' + s[1]; sel.value = k;
+      $('#bd-verdict').innerHTML = `<div class="verdict"><b>${k + 1}. ${s[2]}</b><br>${s[4]}</div>`; return; }
+    svg.classList.remove('iso');
     svg.setAttribute('viewBox', st.iso ? '0 0 980 620' : `${OX - 44} ${OY - 42} ${BW + 300} ${BH + 96}`);
     svg.innerHTML = `<defs><linearGradient id="bd-ihs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#ccd4de"/><stop offset=".7" stop-color="#eef2f6"/><stop offset="1" stop-color="#8e98a5"/></linearGradient><linearGradient id="bd-fin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient><pattern id="bd-scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="rgba(255,255,255,.05)"/></pattern></defs>` + h;
     $('#bd-lv').textContent = s[0]; $('#bd-time').textContent = '⏱ ' + s[1];
@@ -1801,6 +1925,8 @@ pcDraw();
   function reset(){ k = 0; log.innerHTML = '<li class="empty">Carrega em Reproduzir ou em Seguinte.</li>'; render(); logTo(log, [STEPS[0][4]], '1.'); }
   function step(){ if (k >= STEPS.length - 1) return false; k++; render(); logTo(log, [STEPS[k][4]], (k + 1) + '.'); return k < STEPS.length - 1; }
   sel.onchange = () => { k = +sel.value; render(); };
+  $('#bd-view').onchange = render;
+  $('#bd-rot').addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; ISO.rotate(+b.dataset.r); render(); });
   makePlayer('montar', { step, reset, pos: () => k });
   reset();
 })();
