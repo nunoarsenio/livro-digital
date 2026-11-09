@@ -1887,7 +1887,9 @@ pcDraw();
       if (p >= 1) clearInterval(tween);
     }, 16);
   }
+  let renderToken = 0;
   function closeup(st, anim){
+    const tk = ++renderToken;
     svg.classList.add('iso', 'nolbl');
     window.ILM_OPEN = !!st.openILM;
     ISO.render(svg, 'i3-');
@@ -1895,24 +1897,50 @@ pcDraw();
     const so = R('socket'), P3 = ISO.pr, Q = ISO.pts;
     let pre = '';
     if (st.openILM) {
-      /* moldura de retenção levantada: dobradiça na borda oposta à alavanca */
-      const A2 = 52 * Math.PI / 180, cosA = Math.cos(A2), sinA = Math.sin(A2), d = so.w + 4, z0 = 10;
-      const hx = so.x - 2, fx = hx - d * cosA, fz = z0 + d * sinA;
-      const y0 = so.y - 2, y1 = so.y + so.h + 2, t = 10;
-      const outer = [P3(hx, y0, z0), P3(hx, y1, z0), P3(fx, y1, fz), P3(fx, y0, fz)];
-      const ihx = hx - t * cosA, ihz = z0 + t * sinA, ifx = fx + t * cosA, ifz = fz - t * sinA;
-      const inner = [P3(ihx, y0 + t, ihz), P3(ihx, y1 - t, ihz), P3(ifx, y1 - t, ifz), P3(ifx, y0 + t, ifz)];
-      pre += `<path d="M ${Q(outer)} Z M ${Q(inner)} Z" fill="url(#i3-plate)" fill-rule="evenodd" stroke="#6b7682" stroke-width="1.2"/>`;
-      pre += `<path d="M ${Q(inner)} Z" fill="rgba(120,140,170,.12)"/>`;
+      const anim2 = !!st.closeAnim, DUR = '1.3s';
+      /* ---- moldura de retenção: caminho aberto e caminho fechado (mesma estrutura, para morph) ---- */
+      const plate = ang => {
+        const A2 = ang * Math.PI / 180, cosA = Math.cos(A2), sinA = Math.sin(A2), d = so.w + 4, z0 = 10;
+        const hx = so.x - 2, fx = hx + (ang > 1 ? -d * cosA : d), fz = z0 + d * sinA;
+        const y0 = so.y - 2, y1 = so.y + so.h + 2, t = 10;
+        const outer = [P3(hx, y0, z0), P3(hx, y1, z0), P3(fx, y1, fz), P3(fx, y0, fz)];
+        const ihx = hx + (ang > 1 ? -t * cosA : t), ihz = z0 + t * sinA;
+        const ifx = fx + (ang > 1 ? t * cosA : -t), ifz = fz - t * sinA;
+        const inner = [P3(ihx, y0 + t, ihz), P3(ihx, y1 - t, ihz), P3(ifx, y1 - t, ifz), P3(ifx, y0 + t, ifz)];
+        return `M ${Q(outer)} Z M ${Q(inner)} Z`;
+      };
+      const dOpen = plate(52), dShut = plate(0);
+      pre += `<path id="i3-plate-p" d="${anim2 ? dOpen : dOpen}" fill="url(#i3-plate)" fill-rule="evenodd" stroke="#6b7682" stroke-width="1.2"/>`;
       /* dobradiça */
-      pre += `<path d="M ${Q([P3(hx - 5, y0, z0 - 4), P3(hx - 5, y1, z0 - 4), P3(hx + 4, y1, z0 + 5), P3(hx + 4, y0, z0 + 5)])} Z" fill="#aeb6c1" stroke="#6b7682" stroke-width="1"/>`;
-      /* alavanca aberta, levantada e afastada */
+      const hx2 = so.x - 2, y0b = so.y - 2, y1b = so.y + so.h + 2;
+      pre += `<path d="M ${Q([P3(hx2 - 5, y0b, 6), P3(hx2 - 5, y1b, 6), P3(hx2 + 4, y1b, 15), P3(hx2 + 4, y0b, 15)])} Z" fill="#aeb6c1" stroke="#6b7682" stroke-width="1"/>`;
+      /* ---- alavanca ---- */
       const lx = so.x + so.w + 8, ly0 = so.y - 2, ly1 = so.y + so.h + 2, lw = 7;
-      const bar = (p, q, w, col) => `<path d="M ${Q([P3(p[0], p[1] - w, p[2]), P3(q[0], q[1] - w, q[2]), P3(q[0], q[1] + w, q[2]), P3(p[0], p[1] + w, p[2])])} Z" fill="${col}" stroke="#6b7682" stroke-width="1"/>`;
-      pre += bar([lx, ly1 - 2, 4], [lx + 30, ly0 - 10, 46], lw, 'url(#i3-plate)');
-      pre += bar([lx + 30, ly0 - 10, 46], [lx + 54, ly0 - 4, 40], lw * .8, '#c3cad3');
-      const piv = P3(lx, ly1 - 2, 4), tip = P3(lx + 54, ly0 - 4, 40);
-      pre += `<circle cx="${piv[0]}" cy="${piv[1]}" r="5" fill="#8e98a5" stroke="#5b6472"/><circle cx="${tip[0]}" cy="${tip[1]}" r="4.5" fill="#dfe4ea" stroke="#6b7682"/>`;
+      const quad = (p, q, w) => `M ${Q([P3(p[0], p[1] - w, p[2]), P3(q[0], q[1] - w, q[2]), P3(q[0], q[1] + w, q[2]), P3(p[0], p[1] + w, p[2])])} Z`;
+      const armAt = f => quad([lx, ly1 - 2, 4], [lx + 30 * f, ly0 - 10 * f + 6 * (1 - f), 4 + 42 * f], lw);
+      const tipAt = f => quad([lx + 30 * f, ly0 - 10 * f + 6 * (1 - f), 4 + 42 * f], [lx + 54 * f - 26 * (1 - f), ly0 - 4 * f - 2 * (1 - f), 4 + 36 * f], lw * .8);
+      pre += `<path id="i3-arm" d="${armAt(1)}" fill="url(#i3-plate)" stroke="#6b7682" stroke-width="1"/>`;
+      pre += `<path id="i3-tip" d="${tipAt(1)}" fill="#c3cad3" stroke="#6b7682" stroke-width="1"/>`;
+      if (anim2) setTimeout(() => {
+        if (tk !== renderToken) return;
+        const t0 = performance.now(), D = 1300;
+        const go = () => {
+          if (tk !== renderToken) return;
+          const p = Math.min(1, (performance.now() - t0) / D), e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+          const pl = $('#i3-plate-p'), ar = $('#i3-arm'), tp = $('#i3-tip');
+          if (!pl) return;
+          pl.setAttribute('d', plate(52 * (1 - e)));
+          ar.setAttribute('d', armAt(1 - e)); tp.setAttribute('d', tipAt(1 - e));
+          if (p < 1) requestAnimationFrame(go);
+          else { const g = P3(lx - 4, ly0 - 6, 14);
+            svg.insertAdjacentHTML('beforeend', `<circle cx="${g[0]}" cy="${g[1]}" r="5" fill="none" stroke="#22c55e" stroke-width="3"><animate attributeName="r" values="5;22" dur=".7s" fill="freeze"/><animate attributeName="opacity" values="1;0" dur=".7s" fill="freeze"/></circle>`); }
+        };
+        requestAnimationFrame(go);
+      }, 120);
+      const piv = P3(lx, ly1 - 2, 4);
+      pre += `<circle cx="${piv[0]}" cy="${piv[1]}" r="5" fill="#8e98a5" stroke="#5b6472"/>`;
+      if (anim2) { const g = P3(lx - 4, ly0 - 6, 14);
+        pre += `<circle cx="${g[0]}" cy="${g[1]}" r="9" fill="none" stroke="#22c55e" stroke-width="3" opacity="0"><animate attributeName="opacity" values="0;0;1;0" dur="2.2s" fill="freeze"/><animate attributeName="r" values="4;4;16;20" dur="2.2s" fill="freeze"/></circle>`; }
     }
     /* processador: paira, desce em animação, ou já assente */
     const Z0 = 12, ZH = 118, drop = !!st.cpuAnim;
@@ -1941,16 +1969,21 @@ pcDraw();
         extra += `<path d="M${a[0]} ${a[1] + 18} L${b2[0]} ${b2[1] - 10}" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 6" fill="none"><animate attributeName="stroke-dashoffset" values="26;0" dur=".8s" repeatCount="indefinite"/></path><path d="M${b2[0] - 6} ${b2[1] - 16} l6 8 l6 -8" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }
     }
     /* etiquetas próprias do grande plano */
+    let lbl = '';
     const L = [[so.x + so.w + 8, so.y + so.h * .72, 'alavanca de retenção', 1, 40], [so.x + so.w * .5, so.y + so.h - 6, 'contactos do socket (LGA)', 1, 150], [so.x + 6, so.y + 6, 'moldura metálica (ILM)', -1, -70], [so.x + 14, so.y + so.h - 14, 'triângulo de referência', -1, 40]];
     L.forEach(([x, y, t, side, dy]) => { const q = P3(x, y, 10), dx = side * 190, w = t.length * 6.6 + 16;
       const ex = q[0] + dx, ey = q[1] + dy;
-      extra += `<g class="cl"><polyline points="${q[0]},${q[1]} ${q[0] + dx * .45},${q[1] + dy * .7} ${ex},${ey}"/><circle cx="${q[0]}" cy="${q[1]}" r="3.5"/><rect x="${side > 0 ? ex + 4 : ex - w - 4}" y="${ey - 11}" width="${w}" height="21" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="${ex + (side > 0 ? 12 : -12)}" y="${ey + 4}" text-anchor="${side > 0 ? 'start' : 'end'}">${t}</text></g>`; });
-    svg.insertAdjacentHTML('beforeend', `<defs><linearGradient id="i3-ihs2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#cfd7e1"/><stop offset=".72" stop-color="#eef2f6"/><stop offset="1" stop-color="#97a1ae"/></linearGradient><linearGradient id="i3-plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".5" stop-color="#b9c1cb"/><stop offset="1" stop-color="#848e9b"/></linearGradient></defs>` + pre + extra);
+      lbl += `<g class="cl"><polyline points="${q[0]},${q[1]} ${q[0] + dx * .45},${q[1] + dy * .7} ${ex},${ey}"/><circle cx="${q[0]}" cy="${q[1]}" r="3.5"/><rect x="${side > 0 ? ex + 4 : ex - w - 4}" y="${ey - 11}" width="${w}" height="21" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="${ex + (side > 0 ? 12 : -12)}" y="${ey + 4}" text-anchor="${side > 0 ? 'start' : 'end'}">${t}</text></g>`; });
+    svg.insertAdjacentHTML('beforeend', `<defs><linearGradient id="i3-ihs2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbfcfd"/><stop offset=".45" stop-color="#cfd7e1"/><stop offset=".72" stop-color="#eef2f6"/><stop offset="1" stop-color="#97a1ae"/></linearGradient><linearGradient id="i3-plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".5" stop-color="#b9c1cb"/><stop offset="1" stop-color="#848e9b"/></linearGradient></defs>` + extra + pre + lbl);
     /* enquadramento: a câmara aproxima-se do socket */
-    const corners = [[so.x - 44, so.y - 44], [so.x + so.w + 44, so.y - 44], [so.x + so.w + 44, so.y + so.h + 44], [so.x - 44, so.y + so.h + 44]];
-    const ps = corners.map(([x, y]) => P3(x, y, 0)).concat(corners.map(([x, y]) => P3(x, y, 150)));
+    const corners = [[so.x - 44, so.y - 44], [so.x + so.w + 70, so.y - 44], [so.x + so.w + 70, so.y + so.h + 44], [so.x - 44, so.y + so.h + 44]];
+    let ps = corners.map(([x, y]) => P3(x, y, 0)).concat(corners.map(([x, y]) => P3(x, y, 150)));
+    if (st.openILM) {                       /* a moldura levantada tem de caber no enquadramento */
+      const d2 = so.w + 4, fx2 = so.x - 2 - d2 * Math.cos(52 * Math.PI / 180), fz2 = 10 + d2 * Math.sin(52 * Math.PI / 180);
+      ps = ps.concat([P3(fx2, so.y - 2, fz2), P3(fx2, so.y + so.h + 2, fz2), P3(so.x + so.w + 62, so.y - 10, 46)]);
+    }
     const xs = ps.map(p => p[0]), ys = ps.map(p => p[1]);
-    const x0 = Math.min(...xs) - 260, x1 = Math.max(...xs) + 240, y0 = Math.min(...ys) - 24, y1 = Math.max(...ys) + 50;
+    const x0 = Math.min(...xs) - 230, x1 = Math.max(...xs) + 230, y0 = Math.min(...ys) - 30, y1 = Math.max(...ys) + 50;
     setVB(svg, [x0, y0, x1 - x0, y1 - y0], anim ? 900 : 0);
   }
   let MONX = 686, MONY = 60;
@@ -1974,7 +2007,7 @@ pcDraw();
     ['Bancada', '1 min', 'Abrir o socket', { zoom: 1, openILM: 1 }, 'Empurra a <b>alavanca</b> para o lado, para a libertar do gancho, e levanta-a. A <b>moldura de retenção</b> sobe com ela e deixa os contactos à vista. A tampa de plástico preta só deve sair depois de o processador estar instalado.', 'socket'],
     ['Bancada', '2 min', 'Pousar o processador no socket', { zoom: 1, openILM: 1, cpuHover: 1 }, 'O processador desce <b>a direito</b> sobre o socket, com o <b>triângulo dourado</b> alinhado com o do canto. Pega-lhe sempre pelas bordas, nunca nos contactos nem na tampa.', 'socket'],
     ['Bancada', '1 min', 'Assentar o processador', { zoom: 1, openILM: 1, cpuAnim: 1 }, 'O processador <b>desce a direito</b> e entra sozinho, guiado pelas duas chaves laterais. Repara nas guias vermelhas: os quatro cantos descem ao mesmo tempo, sem inclinar. Se não assentar, levanta-o e verifica a orientação em vez de forçar.', 'socket'],
-    ['Bancada', '1 min', 'Fechar a alavanca', { zoom: 1, cpuDown: 1 }, 'Assentou pelo próprio peso: <b>nunca se força</b>. Baixa a alavanca, que faz alguma pressão sobre os contactos, e a tampa de proteção salta sozinha.', 'socket'],
+    ['Bancada', '1 min', 'Fechar o socket', { zoom: 1, openILM: 1, cpuDown: 1, closeAnim: 1 }, 'Baixa a <b>moldura de retenção</b> sobre as bordas do processador e prende a <b>alavanca no gancho</b>. Sente-se alguma resistência: é normal, é a força que garante o contacto nos 1700 pontos. A tampa de proteção salta sozinha.', 'socket'],
     ['Bancada', '0 min', 'Processador instalado', { board: 1, cpu: 1 }, 'Abre a alavanca do socket, alinha o <b>triângulo dourado</b> com o do canto da placa e pousa o processador. Entra pelo próprio peso: nunca se força. Fecha a alavanca, que faz alguma pressão, e a tampa de proteção salta.', 'socket'],
     ['Bancada', '1 min', 'Aplicar a pasta térmica', { board: 1, cpu: 1, paste: 1 }, 'Uma gota central do tamanho de uma ervilha. A pressão do cooler espalha-a. Se o cooler já trouxer pasta aplicada de fábrica, não acrescentes mais.', 'socket'],
     ['Bancada', '5 min', 'Montar o cooler e ligar a ventoinha', { board: 1, cpu: 1, paste: 1, cooler: 1, cfan: 1 }, 'Assenta o cooler a direito, sem o arrastar, e aperta os parafusos <b>em cruz</b>, um pouco de cada vez. Liga a ficha da ventoinha ao <b>CPU_FAN</b>: muitas placas recusam arrancar sem ela.', 'socket'],
@@ -2003,7 +2036,7 @@ pcDraw();
     $('#bd-vwrap').style.display = bare ? '' : 'none';
     $('#bd-rot').style.display = v3 || st.zoom ? '' : 'none';
     let h = '';
-    $('#bd-replay').hidden = !st.cpuAnim;
+    $('#bd-replay').hidden = !(st.cpuAnim || st.closeAnim);
     if (st.zoom) { closeup(st, true); h = null; }
     else if (st.iso) h = ISOC.draw(st.iso);
     else if (v3) { svg.classList.add('iso'); svg.classList.remove('nolbl'); ISO.render(svg, 'i3-'); h = null; }
