@@ -1,3 +1,14 @@
 [
- { "match": "Funções e características", "url": "labs/funcoes-caracteristicas-so.html", "title": "Funções e características de um SO" }
+ { "match": "Funções e características", "url": "labs/funcoes-caracteristicas-so.html", "title": "Funções e características de um SO" },
+ { "match": "Processos concorrentes", "url": "labs/processos-concorrentes.html", "title": "Processos concorrentes" },
+ { "match": "Núcleo de SO", "url": "labs/nucleo-gestao-memoria.html", "title": "O Núcleo do SO e a gestão de memória" },
+ { "match": "Entrada e Saída", "url": "labs/entrada-saida-dados.html", "title": "Entrada e saída de dados" },
+ { "match": "Sistema de Ficheiros", "url": "labs/sistema-ficheiros.html", "title": "O sistema de ficheiros" },
+ { "match": "Gestão de Recursos", "url": "labs/gestao-recursos.html", "title": "Gestão de recursos" },
+ { "match": "Proteção", "url": "labs/protecao.html", "title": "Proteção" },
+ { "match": "Fiabilidade", "url": "labs/fiabilidade.html", "title": "Fiabilidade" },
+ { "match": "Job Control", "url": "labs/job-control.html", "title": "Noção de «Job Control»" },
+ { "match": "Tipos de funções", "url": "labs/tipos-funcoes-so.html", "title": "Tipos de funções dos sistemas operativos" },
+ { "match": "Multitarefa", "url": "labs/multitarefa.html", "title": "O conceito de multitarefa" },
+ { "match": "Partilha de informação", "url": "labs/partilha-comunicacao.html", "title": "Partilha de informação e comunicação entre computadores" }
 ]
