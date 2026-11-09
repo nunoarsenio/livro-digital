@@ -409,6 +409,62 @@ main{max-width:80rem;margin:0 auto;padding:1.4rem 1.5rem 3rem}
 .scard .opts button.right{background:var(--good);color:#fff;border-color:var(--good)}
 .scard .opts button.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
 
+
+
+.sbx{display:grid;grid-template-columns:1.1fr 1fr;gap:.9rem;align-items:start}
+.cwin{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);display:flex;flex-direction:column;box-shadow:0 2px 10px rgba(15,23,42,.06)}
+.cwin-bar{display:flex;align-items:center;gap:.5rem;padding:.42rem .6rem;background:linear-gradient(180deg,var(--card),var(--soft));border-bottom:1px solid var(--line);font:600 .76rem var(--ui);white-space:nowrap;overflow:hidden}
+.cwin-bar b{overflow:hidden;text-overflow:ellipsis}
+.term-win .cwin-bar{background:#1b1f26;color:#cbd5e1;border-bottom-color:#2b313b}
+.cwin-ic{font-size:.8rem}
+.cwin-btns{margin-left:auto;display:flex;gap:.3rem}
+.cwin-btns i{width:.62rem;height:.62rem;border-radius:50%;background:var(--line)}
+.term-win .cwin-btns i{background:#3a414c}
+.cwin-btns i.x{background:#ef5f56}
+.term.live{height:25rem;cursor:text;border-radius:0;scrollbar-width:thin}
+.term .inp{background:transparent;border:0;outline:0;color:#fff;font:inherit;width:72%;caret-color:#7fd17f}
+.term .err{color:#ff8b7d}
+.term .ok{color:#7fd17f}
+.term .dir{color:#7fb2ff;font-weight:600}
+.term .hi{color:#ffd166}
+.crumb2{display:flex;flex-wrap:wrap;gap:.2rem;align-items:center;padding:.35rem .6rem;border-bottom:1px solid var(--line);font:500 .78rem var(--mono)}
+.crumb2 button{border:0;background:transparent;color:var(--accent);font:inherit;cursor:pointer;padding:.1rem .25rem;border-radius:4px}
+.crumb2 button:hover{background:var(--soft)}
+.crumb2 span{color:var(--muted)}
+.fwin{height:20.4rem;overflow:auto;padding:.6rem}
+.fwin .items{display:flex;flex-wrap:wrap;gap:.5rem;align-content:flex-start}
+.fwin .it{width:5.4rem;text-align:center;font-size:.73rem;padding:.4rem .2rem;border-radius:7px;word-break:break-word;cursor:pointer;border:1px solid transparent}
+.fwin .it:hover{background:var(--soft)}
+.fwin .it.sel{background:color-mix(in srgb,var(--accent) 18%,var(--card));border-color:var(--accent)}
+.fwin .it b{display:block;font-size:1.7rem;font-weight:400;line-height:1.2}
+.fwin table{width:100%;border-collapse:collapse;font-size:.78rem}
+.fwin th{text-align:left;font-size:.7rem;color:var(--muted);border-bottom:1px solid var(--line);padding:.2rem .4rem;position:sticky;top:0;background:var(--card)}
+.fwin td{padding:.22rem .4rem;border-bottom:1px solid var(--line);cursor:pointer}
+.fwin tr:hover td{background:var(--soft)}
+.fwin td.sz,.fwin td.dt{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+.statusb{border-top:1px solid var(--line);padding:.3rem .6rem;font-size:.74rem;color:var(--muted);background:var(--soft)}
+.tbar{margin-top:.7rem}
+.tbar .chips{display:flex;flex-wrap:wrap;gap:.3rem}
+.tbar .chip{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:.22rem .62rem;font:600 .75rem var(--mono);cursor:pointer;color:var(--ink)}
+.tbar .chip:hover{border-color:var(--accent);color:var(--accent)}
+.chal-head{display:flex;align-items:center;gap:.6rem;margin:1.2rem 0 .3rem}
+.chal-head h3{margin:0}
+.chal-head .pct{margin-left:auto;font:700 .9rem var(--mono);color:var(--accent)}
+.pbar2{height:.42rem;border-radius:999px;background:var(--line);overflow:hidden;margin-bottom:.6rem}
+.pbar2 i{display:block;height:100%;background:linear-gradient(90deg,var(--p3),var(--accent));transition:width .4s}
+.chal{list-style:none;margin:0;padding:0;display:grid;gap:.35rem}
+.chal li{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem .7rem;border:1px solid var(--line);border-radius:9px;font-size:.86rem;background:var(--card)}
+.chal li::before{content:"○";color:var(--muted);font-weight:700}
+.chal li.done{border-color:var(--good);background:var(--good-soft)}
+.chal li.done::before{content:"✓";color:var(--good)}
+.chal .lv{margin-left:auto;font:700 .62rem var(--ui);padding:.1rem .4rem;border-radius:5px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.chal small{display:block;color:var(--muted);font-size:.76rem;margin-top:.1rem}
+.hsearch{width:100%;padding:.4rem .6rem;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);font:500 .84rem var(--ui);margin-bottom:.5rem}
+#t-help table{width:100%;border-collapse:collapse;font-size:.79rem}
+#t-help td{padding:.2rem .3rem;border-bottom:1px solid var(--line);vertical-align:top}
+#t-help td:first-child{font:600 .76rem var(--mono);white-space:nowrap;color:var(--accent);cursor:pointer}
+#t-help td:first-child:hover{text-decoration:underline}
+@media (max-width:900px){.sbx{grid-template-columns:1fr}}
 @media (max-width:960px){
   .bootg,.ifg,.pros{grid-template-columns:1fr}
   .intg,.stream{grid-template-columns:1fr}
@@ -432,8 +488,9 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
     <button role="tab" aria-selected="true" data-tab="funcoes"><span>1</span>As funções do SO em ação</button>
     <button role="tab" aria-selected="false" data-tab="arranque"><span>2</span>O arranque</button>
     <button role="tab" aria-selected="false" data-tab="interface"><span>3</span>Interface gráfica e linha de comandos</button>
-    <button role="tab" aria-selected="false" data-tab="tipos"><span>4</span>Tipos de SO</button>
-    <button role="tab" aria-selected="false" data-tab="teste"><span>5</span>Testa-te</button>
+    <button role="tab" aria-selected="false" data-tab="terminal"><span>4</span>Experimenta: linha de comandos</button>
+    <button role="tab" aria-selected="false" data-tab="tipos"><span>5</span>Tipos de SO</button>
+    <button role="tab" aria-selected="false" data-tab="teste"><span>6</span>Testa-te</button>
   </nav>
 </header>
 <main>
@@ -513,6 +570,51 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
     <div class="side">
       <div class="card"><h3>O que está a acontecer</h3><ul class="log" id="i-log"><li class="empty">Carrega em Reproduzir ou em Seguinte.</li></ul></div>
       <div class="card"><h3>Comandos úteis</h3><ul id="i-cmds"></ul></div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- 4. TERMINAL -->
+<section id="terminal" role="tabpanel" hidden>
+  <div class="intro"><h2>Experimenta tu: a linha de comandos</h2>
+  <p>Um terminal a sério, com um disco simulado. Escreve comandos e vê o resultado: o <b>explorador</b> ao lado mostra sempre a mesma pasta, e podes navegar por qualquer um dos dois. Começa por <code>help</code>, ou segue os desafios.</p></div>
+  <div class="grid">
+    <div class="card">
+      <div class="cfg">
+        <label>Interpretador<select id="t-sh"><option value="win">Windows · CMD</option><option value="lin">Linux · Bash</option></select></label>
+        <label>Vista do explorador<select id="t-view"><option value="icons">Ícones</option><option value="list">Detalhes</option></select></label>
+        <button class="btn ghost" id="t-reset" type="button">↺ Repor o disco</button>
+      </div>
+      <div class="sbx">
+        <div class="cwin term-win">
+          <div class="cwin-bar"><span class="cwin-ic">⬛</span><b id="t-title"></b><span class="cwin-btns"><i></i><i></i><i class="x"></i></span></div>
+          <div class="term live" id="t-out" tabindex="0"></div>
+        </div>
+        <div class="cwin">
+          <div class="cwin-bar"><span class="cwin-ic">📁</span><b>Explorador de Ficheiros</b><span class="cwin-btns"><i></i><i></i><i class="x"></i></span></div>
+          <div class="crumb2" id="t-crumb"></div>
+          <div class="fwin" id="t-win"></div>
+          <div class="statusb" id="t-status"></div>
+        </div>
+      </div>
+      <div class="tbar"><span class="chips" id="t-quick"></span></div>
+      <div class="chal-head"><h3>Desafios</h3><span class="pct" id="t-score">0 / 12</span></div>
+      <div class="pbar2"><i id="t-pbar"></i></div>
+      <ul class="chal" id="t-chal"></ul>
+    </div>
+    <div class="side">
+      <div class="card"><h3>Comandos</h3><input class="hsearch" id="t-find" placeholder="procurar comando…" autocomplete="off"><div id="t-help"></div></div>
+      <div class="card"><h3>Atalhos e truques</h3><ul style="font-size:.86rem;line-height:1.6">
+        <li><b>↑</b> e <b>↓</b>: comandos anteriores.</li>
+        <li><b>Tab</b>: completa comandos e nomes de ficheiros.</li>
+        <li><b>Ctrl+L</b>: limpa o ecrã. <b>Esc</b>: apaga a linha.</li>
+        <li><b>*</b> substitui qualquer texto: <code>del *.txt</code>.</li>
+        <li><b>|</b> envia o resultado para outro comando: <code>dir | find "txt"</code>.</li>
+        <li><b>&gt;</b> grava num ficheiro, <b>&gt;&gt;</b> acrescenta ao fim.</li>
+        <li><code>help dir</code> (ou <code>man ls</code>) explica um comando.</li>
+      </ul></div>
     </div>
   </div>
 </section>
@@ -832,6 +934,374 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
   reset();
 })();
 
+
+
+
+/* ================= 4. TERMINAL INTERATIVO ================= */
+(() => {
+  /* ---------- disco simulado ---------- */
+  const D0 = '08/11/2026  10:24';
+  const F = (s, txt, at) => ({ t: 'f', s, txt, d: D0, at: at || 'A' });
+  const seed = () => ({ t: 'd', d: D0, c: {
+    'Documentos': { t: 'd', d: D0, c: {
+      'relatorio.docx': F(24576, 'Relatório de Sistemas Operativos\n(ficheiro de exemplo)'),
+      'notas.txt': F(142, 'SO = software de base\nGere os recursos do computador\nExemplos: Windows, Linux, macOS, Android'),
+      'orcamento.xlsx': F(9216) } },
+    'Imagens': { t: 'd', d: D0, c: { 'foto.jpg': F(1048576), 'paisagem.png': F(524288), 'esquema.png': F(86016) } },
+    'Transferências': { t: 'd', d: D0, c: { 'instalador.exe': F(4194304), 'manual.pdf': F(1572864) } },
+    'Música': { t: 'd', d: D0, c: {} },
+    'leia-me.txt': F(118, 'Bem-vindo ao terminal de treino.\nEscreve help para ver os comandos.\nBom trabalho!'),
+    'config.sys': F(64, 'exemplo=1', 'AH')
+  } });
+  let FS, cwd = [], hist = [], hi = 0, lastErr = 0, sel = null, flashed = new Set();
+  const $$ = s => document.querySelector(s);
+  const W = () => $$('#t-sh').value === 'win';
+  const home = () => W() ? 'C:\\Users\\aluno' : '/home/aluno';
+  const pathStr = (p = cwd) => W() ? home() + (p.length ? '\\' + p.join('\\') : '') : (p.length ? '/home/aluno/' + p.join('/') : '/home/aluno');
+  const prompt = () => W() ? pathStr() + '>' : 'aluno@pc:' + (cwd.length ? '~/' + cwd.join('/') : '~') + '$';
+  const node = p => { let n = FS; for (const x of p) { if (!n.c || !n.c[x]) return null; n = n.c[x]; } return n; };
+  const here = () => node(cwd);
+  const fmt = n => n.toLocaleString('pt-PT');
+  const hum = n => n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+  function resolve(arg){
+    if (!arg) return cwd.slice();
+    let s = arg.replace(/"/g, ''), base = cwd.slice(), abs = /^([a-zA-Z]:|~|\/)/.test(s);
+    let parts = s.split(/[\\/]+/).filter(x => x !== '');
+    if (abs) { base = []; parts = parts.filter(x => !/^([a-zA-Z]:|~|home|Users|aluno)$/i.test(x)); }
+    for (const x of parts) { if (x === '.') continue; else if (x === '..') base.pop(); else base.push(x); }
+    return base;
+  }
+  const glob = (pat, names) => { const re = new RegExp('^' + pat.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i'); return names.filter(n => re.test(n)); };
+  /* ---------- terminal ---------- */
+  const out = $$('#t-out'), line = document.createElement('div');
+  const esc2 = s => esc(String(s));
+  let buf = null;                                   /* captura para | e > */
+  function write(html, cls){ if (buf !== null) { buf += html.replace(/<[^>]+>/g, '') + '\n'; return; } const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; out.insertBefore(d, line); out.scrollTop = 1e6; }
+  const err = m => { lastErr = 1; write(m, 'err'); };
+  const ok2 = m => { lastErr = 0; write(m, 'ok'); };
+  /* ---------- catálogo de comandos ---------- */
+  const MAN = {
+    win: {
+      help: ['help [comando]', 'lista os comandos ou explica um'],
+      dir: ['dir [/b] [/s] [máscara]', 'lista ficheiros e pastas'],
+      cd: ['cd <pasta>', 'muda de pasta · cd .. sobe · cd \\ vai à raiz'],
+      md: ['md <pasta>', 'cria uma pasta (mkdir)'], rd: ['rd <pasta>', 'apaga uma pasta vazia (rmdir)'],
+      copy: ['copy <orig> <dest>', 'copia ficheiros (aceita *)'], move: ['move <orig> <dest>', 'move ou muda o nome'],
+      del: ['del <ficheiro>', 'apaga ficheiros (aceita *)'], ren: ['ren <nome> <novo>', 'muda o nome'],
+      type: ['type <ficheiro>', 'mostra o conteúdo'], echo: ['echo <texto>', 'escreve · > grava · >> acrescenta'],
+      find: ['find "texto"', 'filtra linhas que contêm o texto'], sort: ['sort', 'ordena as linhas'],
+      more: ['more <ficheiro>', 'mostra o conteúdo por páginas'], attrib: ['attrib [ficheiro]', 'mostra os atributos'],
+      tree: ['tree', 'árvore de pastas'], cls: ['cls', 'limpa o ecrã'], ver: ['ver', 'versão do Windows'],
+      vol: ['vol', 'etiqueta e número de série do disco'], date: ['date', 'data'], time: ['time', 'hora'],
+      whoami: ['whoami', 'utilizador atual'], hostname: ['hostname', 'nome do computador'],
+      set: ['set [nome]', 'variáveis de ambiente'], where: ['where <nome>', 'onde está um programa'],
+      tasklist: ['tasklist', 'processos em execução'], taskkill: ['taskkill /IM <nome>', 'termina um processo'],
+      ipconfig: ['ipconfig [/all]', 'configuração de rede'], ping: ['ping <destino>', 'testa a ligação'],
+      systeminfo: ['systeminfo', 'informação do sistema'], chkdsk: ['chkdsk', 'verifica o disco'],
+      start: ['start <programa>', 'abre um programa'], shutdown: ['shutdown /s /t 0', 'encerra o computador'],
+      exit: ['exit', 'fecha a janela']
+    },
+    lin: {
+      help: ['help [comando]', 'lista os comandos ou explica um'], man: ['man <comando>', 'manual de um comando'],
+      ls: ['ls [-l] [-a] [máscara]', 'lista ficheiros e pastas'],
+      cd: ['cd <pasta>', 'muda de pasta · cd .. sobe · cd ~ vai à pasta pessoal'],
+      pwd: ['pwd', 'mostra a pasta atual'], mkdir: ['mkdir <pasta>', 'cria uma pasta'], rmdir: ['rmdir <pasta>', 'apaga uma pasta vazia'],
+      cp: ['cp <orig> <dest>', 'copia ficheiros'], mv: ['mv <orig> <dest>', 'move ou muda o nome'],
+      rm: ['rm <ficheiro>', 'apaga ficheiros'], touch: ['touch <ficheiro>', 'cria um ficheiro vazio'],
+      cat: ['cat <ficheiro>', 'mostra o conteúdo'], echo: ['echo <texto>', 'escreve · > grava · >> acrescenta'],
+      grep: ['grep "texto"', 'filtra linhas que contêm o texto'], sort: ['sort', 'ordena as linhas'],
+      wc: ['wc -l', 'conta as linhas'], head: ['head <ficheiro>', 'primeiras linhas'], tail: ['tail <ficheiro>', 'últimas linhas'],
+      tree: ['tree', 'árvore de pastas'], clear: ['clear', 'limpa o ecrã'], uname: ['uname -a', 'versão do sistema'],
+      date: ['date', 'data e hora'], whoami: ['whoami', 'utilizador atual'], hostname: ['hostname', 'nome do computador'],
+      df: ['df -h', 'espaço em disco'], free: ['free -h', 'memória'], ps: ['ps', 'processos em execução'],
+      kill: ['kill <pid>', 'termina um processo'], ip: ['ip addr', 'configuração de rede'], ping: ['ping <destino>', 'testa a ligação'],
+      chmod: ['chmod 644 <ficheiro>', 'altera as permissões'], sudo: ['sudo <comando>', 'executa como administrador'],
+      exit: ['exit', 'termina a sessão']
+    }
+  };
+  const KEY = { md: 'md', mkdir: 'md', rd: 'rd', rmdir: 'rd', dir: 'dir', ls: 'dir', copy: 'copy', cp: 'copy', move: 'move', mv: 'move',
+    del: 'del', erase: 'del', rm: 'del', type: 'type', cat: 'type', more: 'type', ren: 'ren', rename: 'ren', cls: 'cls', clear: 'cls',
+    ipconfig: 'net', ip: 'net', ifconfig: 'net', tasklist: 'ps', ps: 'ps', taskkill: 'kill', kill: 'kill', ver: 'ver', uname: 'ver',
+    systeminfo: 'sys', find: 'find', grep: 'find', man: 'help', help: 'help' };
+  /* ---------- execução ---------- */
+  function exec(raw){
+    /* canalização */
+    if (raw.includes('|')) {
+      const [a, b] = raw.split('|'); const old = buf; buf = '';
+      exec(a.trim()); const piped = buf; buf = old;
+      return pipe(b.trim(), piped);
+    }
+    /* redirecionamento */
+    const m = raw.match(/^(.*?)(>>|>)\s*(.+)$/);
+    if (m) {
+      const old = buf; buf = ''; exec(m[1].trim()); const data = buf; buf = old;
+      const p = resolve(m[3].trim()), par = node(p.slice(0, -1)), nm = p[p.length - 1];
+      if (!par) return err('Caminho inválido.');
+      const prev = par.c[nm] && m[2] === '>>' ? par.c[nm].txt + '\n' : '';
+      const txt = (prev + data).replace(/\n+$/, '');
+      par.c[nm] = F(txt.length + 2, txt);
+      return ok2(`${m[2] === '>>' ? 'Acrescentado a' : 'Gravado em'} <b>${esc2(nm)}</b>.`);
+    }
+    const argv = (raw.match(/"[^"]*"|\S+/g) || []).map(x => x.replace(/"/g, ''));
+    if (!argv.length) return;
+    let c = argv[0].toLowerCase(), a = argv.slice(1);
+    if (c === 'sudo') { if (!a.length) return err('sudo: falta o comando'); write('[sudo] palavra-passe para aluno: ••••••'); return exec(a.join(' ')); }
+    const flags = a.filter(x => /^[-/]/.test(x)).map(x => x.toLowerCase()), args = a.filter(x => !/^[-/]/.test(x));
+    const k = KEY[c] || c;
+    lastErr = 0;
+    switch (k) {
+      case 'help': {
+        const L = MAN[W() ? 'win' : 'lin'];
+        if (args[0]) { const e2 = L[args[0].toLowerCase()] || L[KEY[args[0].toLowerCase()]];
+          return e2 ? write(`<span class="hi">${esc2(e2[0])}</span>\n  ${e2[1]}`) : err(`Sem ajuda para "${esc2(args[0])}".`); }
+        return write('<b>Comandos disponíveis</b> (escreve <span class="hi">help comando</span> para detalhes):\n' +
+          Object.entries(L).map(([n2, [u, d]]) => `  <span class="dir">${esc2(n2.padEnd(12))}</span>${d}`).join('\n'));
+      }
+      case 'dir': {
+        const long = W() ? true : flags.includes('-l');
+        const bare = flags.includes('/b'), rec = flags.includes('/s'), all = flags.includes('-a');
+        const base = args[0] && !args[0].includes('*') && !args[0].includes('?') ? resolve(args[0]) : cwd.slice();
+        const mask = args[0] && (args[0].includes('*') || args[0].includes('?')) ? args[0] : '*';
+        const n = node(base);
+        if (!n || n.t !== 'd') return err(W() ? 'O sistema não conseguiu encontrar o caminho especificado.' : `ls: não é possível aceder a '${esc2(args[0])}'`);
+        const list = (nd, p) => {
+          let ks = glob(mask, Object.keys(nd.c)).sort();
+          if (!all && !W()) ks = ks.filter(x => !x.startsWith('.'));
+          let s2 = '';
+          if (bare) return ks.join('\n') + (ks.length ? '\n' : '');
+          if (W()) {
+            s2 += ` Pasta de ${pathStr(p)}\n\n`;
+            s2 += ks.map(x => nd.c[x].t === 'd' ? `${nd.c[x].d}    <span class="dir">&lt;DIR&gt;</span>          ${esc2(x)}` : `${nd.c[x].d}    ${fmt(nd.c[x].s).padStart(14)} ${esc2(x)}`).join('\n');
+            const nf = ks.filter(x => nd.c[x].t === 'f').length;
+            s2 += `\n${String(nf).padStart(16)} ficheiro(s)${fmt(ks.filter(x => nd.c[x].t === 'f').reduce((t, x) => t + nd.c[x].s, 0)).padStart(16)} bytes\n${String(ks.length - nf).padStart(16)} pasta(s)\n`;
+          } else if (long) {
+            s2 += `total ${ks.length}\n` + ks.map(x => { const o = nd.c[x]; return `${o.t === 'd' ? 'drwxr-xr-x' : '-rw-r--r--'} 1 aluno aluno ${String(o.t === 'd' ? 4096 : o.s).padStart(8)} nov  8 10:24 ${o.t === 'd' ? `<span class="dir">${esc2(x)}</span>` : esc2(x)}`; }).join('\n') + '\n';
+          } else s2 += (buf !== null ? ks.map(esc2).join('\n') : ks.map(x => nd.c[x].t === 'd' ? `<span class="dir">${esc2(x)}</span>` : esc2(x)).join('   ')) + '\n';
+          if (rec) Object.keys(nd.c).filter(x => nd.c[x].t === 'd').sort().forEach(x => s2 += '\n' + list(nd.c[x], p.concat(x)));
+          return s2;
+        };
+        return write(list(n, base).replace(/\n$/, ''));
+      }
+      case 'cd': {
+        if (!args[0] || args[0] === '~' || args[0] === '\\' || args[0] === '/') { cwd = []; return; }
+        const p = resolve(args[0]), n = node(p);
+        if (!n) return err(W() ? 'O sistema não conseguiu encontrar o caminho especificado.' : `cd: ${esc2(args[0])}: ficheiro ou pasta inexistente`);
+        if (n.t !== 'd') return err(W() ? 'O nome de diretório é inválido.' : `cd: ${esc2(args[0])}: não é uma pasta`);
+        cwd = p; return;
+      }
+      case 'pwd': return write(pathStr());
+      case 'md': {
+        if (!args[0]) return err('Falta o nome da pasta.');
+        const p = resolve(args[0]), nm = p[p.length - 1], par = node(p.slice(0, -1));
+        if (!par) return err('Caminho inválido.');
+        if (par.c[nm]) return err(W() ? `Já existe um subdiretório ou ficheiro ${esc2(nm)}.` : `mkdir: não é possível criar '${esc2(nm)}': o ficheiro já existe`);
+        par.c[nm] = { t: 'd', d: D0, c: {} }; return ok2(`Pasta <b>${esc2(nm)}</b> criada.`);
+      }
+      case 'rd': {
+        const p = resolve(args[0]), nm = p[p.length - 1], par = node(p.slice(0, -1)), n = node(p);
+        if (!n || n.t !== 'd') return err('Pasta não encontrada.');
+        if (Object.keys(n.c).length) return err(W() ? 'O diretório não está vazio.' : `rmdir: ao remover '${esc2(nm)}': a pasta não está vazia`);
+        delete par.c[nm]; return ok2(`Pasta <b>${esc2(nm)}</b> apagada.`);
+      }
+      case 'touch': {
+        if (!args[0]) return err('Falta o nome.');
+        const p = resolve(args[0]), par = node(p.slice(0, -1)); if (!par) return err('Caminho inválido.');
+        if (!par.c[p[p.length - 1]]) par.c[p[p.length - 1]] = F(0, '');
+        return ok2(`<b>${esc2(p[p.length - 1])}</b> criado.`);
+      }
+      case 'copy': case 'move': {
+        if (args.length < 2) return err('Faltam argumentos. Exemplo: ' + (W() ? 'copy notas.txt Documentos' : 'cp notas.txt Documentos'));
+        const srcP = resolve(args[0]), srcPar = node(srcP.slice(0, -1)), pat = srcP[srcP.length - 1];
+        if (!srcPar) return err('Origem inválida.');
+        const names = glob(pat, Object.keys(srcPar.c)).filter(x => srcPar.c[x].t === 'f');
+        if (!names.length) return err(W() ? 'O sistema não conseguiu encontrar o ficheiro especificado.' : `${c}: não é possível avaliar '${esc2(args[0])}'`);
+        let dp = resolve(args[1]), dn = node(dp);
+        let count = 0;
+        names.forEach(nm => {
+          const copy = JSON.parse(JSON.stringify(srcPar.c[nm]));
+          if (dn && dn.t === 'd') dn.c[nm] = copy;
+          else { const par = node(dp.slice(0, -1)); if (!par) return; par.c[dp[dp.length - 1]] = copy; }
+          if (k === 'move') delete srcPar.c[nm];
+          count++;
+        });
+        return ok2(`${count} ficheiro(s) ${k === 'copy' ? 'copiado(s)' : 'movido(s)'}.`);
+      }
+      case 'ren': {
+        if (args.length < 2) return err('Faltam argumentos.');
+        const p = resolve(args[0]), par = node(p.slice(0, -1)), old = p[p.length - 1];
+        if (!par || !par.c[old]) return err('Não encontrado.');
+        par.c[args[1]] = par.c[old]; delete par.c[old]; return ok2(`Renomeado para <b>${esc2(args[1])}</b>.`);
+      }
+      case 'del': {
+        if (!args[0]) return err('Falta o nome do ficheiro.');
+        const p = resolve(args[0]), par = node(p.slice(0, -1)), pat = p[p.length - 1];
+        if (!par) return err('Caminho inválido.');
+        const names = glob(pat, Object.keys(par.c));
+        const files = names.filter(x => par.c[x].t === 'f');
+        if (!names.length) return err(W() ? `Não foi possível encontrar ${esc2(args[0])}` : `rm: não é possível remover '${esc2(args[0])}': ficheiro inexistente`);
+        if (!files.length) return err(W() ? 'Acesso negado: é uma pasta. Usa rd.' : `rm: '${esc2(names[0])}' é uma pasta`);
+        files.forEach(x => delete par.c[x]);
+        return ok2(`${files.length} ficheiro(s) apagado(s).`);
+      }
+      case 'type': {
+        if (!args[0]) return err('Falta o nome do ficheiro.');
+        const n = node(resolve(args[0]));
+        if (!n) return err(W() ? 'O sistema não conseguiu encontrar o ficheiro especificado.' : `cat: ${esc2(args[0])}: ficheiro inexistente`);
+        if (n.t === 'd') return err(W() ? 'Acesso negado.' : `cat: ${esc2(args[0])}: é uma pasta`);
+        return write(n.txt !== undefined ? esc2(n.txt) : '(ficheiro binário: não é possível mostrar)');
+      }
+      case 'head': case 'tail': {
+        const n = node(resolve(args[0])); if (!n || n.t !== 'f') return err('Ficheiro não encontrado.');
+        const L = (n.txt || '').split('\n'); return write(esc2((k === 'head' ? L.slice(0, 3) : L.slice(-3)).join('\n')));
+      }
+      case 'echo': return write(esc2(a.join(' ')));
+      case 'find': {
+        const t = (args[0] || '').toLowerCase();
+        if (!t) return err('Falta o texto. Exemplo: ' + (W() ? 'dir | find "txt"' : 'ls | grep txt'));
+        const src = arguments[1] !== undefined ? arguments[1] : '';
+        return write(esc2(src.split('\n').filter(l => l.toLowerCase().includes(t)).join('\n')));
+      }
+      case 'sort': return write(esc2((arguments[1] || '').split('\n').filter(Boolean).sort().join('\n')));
+      case 'wc': { const src = arguments[1] || ''; return write(src.split('\n').filter(Boolean).length + (flags.includes('-l') ? '' : ' linhas')); }
+      case 'attrib': {
+        const n2 = here(); return write(Object.keys(n2.c).sort().map(x => `${(n2.c[x].at || 'A').includes('A') ? 'A' : ' '}  ${(n2.c[x].at || '').includes('H') ? 'H' : ' '}  ${pathStr()}\\${esc2(x)}`).join('\n'));
+      }
+      case 'tree': {
+        const walk = (n, pre) => Object.keys(n.c).sort().map((x, i, arr) => {
+          const last = i === arr.length - 1, br = pre + (last ? '└── ' : '├── ');
+          return br + (n.c[x].t === 'd' ? `<span class="dir">${esc2(x)}</span>\n` + walk(n.c[x], pre + (last ? '    ' : '│   ')) : esc2(x) + '\n');
+        }).join('');
+        return write(pathStr() + '\n' + walk(here(), ''));
+      }
+      case 'cls': out.querySelectorAll('div').forEach(d => { if (d !== line) d.remove(); }); return;
+      case 'ver': return write(W() ? 'Microsoft Windows [Versão 10.0.22631.4317]' : 'Linux pc 6.8.0-49-generic #49-Ubuntu SMP x86_64 GNU/Linux');
+      case 'vol': return write(' O volume na unidade C é Windows\n O número de série do volume é A4F2-91C7');
+      case 'date': return write(W() ? 'A data atual é: dom 08/11/2026' : 'dom 08 nov 2026 10:24:31 WET');
+      case 'time': return write('A hora atual é: 10:24:31,27');
+      case 'whoami': return write(W() ? 'pc-sala4\\aluno' : 'aluno');
+      case 'hostname': return write('pc-sala4');
+      case 'set': return write('PATH=C:\\Windows\\system32;C:\\Windows\nUSERNAME=aluno\nUSERPROFILE=C:\\Users\\aluno\nCOMPUTERNAME=PC-SALA4\nTEMP=C:\\Users\\aluno\\AppData\\Local\\Temp');
+      case 'where': return args[0] ? write(`C:\\Windows\\System32\\${esc2(args[0])}.exe`) : err('Falta o nome.');
+      case 'df': return write('Sist.fichs     Tam. Usado Livre Uso% Montado em\n/dev/sda1      476G   182G  270G  41% /');
+      case 'free': return write('               total       usado       livre\nMem:            31Gi       9,4Gi        19Gi\nSwap:          2,0Gi          0B       2,0Gi');
+      case 'ps': return write(W() ? 'Nome da imagem                 PID Memória\n========================= ======= ==========\nSystem                          4     140 K\nexplorer.exe                 4120   86 420 K\nmsedge.exe                   5328  214 008 K\nWINWORD.EXE                  6012  138 644 K\ncmd.exe                      7744    4 212 K'
+        : '  PID TTY          TIME CMD\n 1842 pts/0    00:00:00 bash\n 2104 pts/0    00:00:03 firefox\n 2290 pts/0    00:00:00 ps');
+      case 'kill': return args[0] ? ok2(W() ? `SUCESSO: foi enviado o sinal de terminação para o processo "${esc2(args[0])}".` : 'Sinal enviado.') : err('Falta o processo.');
+      case 'net': return write(W() ? 'Configuração IP do Windows\n\nAdaptador Ethernet:\n\n   Endereço IPv4. . . . . . . . . . . : 192.168.1.37\n   Máscara de sub-rede . . . . . . . : 255.255.255.0\n   Gateway predefinido . . . . . . . : 192.168.1.1'
+        : '2: enp3s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500\n    inet 192.168.1.37/24 brd 192.168.1.255 scope global enp3s0');
+      case 'ping': {
+        if (!args[0]) return err('Falta o destino. Exemplo: ping escola.pt');
+        return write(`A testar ${esc2(args[0])} [185.12.64.10] com 32 bytes de dados:\nResposta de 185.12.64.10: bytes=32 tempo=14ms TTL=56\nResposta de 185.12.64.10: bytes=32 tempo=13ms TTL=56\nResposta de 185.12.64.10: bytes=32 tempo=15ms TTL=56\nResposta de 185.12.64.10: bytes=32 tempo=14ms TTL=56\n\nEstatísticas: Enviados = 4, Recebidos = 4, Perdidos = 0 (0% de perda)`);
+      }
+      case 'sys': return write('Nome do SO:                Microsoft Windows 11 Pro\nVersão do SO:              10.0.22631\nProcessador:               Intel Core i5-14400F\nMemória física total:      32 768 MB\nSistema de ficheiros:      NTFS');
+      case 'chkdsk': return write('O tipo do sistema de ficheiros é NTFS.\nA verificar ficheiros (fase 1 de 3)...\nA verificação terminou sem erros.\n\n  499 711 999 KB de espaço total em disco\n  283 552 128 KB disponíveis');
+      case 'chmod': return args.length > 1 ? ok2(`Permissões de <b>${esc2(args[1])}</b> alteradas para ${esc2(args[0])}.`) : err('Exemplo: chmod 644 notas.txt');
+      case 'start': return args[0] ? ok2(`A abrir <b>${esc2(args[0])}</b>…`) : err('Falta o programa.');
+      case 'shutdown': return write('O Windows vai ser encerrado dentro de momentos… (simulação)');
+      case 'exit': return write('A janela fecharia aqui. Neste simulador, continua a escrever.');
+      default: lastErr = 1; return err(W() ? `'${esc2(c)}' não é reconhecido como um comando interno ou externo, um programa operável ou um ficheiro de lote.` : `${esc2(c)}: comando não encontrado`);
+    }
+  }
+  function pipe(cmd, data){
+    const argv = (cmd.match(/"[^"]*"|\S+/g) || []).map(x => x.replace(/"/g, ''));
+    const c = (argv[0] || '').toLowerCase(), t = (argv[1] || '').toLowerCase();
+    if (['find', 'grep', 'findstr'].includes(c)) return write(esc2(data.split('\n').filter(l => l.toLowerCase().includes(t)).join('\n')) || '');
+    if (c === 'sort') return write(esc2(data.split('\n').filter(Boolean).sort().join('\n')));
+    if (c === 'wc') return write(data.split('\n').filter(Boolean).length);
+    if (c === 'more') return write(esc2(data));
+    return err(`Não é possível canalizar para "${esc2(c)}".`);
+  }
+  /* ---------- explorador ---------- */
+  const ICON = (t, n) => t === 'd' ? '📁' : /\.(jpg|jpeg|png|gif)$/i.test(n) ? '🖼️' : /\.(txt|md|sys|ini)$/i.test(n) ? '📄' : /\.docx?$/i.test(n) ? '📝' : /\.xlsx?$/i.test(n) ? '📊' : /\.pdf$/i.test(n) ? '📕' : /\.exe$/i.test(n) ? '⚙️' : /\.(mp3|wav)$/i.test(n) ? '🎵' : '📄';
+  function explorer(){
+    const n = here(), ks = Object.keys(n.c).sort((a, b) => (n.c[b].t === 'd') - (n.c[a].t === 'd') || a.localeCompare(b));
+    const view = $$('#t-view').value;
+    $$('#t-crumb').innerHTML = `<button data-i="-1">${W() ? '💻 Este PC' : '🏠 ~'}</button>` + cwd.map((p, i) => `<span>›</span><button data-i="${i}">${esc2(p)}</button>`).join('');
+    $$('#t-win').innerHTML = !ks.length ? '<div style="color:var(--muted);font-size:.82rem;padding:.6rem">Esta pasta está vazia.</div>'
+      : view === 'icons'
+        ? `<div class="items">${ks.map(x => `<div class="it${sel === x ? ' sel' : ''}" data-n="${esc2(x)}" data-t="${n.c[x].t}"><b>${ICON(n.c[x].t, x)}</b>${esc2(x)}</div>`).join('')}</div>`
+        : `<table><thead><tr><th>Nome</th><th>Tipo</th><th>Tamanho</th><th>Data</th></tr></thead><tbody>${ks.map(x => `<tr data-n="${esc2(x)}" data-t="${n.c[x].t}" class="${sel === x ? 'sel' : ''}"><td>${ICON(n.c[x].t, x)} ${esc2(x)}</td><td>${n.c[x].t === 'd' ? 'Pasta' : (x.split('.').pop() || '').toUpperCase() + ' ficheiro'}</td><td class="sz">${n.c[x].t === 'd' ? '' : hum(n.c[x].s)}</td><td class="dt">${n.c[x].d}</td></tr>`).join('')}</tbody></table>`;
+    const nf = ks.filter(x => n.c[x].t === 'f').length;
+    $$('#t-status').textContent = `${ks.length} itens · ${nf} ficheiro(s), ${ks.length - nf} pasta(s)${sel ? ' · selecionado: ' + sel : ' · duplo clique numa pasta para entrar'}`;
+    $$('#t-title').textContent = W() ? 'Linha de Comandos' : 'aluno@pc: ' + (cwd.length ? '~/' + cwd.join('/') : '~');
+  }
+  const open = n => { if (here().c[n] && here().c[n].t === 'd') { cwd = cwd.concat(n); sel = null; write(`<span class="pr">${esc2(prompt())}</span> <span class="cmd">${W() ? 'cd' : 'cd'} ${esc2(n)}</span>`); write('<span class="ok">(navegaste pelo explorador: o terminal acompanhou)</span>'); refresh(); } else { sel = n; explorer(); } };
+  $$('#t-win').addEventListener('click', e => { const el = e.target.closest('[data-n]'); if (!el) return; sel = el.dataset.n;
+    $$('#t-win').querySelectorAll('[data-n]').forEach(x => x.classList.toggle('sel', x === el));
+    const n2 = here(), ks = Object.keys(n2.c), nf = ks.filter(x => n2.c[x].t === 'f').length;
+    $$('#t-status').textContent = `${ks.length} itens · ${nf} ficheiro(s), ${ks.length - nf} pasta(s) · selecionado: ${sel}`; });
+  $$('#t-win').addEventListener('dblclick', e => { const el = e.target.closest('[data-n]'); if (el) open(el.dataset.n); });
+  $$('#t-crumb').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; cwd = cwd.slice(0, +b.dataset.i + 1); sel = null; refresh(); });
+  $$('#t-view').onchange = explorer;
+  /* ---------- desafios ---------- */
+  const used = c => hist.some(h => new RegExp('^\\s*' + c + '\\b', 'i').test(h));
+  const CH = [
+    ['B', 'Listar o conteúdo da pasta', 'dir · ls', () => used('dir') || used('ls')],
+    ['B', 'Entrar na pasta Documentos', 'cd Documentos', () => cwd[0] === 'Documentos' || used('cd Documentos')],
+    ['B', 'Ver o conteúdo de um ficheiro', 'type notas.txt · cat notas.txt', () => used('type') || used('cat') || used('more')],
+    ['B', 'Criar a pasta Trabalhos', 'md Trabalhos · mkdir Trabalhos', () => JSON.stringify(FS).includes('"Trabalhos"')],
+    ['B', 'Subir um nível', 'cd ..', () => hist.some(h => /^\s*cd\s+\.\./i.test(h))],
+    ['I', 'Gravar texto num ficheiro', 'echo Olá SO > teste.txt', () => hist.some(h => /echo[^|]*>/i.test(h))],
+    ['I', 'Acrescentar texto ao fim', 'echo mais uma linha >> teste.txt', () => hist.some(h => />>/.test(h))],
+    ['I', 'Copiar um ficheiro', 'copy notas.txt Trabalhos · cp …', () => used('copy') || used('cp')],
+    ['I', 'Mudar o nome de um ficheiro', 'ren teste.txt final.txt · mv …', () => used('ren') || used('rename') || used('mv')],
+    ['A', 'Apagar vários ficheiros com *', 'del *.txt · rm *.txt', () => hist.some(h => /^(del|rm|erase)\s+.*\*/i.test(h.trim()))],
+    ['A', 'Filtrar com uma canalização', 'dir | find "txt" · ls | grep txt', () => hist.some(h => h.includes('|'))],
+    ['A', 'Ver o endereço IP e os processos', 'ipconfig e tasklist · ip addr e ps', () => (used('ipconfig') || used('ip') || used('ifconfig')) && (used('tasklist') || used('ps'))]
+  ];
+  const LV = { B: ['Básico', 'var(--good)'], I: ['Intermédio', '#b45309'], A: ['Avançado', 'var(--bad)'] };
+  function chal(){
+    const n = CH.filter(c => c[3]()).length;
+    $$('#t-chal').innerHTML = CH.map(c => `<li class="${c[3]() ? 'done' : ''}">${c[1]}<small>${esc2(c[2])}</small><span class="lv" style="color:${LV[c[0]][1]}">${LV[c[0]][0]}</span></li>`).join('');
+    $$('#t-score').textContent = `${n} / ${CH.length}`;
+    $$('#t-pbar').style.width = n / CH.length * 100 + '%';
+    if (n === CH.length && !flashed.has('all')) { flashed.add('all'); write('🎉 <b>Desafios todos concluídos!</b> Já dominas o essencial da linha de comandos, nos dois sistemas.', 'ok'); }
+  }
+  /* ---------- ajuda lateral ---------- */
+  function helpBox(f = ''){
+    const L = MAN[W() ? 'win' : 'lin'];
+    const rows = Object.entries(L).filter(([n2, [u, d]]) => !f || (n2 + u + d).toLowerCase().includes(f.toLowerCase()));
+    $$('#t-help').innerHTML = '<table>' + rows.map(([n2, [u, d]]) => `<tr><td data-c="${esc2(n2)}">${esc2(u)}</td><td>${d}</td></tr>`).join('') + '</table>';
+    $$('#t-quick').innerHTML = (W() ? ['dir', 'dir /b', 'cd Documentos', 'cd ..', 'md Trabalhos', 'type notas.txt', 'echo Olá SO > teste.txt', 'echo linha 2 >> teste.txt', 'copy *.txt Trabalhos', 'dir | find "txt"', 'tree', 'ipconfig', 'tasklist', 'cls']
+      : ['ls', 'ls -l', 'cd Documentos', 'cd ..', 'mkdir Trabalhos', 'cat notas.txt', 'echo Olá SO > teste.txt', 'echo linha 2 >> teste.txt', 'cp *.txt Trabalhos', 'ls | grep txt', 'tree', 'ip addr', 'ps', 'clear'])
+      .map(c => `<button class="chip" data-c="${esc2(c)}">${esc2(c)}</button>`).join('');
+  }
+  $$('#t-find').addEventListener('input', e => helpBox(e.target.value));
+  $$('#t-help').addEventListener('click', e => { const t = e.target.closest('[data-c]'); if (t) { inp.value = (W() ? 'help ' : 'man ') + t.dataset.c; inp.focus(); } });
+  $$('#t-quick').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { inp.value = b.dataset.c; inp.focus(); } });
+  /* ---------- linha de entrada ---------- */
+  const pr = document.createElement('span'), inp = document.createElement('input');
+  inp.className = 'inp'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.setAttribute('aria-label', 'Linha de comandos');
+  line.appendChild(pr); line.appendChild(inp); out.appendChild(line);
+  function refresh(){ pr.innerHTML = `<span class="pr">${esc2(prompt())}</span> `; explorer(); chal(); }
+  out.addEventListener('click', () => inp.focus());
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const v = inp.value;
+      write(`<span class="pr">${esc2(prompt())}</span> <span class="cmd">${esc2(v)}</span>`);
+      if (v.trim()) { hist.push(v); hi = hist.length; try { exec(v.trim()); } catch (x) { err('Erro ao executar o comando.'); } }
+      inp.value = ''; refresh();
+    } else if (e.key === 'ArrowUp') { if (hi > 0) { hi--; inp.value = hist[hi]; } e.preventDefault(); }
+    else if (e.key === 'ArrowDown') { if (hi < hist.length - 1) { hi++; inp.value = hist[hi]; } else { hi = hist.length; inp.value = ''; } e.preventDefault(); }
+    else if (e.key === 'Escape') { inp.value = ''; }
+    else if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); exec('cls'); }
+    else if (e.key === 'Tab') {
+      e.preventDefault();
+      const parts = inp.value.split(' '), last = parts[parts.length - 1] || '';
+      const pool = parts.length === 1 ? Object.keys(MAN[W() ? 'win' : 'lin']) : Object.keys(here().c);
+      const m = pool.filter(x => x.toLowerCase().startsWith(last.toLowerCase()));
+      if (m.length === 1) { parts[parts.length - 1] = /\s/.test(m[0]) ? `"${m[0]}"` : m[0]; inp.value = parts.join(' ') + (parts.length === 1 ? ' ' : ''); }
+      else if (m.length > 1) { write(m.join('   ')); out.scrollTop = 1e6; }
+    }
+  });
+  $$('#t-sh').onchange = () => { helpBox($$('#t-find').value); write(`<span class="ok">Mudaste para ${W() ? 'Windows · CMD' : 'Linux · Bash'}.</span> Os comandos mudam de nome, mas fazem o mesmo.`); refresh(); };
+  $$('#t-reset').onclick = () => { FS = seed(); cwd = []; sel = null; out.querySelectorAll('div').forEach(d => { if (d !== line) d.remove(); }); banner(); refresh(); };
+  function banner(){ write(W() ? 'Microsoft Windows [Versão 10.0.22631.4317]\n(c) Microsoft Corporation. Todos os direitos reservados.\n\nEscreve <span class="hi">help</span> para ver os comandos, ou segue os desafios em baixo.'
+    : 'Ubuntu 24.04 LTS · GNU bash 5.2\n\nEscreve <span class="hi">help</span> para ver os comandos, ou segue os desafios em baixo.'); }
+  FS = seed(); helpBox(); banner(); refresh();
+  document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { if (b.dataset.tab === 'terminal') setTimeout(() => inp.focus(), 60); }));
+})();
+
 /* ================= 4. TIPOS DE SO ================= */
 (() => {
   const CATS = ['Pessoal', 'Servidor', 'Móvel', 'Tempo real', 'Embutido'];
@@ -865,6 +1335,8 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
 /* ================= 5. TESTA-TE ================= */
 (() => {
   const Q = [
+    { q: 'No CMD do Windows, que comando cria uma pasta?', o: ['md (ou mkdir)', 'cd', 'dir', 'del'], c: 0, e: 'No Linux é mkdir. O cd muda de pasta, o dir lista e o del apaga ficheiros.' },
+    { q: 'Qual é o equivalente, no Linux, ao comando dir do Windows?', o: ['ls', 'cd', 'cat', 'pwd'], c: 0, e: 'O ls lista o conteúdo da pasta. O cat mostra o conteúdo de um ficheiro e o pwd indica a pasta atual.' },
     { q: 'Qual destas tarefas NÃO é uma função do sistema operativo?', o: ['Gerir a memória', 'Escrever o texto de um trabalho', 'Gerir os ficheiros', 'Controlar os dispositivos'], c: 1, e: 'Escrever o texto é trabalho de uma aplicação, como o Word. O SO dá-lhe o que ela precisa para funcionar.' },
     { q: 'O que significa um SO ser multitarefa?', o: ['Tem vários utilizadores', 'Pode ter vários programas em execução, alternando muito depressa entre eles', 'Funciona em vários computadores', 'Tem várias interfaces'], c: 1, e: 'O processador alterna entre os programas tão depressa que parecem estar todos a correr ao mesmo tempo.' },
     { q: 'No arranque do computador, quem carrega o núcleo do SO para a memória?', o: ['O ecrã de início de sessão', 'O gestor de arranque (bootloader)', 'O antivírus', 'O utilizador'], c: 1, e: 'O firmware (UEFI/BIOS) carrega o gestor de arranque, e este carrega o núcleo.' },
