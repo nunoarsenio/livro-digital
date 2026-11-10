@@ -624,19 +624,26 @@ body.instant *,body.instant *::before,body.instant *::after{transition:none!impo
 @keyframes pasteIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
 .iso .bfan{transform-box:fill-box;transform-origin:center}
 .iso .bfan.run{animation:fan 1s linear infinite}
-.iso .bfan.spinup{animation:spinup 2.4s cubic-bezier(.4,0,.6,1) 2.1s forwards, fan 1s linear 4.5s infinite}
+.iso .bfan.spinup{animation:spinup 1.6s cubic-bezier(.4,0,.6,1) 3.6s forwards, fan 1s linear 5.2s infinite}
 @keyframes spinup{from{transform:rotate(0)}to{transform:rotate(900deg)}}
 .iso .scr{transform-box:fill-box;transform-origin:center;animation:scr .55s ease-out both}
 @keyframes scr{0%{transform:rotate(0) scale(1.25);opacity:.5}100%{transform:rotate(180deg) scale(1);opacity:1}}
 .iso .scrok{animation:scrok .9s ease-out both}
 @keyframes scrok{0%{opacity:0;r:5}40%{opacity:1}100%{opacity:0;r:18}}
-.iso .scrn{animation:scrn 1.1s ease-out both}
-@keyframes scrn{0%{opacity:0;transform:translateY(6px)}25%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
-.iso .wire{stroke-dasharray:260;stroke-dashoffset:260;animation:wire 1s ease-out 2.1s forwards}
+.iso .scrn{animation:scrn 1.3s ease-out both}
+@keyframes scrn{0%{opacity:0;transform:translateY(8px)}18%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
+.iso .sdriver{animation:sdriver 1s ease-in-out both}
+@keyframes sdriver{0%{opacity:0;transform:translateY(-22px) rotate(0)}20%{opacity:1;transform:translateY(0) rotate(0)}60%{opacity:1;transform:translateY(0) rotate(170deg)}100%{opacity:0;transform:translateY(-16px) rotate(180deg)}}
+.iso .sdriver{transform-box:fill-box;transform-origin:50% 100%}
+.iso .hdr{opacity:0;animation:hdr 1.6s ease-out 1.9s both}
+@keyframes hdr{0%{opacity:0;r:6}30%{opacity:1;r:16}100%{opacity:0;r:22}}
+.iso .plugok{opacity:0;animation:plugok .9s ease-out 3.3s both}
+@keyframes plugok{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.iso .wire{stroke-dasharray:300;stroke-dashoffset:300;animation:wire 1.1s ease-out 2.2s forwards}
 @keyframes wire{to{stroke-dashoffset:0}}
-.iso .plugin{opacity:0;animation:plugin .4s ease-out 3s forwards}
-@keyframes plugin{to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.iso .cpudrop,.iso .cpush,.iso .cpuguide,.iso .cooldrop,.iso .coolsh,.iso .pasteIn,.iso .scr,.iso .scrok,.iso .scrn,.iso .wire,.iso .plugin,.iso .bfan.spinup{animation:none}.iso .wire{stroke-dashoffset:0}.iso .plugin{opacity:1}}
+.iso .plugin{opacity:0;animation:plugin .45s cubic-bezier(.3,1.5,.5,1) 3.2s forwards;transform-box:fill-box;transform-origin:center}
+@keyframes plugin{0%{opacity:0;transform:translate(12px,-10px) scale(.7)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.iso .cpudrop,.iso .cpush,.iso .cpuguide,.iso .cooldrop,.iso .coolsh,.iso .pasteIn,.iso .scr,.iso .scrok,.iso .scrn,.iso .sdriver,.iso .hdr,.iso .plugok,.iso .wire,.iso .plugin,.iso .bfan.spinup{animation:none}.iso .wire{stroke-dashoffset:0}.iso .plugin{opacity:1}}
 .mb .hl{fill:none;stroke:#ffd84d;stroke-width:4;opacity:0;transition:opacity .3s;pointer-events:none}
 .mb .hl.on{opacity:1;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.45}}
@@ -2018,14 +2025,26 @@ pcDraw();
       /* apertar os parafusos, em cruz: 1 → 4 → 2 → 3 */
       if (st.screwAnim) {
         const order = [0, 3, 1, 2];
-        FEET.forEach((f, i) => { const q = P3(f[0], f[1], ZB + 8), step2 = order.indexOf(i);
-          extra += `<g class="scr" style="animation-delay:${.25 + step2 * .45}s"><circle cx="${q[0]}" cy="${q[1]}" r="7.5" fill="#dfe4ea" stroke="#5b6472" stroke-width="1.4"/><path d="M${q[0] - 4.5} ${q[1]} h9" stroke="#49525d" stroke-width="2.2" stroke-linecap="round"/></g>`;
-          extra += `<circle class="scrok" style="animation-delay:${.7 + step2 * .45}s" cx="${q[0]}" cy="${q[1]}" r="11" fill="none" stroke="#22c55e" stroke-width="3" opacity="0"/>`;
-          extra += `<text class="scrn" style="animation-delay:${.25 + step2 * .45}s" x="${q[0]}" y="${q[1] - 16}" text-anchor="middle" style="font:700 12px var(--mono);fill:#2563eb">${step2 + 1}</text>`; });
+        FEET.forEach((f, i) => {
+          const q = P3(f[0], f[1], ZB + 8), n = order.indexOf(i), t0 = .3 + n * .55;
+          /* parafuso a rodar */
+          extra += `<g class="scr" style="animation-delay:${t0}s"><circle cx="${q[0]}" cy="${q[1]}" r="9" fill="#dfe4ea" stroke="#49525d" stroke-width="1.6"/><path d="M${q[0] - 5.5} ${q[1]} h11" stroke="#49525d" stroke-width="2.6" stroke-linecap="round"/><path d="M${q[0]} ${q[1] - 5.5} v11" stroke="#49525d" stroke-width="2.6" stroke-linecap="round" opacity=".45"/></g>`;
+          /* chave de fendas por cima do parafuso que está a ser apertado */
+          extra += `<g class="sdriver" style="animation-delay:${t0}s"><rect x="${q[0] - 3}" y="${q[1] - 58}" width="6" height="30" rx="2" fill="#c3cad3" stroke="#6b7682"/><rect x="${q[0] - 7}" y="${q[1] - 84}" width="14" height="28" rx="5" fill="#e11d48" stroke="#9f1239"/><path d="M${q[0] - 3} ${q[1] - 28} l3 8 l3 -8 z" fill="#8e98a5"/></g>`;
+          /* confirmação */
+          extra += `<circle class="scrok" style="animation-delay:${t0 + .45}s" cx="${q[0]}" cy="${q[1]}" r="11" fill="none" stroke="#22c55e" stroke-width="3" opacity="0"/>`;
+          extra += `<g class="scrn" style="animation-delay:${t0}s"><rect x="${q[0] - 11}" y="${q[1] - 34}" width="22" height="19" rx="6" fill="#2563eb"/><text x="${q[0]}" y="${q[1] - 20}" text-anchor="middle" fill="#fff" font-family="var(--mono)" font-size="12" font-weight="700">${n + 1}</text></g>`;
+        });
       }
-      if (st.coolerDown && st.cfan) { const cf = R('cpufan'), a = P3(cx2 + so.w / 2 + 6, cy2 - 10, ZB + 20), c = P3(cf.x + cf.w / 2, cf.y + cf.h / 2, 12);
-        const dd = `M${a[0]} ${a[1]} C ${a[0] + 60} ${a[1] - 30}, ${c[0] - 30} ${c[1] + 40}, ${c[0]} ${c[1]}`;
-        extra += `<path class="${st.screwAnim ? 'wire' : ''}" d="${dd}" stroke="#6b7280" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/><path class="${st.screwAnim ? 'wire' : ''}" d="${dd}" stroke="#f3f5f8" stroke-width="3" fill="none" stroke-linecap="round"/><circle class="${st.screwAnim ? 'plugin' : ''}" cx="${c[0]}" cy="${c[1]}" r="5" fill="#e8ecf1" stroke="#9aa3ae"/>`; }
+      if (st.coolerDown && st.cfan) {
+        const cf = R('cpufan'), a = P3(cx2 + so.w / 2 + 6, cy2 - 10, ZB + 20), c = P3(cf.x + cf.w / 2, cf.y + cf.h / 2, 12);
+        const dd = `M${a[0]} ${a[1]} C ${a[0] + 70} ${a[1] - 34}, ${c[0] - 34} ${c[1] + 46}, ${c[0]} ${c[1]}`;
+        if (st.screwAnim) extra += `<circle class="hdr" cx="${c[0]}" cy="${c[1]}" r="13" fill="none" stroke="#2563eb" stroke-width="3"/>`;
+        extra += `<path class="${st.screwAnim ? 'wire' : ''}" d="${dd}" stroke="#5b6472" stroke-width="6" fill="none" stroke-linecap="round" opacity=".6"/>`;
+        extra += `<path class="${st.screwAnim ? 'wire' : ''}" d="${dd}" stroke="#f3f5f8" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;
+        extra += `<g class="${st.screwAnim ? 'plugin' : ''}"><rect x="${c[0] - 11}" y="${c[1] - 8}" width="22" height="15" rx="2.5" fill="#e8ecf1" stroke="#6b7682" stroke-width="1.3"/>${[0, 1, 2, 3].map(i => `<rect x="${c[0] - 8 + i * 4.4}" y="${c[1] - 5}" width="2.4" height="9" fill="#9aa3ae"/>`).join('')}</g>`;
+        if (st.screwAnim) extra += `<g class="plugok"><circle cx="${c[0]}" cy="${c[1]}" r="6" fill="none" stroke="#22c55e" stroke-width="3"/></g>`;
+      }
     }
     let lbl = '';
     const L = st.coolerAnim || st.coolerDown
